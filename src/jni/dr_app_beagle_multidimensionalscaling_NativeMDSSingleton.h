@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     dr_app_beagle_multidimensionalscaling_NativeMDSSingleton
  * Method:    initialize
- * Signature: (III)V
+ * Signature: (IIJ)I
  */
-JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_initialize
-  (JNIEnv *, jobject, jint, jint, jint);
+JNIEXPORT jint JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_initialize
+  (JNIEnv *, jobject, jint, jint, jlong);
 
 /*
  * Class:     dr_app_beagle_multidimensionalscaling_NativeMDSSingleton
