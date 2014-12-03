@@ -1,0 +1,4 @@
+To auto-generate header file:
+
+    javah -classpath build/dist/beast.jar dr.app.beagle.multidimensionalscaling.NativeMDSSingleton
+    
