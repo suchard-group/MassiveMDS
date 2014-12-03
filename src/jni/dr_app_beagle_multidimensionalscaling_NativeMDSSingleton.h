@@ -49,6 +49,14 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 
 /*
  * Class:     dr_app_beagle_multidimensionalscaling_NativeMDSSingleton
+ * Method:    makeDirty
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_makeDirty
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     dr_app_beagle_multidimensionalscaling_NativeMDSSingleton
  * Method:    setPairwiseData
  * Signature: (I[D)V
  */
