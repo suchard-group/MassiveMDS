@@ -5,15 +5,14 @@
 #include "AbstractMultiDimensionalScaling.hpp"
 #include "dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.h"
 
-typedef std::shared_ptr<AbstractMultiDimensionalScaling> InstancePtr;
+typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> InstancePtr;
 std::vector<InstancePtr> instances;
 
 extern "C"
 JNIEXPORT jint JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_initialize
   (JNIEnv *, jobject, jint embeddingDimension, jint elementCount, jlong flags) { 
     instances.emplace_back(
-        std::make_shared<MultiDimensionalScaling<double>>(embeddingDimension, elementCount, flags));
-    std::cerr << "flags: " << flags << std::endl;
+        std::make_shared<mds::MultiDimensionalScaling<double>>(embeddingDimension, elementCount, flags));
     return instances.size() - 1; 
   }
 
