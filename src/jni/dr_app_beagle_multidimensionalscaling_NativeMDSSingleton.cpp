@@ -18,8 +18,13 @@ JNIEXPORT jint JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 
 extern "C"
 JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_updateLocations
-  (JNIEnv *, jobject, jint instance, jint index, jdoubleArray x) {
+  (JNIEnv *env, jobject, jint instance, jint index, jdoubleArray xArray) {
+  	jsize len = env->GetArrayLength(xArray);
+  	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
+  	  
     instances[instance]->updateLocations(index, nullptr, 0);  
+    
+    env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);    
 }
 
 extern "C"
@@ -42,14 +47,24 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 
 extern "C"
 JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_setPairwiseData
-  (JNIEnv *, jobject, jint instance, jdoubleArray x) {
-    instances[instance]->setPairwiseData(nullptr, 0);
+  (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {
+  	jsize len = env->GetArrayLength(xArray);
+  	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);  
+  
+    instances[instance]->setPairwiseData(x, len);
+    
+    env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);    
 }
 
 extern "C"
 JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_setParameters
-  (JNIEnv *, jobject, jint instance, jdoubleArray x) {
-    instances[instance]->setParameters(nullptr, 0);
+  (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {  
+  	jsize len = env->GetArrayLength(xArray);
+  	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
+  	
+    instances[instance]->setParameters(x, len);
+    
+    env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);
 }
 
 extern "C"  
@@ -57,3 +72,13 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
   (JNIEnv *, jobject, jint instance) {
     instances[instance]->makeDirty();
 }
+
+
+// jsize len = (*env)->GetArrayLength(env, arr);
+//     jdouble *partials = env->GetDoubleArrayElements(inPartials, NULL);
+// 
+// 	jint errCode = (jint)beagleSetPartials(instance, bufferIndex, (double *)partials);
+// 
+//     env->ReleaseDoubleArrayElements(inPartials, partials, JNI_ABORT);
+//         // not using JNI_ABORT flag here because we want the values to be copied back...
+//     env->ReleaseDoubleArrayElements(outPartials, partials, 0);

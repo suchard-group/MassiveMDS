@@ -36,9 +36,7 @@ protected:
     int updatedLocation = -1;
     bool residualsKnown = false;
     bool sumOfSquaredResidualsKnown = false;
-    bool isLeftTruncated = false;        
-  
-       
+    bool isLeftTruncated = false;               
 };
 
 template <typename RealType>
