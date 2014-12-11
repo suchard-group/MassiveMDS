@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(mds)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g -pedantic -fPIC -std=c++0x")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g -pedantic -fPIC -std=c++0x")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
 
 find_package(JNI)
 

@@ -22,7 +22,7 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
   	jsize len = env->GetArrayLength(xArray);
   	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
   	  
-    instances[instance]->updateLocations(index, nullptr, 0);  
+    instances[instance]->updateLocations(index, x, len);  
     
     env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);    
 }

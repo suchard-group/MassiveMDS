@@ -2,6 +2,7 @@
 #define _ABSTRACTMULTIDIMENSIONALSCALING_HPP
 
 #include <iostream>
+#include <iomanip>
 #include <cassert>
 #include <cmath>
 
@@ -44,7 +45,7 @@ class MultiDimensionalScaling : public AbstractMultiDimensionalScaling {
 public:
     MultiDimensionalScaling(int embeddingDimension, int locationCount, long flags)
         : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
-          precision(0.0), storedPrecision(0.0),
+//           precision(0.0), storedPrecision(0.0),
           sumOfSquaredResiduals(0.0), storedSumOfSquaredResiduals(0.0),
           observations(locationCount * locationCount),  
                   
@@ -57,12 +58,13 @@ public:
           storedSquaredResiduals(locationCount),          
           isStoredSquaredResidualsEmpty(false) { 
     
-    	std::cout << "ctor MultiDimensionalScaling" << std::endl;
+    	std::cout << "ctor MultiDimensionalScaling" << std::endl;    
     }
              
     virtual ~MultiDimensionalScaling() { }
             
     void updateLocations(int locationIndex, double* location, size_t length) {
+
     	assert(length == embeddingDimension);
      
     	if (updatedLocation != - 1) {
@@ -72,7 +74,7 @@ public:
     		isStoredSquaredResidualsEmpty = true;
     		
     	}
-    	
+    	    	
     	updatedLocation = locationIndex;
     	std::copy(location, location + length, 
     		begin(*locationsPtr) + locationIndex * embeddingDimension 
@@ -83,6 +85,7 @@ public:
     }
     
     double calculateLogLikelihood() { 
+         
     	if (!sumOfSquaredResidualsKnown) {
     		if (!residualsKnown) {
     			computeSumOfSquaredResiduals();
@@ -92,12 +95,13 @@ public:
     		}
     		sumOfSquaredResidualsKnown = true;    	
     	}
-    	
-    	double logLikelihood = 
-    			  (0.5 * std::log(precision) * observationCount) 
-    			- (0.5 * precision * sumOfSquaredResiduals);
-    			
-    	return logLikelihood;
+    	    	
+//     	double logLikelihood = 
+//     			  (0.5 * std::log(precision) * observationCount) 
+//     			- (0.5 * precision * sumOfSquaredResiduals);    			
+//     	return logLikelihood;
+
+		return sumOfSquaredResiduals;   	
  	}
     
     void storeState() {
@@ -107,7 +111,8 @@ public:
     	
     	//storedSquaredResidualsPtr = nullptr;
     	isStoredSquaredResidualsEmpty = true;
-    	storedPrecision = precision;
+//     	storedPrecision = precision;
+    	
     	updatedLocation = -1;
     }
     
@@ -132,8 +137,8 @@ public:
     	storedLocationsPtr = locationsPtr;
     	locationsPtr = tmp1;
     	
-    	precision = storedPrecision;
-    	
+//     	precision = storedPrecision;
+    	    	
     	residualsKnown = true;    
     }
     
@@ -143,8 +148,9 @@ public:
     }
     
     void setParameters(double* data, size_t length) { 
-    	assert(length == 1);
-    	precision = static_cast<RealType>(data[0]);
+//     	assert(length == 1);
+//     	precision = static_cast<RealType>(data[0]);		
+		assert(length == 0); // Do not call
     }
     
     void makeDirty() {
@@ -220,8 +226,8 @@ public:
 	}
     
 private:
-	double precision;
-	double storedPrecision;
+// 	double precision;
+// 	double storedPrecision;
 	
     double sumOfSquaredResiduals;
     double storedSumOfSquaredResiduals;		
@@ -237,6 +243,7 @@ private:
     mm::MemoryManager<RealType> squaredResiduals;   
     mm::MemoryManager<RealType> storedSquaredResiduals;    
     bool isStoredSquaredResidualsEmpty;
+        
 };
 
 } // namespace mds
