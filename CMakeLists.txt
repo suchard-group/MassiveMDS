@@ -30,13 +30,19 @@ if (JNI_FOUND)
    message (STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
    message (STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
 
-include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni)
+include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni
+	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/include")
+	
+link_directories(
+	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/lib"
+	)
 
 set(JNI_SOURCE_FILES
 	src/jni/dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.cpp
 	)
 	
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
+target_link_libraries(mds_jni tbb)
 
 #IF(APPLE)
 #  SET_TARGET_PROPERTIES(${SWIG_MODULE_<module_name>_REAL_NAME} PROPERTIES
@@ -54,6 +60,7 @@ add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
 
 add_executable(benchmark src/benchmark.cpp)
 target_link_libraries(benchmark mds_jni)
+#target_link_libraries(benchmark tbb)
 
 
 

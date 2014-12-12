@@ -10,6 +10,9 @@
 //#include <xmmintrin.h>
 #include <emmintrin.h>
 
+#include "tbb/parallel_reduce.h"
+#include "tbb/blocked_range.h"
+
 #include "MemoryManagement.hpp"
 #include "ThreadPool.h"
 
@@ -214,20 +217,18 @@ public:
 
 		double delta = 
 		
-//#define THREADS		
-#ifdef THREADS
-		accumulate_thread(0, locationCount, double(0), 
-#else		
-		accumulate(0, locationCount, double(0), 
-#endif		
+// 		accumulate_thread(0, locationCount, double(0), 	
+ 		accumulate(0, locationCount, double(0), 
+// 		accumulate_tbb(0, locationCount, double(0),
 		
-			[this, i, &offset, &start](const int j) {
+			[this, i, &offset, 
+			&start](const int j) {
                 const auto distance = calculateDistance(
                     start,
-                    offset,
+                    offset + embeddingDimension * j,
                     embeddingDimension
                 );
-                offset += embeddingDimension;
+                //offset += embeddingDimension;
                 
                 const auto residual = distance - observations[i * locationCount + j];                
                 const auto squaredResidual = residual * residual;
@@ -467,7 +468,71 @@ public:
 			total += result.get();
 		}
 		return total;
-	}	
+	}
+	
+	template <typename Integer, typename Function, typename Real>
+	inline Real accumulate_tbb(Integer begin, Integer end, Real sum, Function function) {
+		return tbb::parallel_reduce(
+ 			tbb::blocked_range<size_t>(begin, end, 200),
+ 			sum,
+ 			[function](const tbb::blocked_range<size_t>& r, Real sum) -> Real {
+ 				//return accumulate 				
+ 				const auto end = r.end();
+ 				for (auto i = r.begin(); i != end; ++i) {
+ 					sum += function(i);	
+ 				}
+ 				return sum;
+ 			},
+ 			std::plus<Real>()
+		);			
+	}
+	
+	
+// #include <numeric>
+// #include <functional>
+// #include "tbb/parallel_reduce.h"
+// #include "tbb/blocked_range.h"
+// 
+// using namespace tbb;
+// 
+// float ParallelSum( float array[], size_t n ) {
+//     return parallel_reduce(
+//         blocked_range<float*>( array, array+n ),
+//         0.f,
+//         [](const blocked_range<float*>& r, float value)->float {
+//             return std::accumulate(r.begin(),r.end(),value);
+//         },
+//         std::plus<float>()
+//     );
+// }		
+
+
+// float ParallelSumFoo( const float a[], size_t n ) {
+//     SumFoo sf(a);
+//     parallel_reduce( blocked_range<size_t>(0,n), sf );
+//     return sf.my_sum;
+// }	
+// class SumFoo {
+//     float* my_a;
+// public:
+//     float my_sum; 
+//     void operator()( const blocked_range<size_t>& r ) {
+//         float *a = my_a;
+//         float sum = my_sum;
+//         size_t end = r.end();
+//         for( size_t i=r.begin(); i!=end; ++i ) 
+//             sum += Foo(a[i]); 
+//         my_sum = sum;    
+//     }
+//  
+//     SumFoo( SumFoo& x, split ) : my_a(x.my_a), my_sum(0) {}
+//  
+//     void join( const SumFoo& y ) {my_sum+=y.my_sum;}
+//              
+//     SumFoo(float a[] ) :
+//         my_a(a), my_sum(0)
+//     {}
+// };	
 	
 	
 #endif
