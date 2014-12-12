@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 2.6)
 project(mds)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
+#set(CMAKE_CXX_COMPILER "/usr/local/bin/clang++-3.5")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
+
+# -mllvm -debug-pass=loop-vectorize  
 
 find_package(JNI)
 
@@ -28,8 +32,6 @@ if (JNI_FOUND)
 
 include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni)
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-long-long")
-
 set(JNI_SOURCE_FILES
 	src/jni/dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.cpp
 	)
@@ -49,6 +51,13 @@ add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
 
 #add_definitions(-DDOUBLE_PRECISION)
 #target_link_libraries(bsccs_jni base_bsccs-dp)
+
+add_executable(benchmark src/benchmark.cpp)
+target_link_libraries(benchmark mds_jni)
+
+
+
+
 else(JNI_FOUND)
 	message (WARNING " No JNI found!")
 endif(JNI_FOUND)
