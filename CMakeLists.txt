@@ -6,6 +6,8 @@ project(mds)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
 
+# -Rpass=loop-vectorize 
+
 # -mllvm -debug-pass=loop-vectorize  
 
 find_package(JNI)
@@ -31,7 +33,8 @@ if (JNI_FOUND)
    message (STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
 
 include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni
-	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/include")
+	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/include"
+	)
 	
 link_directories(
 	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/lib"
@@ -60,7 +63,7 @@ target_link_libraries(mds_jni tbb)
 
 add_executable(benchmark src/benchmark.cpp)
 target_link_libraries(benchmark mds_jni)
-#target_link_libraries(benchmark tbb)
+target_link_libraries(benchmark tbb)
 
 
 

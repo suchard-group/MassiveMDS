@@ -344,13 +344,17 @@ public:
 #endif // VECTOR
     template <typename Iterator>
     double calculateDistance(Iterator x, Iterator y, int length) const {
-    
-        auto sum = static_cast<double>(0);
-        for (int i = 0; i < 2; ++i, ++x, ++y) {
-            const auto difference = *x - *y;
-            sum += difference * difference;
-        }
-        return std::sqrt(sum); 
+     
+//         auto sum = static_cast<double>(0);
+//         for (int i = 0; i < 2; ++i, ++x, ++y) {
+//             const auto difference = *x - *y;
+//             sum += difference * difference;
+//         }
+//         return std::sqrt(sum); 
+        const auto difference1 = *x - *y;
+        ++x; ++y;
+        const auto difference2 = *x - *y;
+        return std::sqrt(difference1 * difference1 + difference2 * difference2);
     }
     
 #endif	
