@@ -10,10 +10,10 @@ std::vector<InstancePtr> instances;
 
 extern "C"
 JNIEXPORT jint JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_initialize
-  (JNIEnv *, jobject, jint embeddingDimension, jint elementCount, jlong flags) { 
+  (JNIEnv *, jobject, jint embeddingDimension, jint elementCount, jlong flags) {
     instances.emplace_back(
         std::make_shared<mds::MultiDimensionalScaling<double>>(embeddingDimension, elementCount, flags));
-    return instances.size() - 1; 
+    return instances.size() - 1;
   }
 
 extern "C"
@@ -21,16 +21,22 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
   (JNIEnv *env, jobject, jint instance, jint index, jdoubleArray xArray) {
   	jsize len = env->GetArrayLength(xArray);
   	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
-  	  
-    instances[instance]->updateLocations(index, x, len);  
-    
-    env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);    
+
+    instances[instance]->updateLocations(index, x, len);
+
+    env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);
 }
 
 extern "C"
-JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_calculateLogLikelihood
+JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_getSumOfLogTruncations
   (JNIEnv *, jobject, jint instance) {
-    return instances[instance]->calculateLogLikelihood();
+    return instances[instance]->getSumOfLogTruncations();
+}
+
+extern "C"
+JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_getSumOfSquaredResiduals
+  (JNIEnv *, jobject, jint instance) {
+    return instances[instance]->getSumOfSquaredResiduals();
 }
 
 extern "C"
@@ -49,25 +55,25 @@ extern "C"
 JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_setPairwiseData
   (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {
   	jsize len = env->GetArrayLength(xArray);
-  	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);  
-  
+  	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
+
     instances[instance]->setPairwiseData(x, len);
-    
-    env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);    
+
+    env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);
 }
 
 extern "C"
 JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_setParameters
-  (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {  
+  (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {
   	jsize len = env->GetArrayLength(xArray);
   	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
-  	
+
     instances[instance]->setParameters(x, len);
-    
+
     env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);
 }
 
-extern "C"  
+extern "C"
 JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_makeDirty
   (JNIEnv *, jobject, jint instance) {
     instances[instance]->makeDirty();
@@ -76,9 +82,9 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 
 // jsize len = (*env)->GetArrayLength(env, arr);
 //     jdouble *partials = env->GetDoubleArrayElements(inPartials, NULL);
-// 
+//
 // 	jint errCode = (jint)beagleSetPartials(instance, bufferIndex, (double *)partials);
-// 
+//
 //     env->ReleaseDoubleArrayElements(inPartials, partials, JNI_ABORT);
 //         // not using JNI_ABORT flag here because we want the values to be copied back...
 //     env->ReleaseDoubleArrayElements(outPartials, partials, 0);

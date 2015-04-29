@@ -25,10 +25,18 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 
 /*
  * Class:     dr_app_beagle_multidimensionalscaling_NativeMDSSingleton
- * Method:    calculateLogLikelihood
+ * Method:    getSumOfLogTruncations
  * Signature: (I)D
  */
-JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_calculateLogLikelihood
+JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_getSumOfLogTruncations
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     dr_app_beagle_multidimensionalscaling_NativeMDSSingleton
+ * Method:    getSumOfSquaredResiduals
+ * Signature: (I)D
+ */
+JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_getSumOfSquaredResiduals
   (JNIEnv *, jobject, jint);
 
 /*

@@ -301,7 +301,8 @@ void pnorm_both(double x, double *cum, double *ccum, int i_tail, int log_p)
 
 double logCdf(double x) {
 	double p, cp;
-	pnorm_both(x, &p, &cp, 1, 1);
+	pnorm_both(x, &p, &cp, 0, 1);
+	if (p == -0.0) p = 0.0;
 	return p;
 }
 

@@ -6,9 +6,9 @@ project(mds)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
 
-# -Rpass=loop-vectorize 
+# -Rpass=loop-vectorize
 
-# -mllvm -debug-pass=loop-vectorize  
+# -mllvm -debug-pass=loop-vectorize
 
 find_package(JNI)
 
@@ -35,7 +35,7 @@ if (JNI_FOUND)
 include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni
 	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/include"
 	)
-	
+
 link_directories(
 	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/lib"
 	)
@@ -43,7 +43,7 @@ link_directories(
 set(JNI_SOURCE_FILES
 	src/jni/dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.cpp
 	)
-	
+
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
 #target_link_libraries(mds_jni tbb)
 
