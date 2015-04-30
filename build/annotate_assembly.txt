@@ -1,0 +1,1 @@
+/opt/clang6.0/bin/clang++ -g -c -fverbose-asm  -std=c++0x -S -O2 -Wa,-aslh ../src/benchmark.cpp 
