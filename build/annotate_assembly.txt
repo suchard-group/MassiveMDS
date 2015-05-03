@@ -1,1 +1,3 @@
-/opt/clang6.0/bin/clang++ -g -c -fverbose-asm  -std=c++0x -S -O2 -Wa,-aslh ../src/benchmark.cpp 
+/opt/clang6.0/bin/clang++ -g -c -fverbose-asm  -std=c++0x -S -O3 -msse4.2 -Rpass=loop-vectorize -fslp-vectorize-aggressive ../src/benchmark.cpp
+
+clang++ -g -c -fverbose-asm  -std=c++0x -S -O3 -msse4.2 -fslp-vectorize-aggressive ../src/benchmark.cpp
