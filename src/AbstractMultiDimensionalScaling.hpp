@@ -11,8 +11,12 @@
 //#include <xmmintrin.h>
 #include <emmintrin.h>
 
-// #include "tbb/parallel_reduce.h"
-// #include "tbb/blocked_range.h"
+// #define USE_TBB
+
+#ifdef USE_TBB
+    #include "tbb/parallel_reduce.h"
+    #include "tbb/blocked_range.h"
+#endif
 
 #include "MemoryManagement.hpp"
 #include "ThreadPool.h"
@@ -36,6 +40,7 @@ public:
     virtual double getSumOfLogTruncations() = 0;
     virtual void storeState() = 0;
     virtual void restoreState() = 0;
+    virtual void acceptState() = 0;
     virtual void setPairwiseData(double*, size_t)  = 0;
     virtual void setParameters(double*, size_t) = 0;
     virtual void makeDirty() = 0;
@@ -79,7 +84,7 @@ public:
           isStoredTruncationsEmpty(false),
           isStoredAllTruncationsEmpty(false)
 
-          , nThreads(4), pool(nThreads)
+          , nThreads(4) //, pool(nThreads)
     {
 
     	if (flags & Flags::LEFT_TRUNCATION) {
@@ -171,6 +176,10 @@ public:
     	}
     }
 
+    void acceptState() {
+        // Do nothing
+    }
+
     void restoreState() {
     	sumOfSquaredResiduals = storedSumOfSquaredResiduals;
     	sumsOfResidualsAndTruncationsKnown = true;
@@ -252,7 +261,8 @@ public:
 
 		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
 			for (int j = 0; j < locationCount; ++j) { // TODO j = i + 1 ???
-				const auto distance = calculateDistance(
+
+				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
 					begin(*locationsPtr) + i * embeddingDimension,
 					begin(*locationsPtr) + j * embeddingDimension,
 					embeddingDimension
@@ -302,7 +312,7 @@ public:
 
 			[this, i, &offset,
 			&start](const int j) {
-                const auto distance = calculateDistance(
+                const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
                     start,
                     offset + embeddingDimension * j,
                     embeddingDimension
@@ -424,12 +434,17 @@ public:
 		std::complex<RealType> delta =
 
 // 		accumulate_thread(0, locationCount, double(0),
+
+#ifdef USE_TBB
+        accumulate_tbb(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
+#else
  		accumulate(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
+#endif
 // 		accumulate_tbb(0, locationCount, double(0),
 
 			[this, i, &offset, //oneOverSd,
 			&start](const int j) {
-                const auto distance = calculateDistance(
+                const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
                     start,
                     offset + embeddingDimension * j,
                     embeddingDimension
@@ -483,55 +498,90 @@ public:
 	}
 #else
 
+//
+// //#define VECTOR
+// #ifdef VECTOR
+//     double calculateDistance(double* x, double* y, int length) const {
+// //     std::cerr << "A";
+//         using Vec2 = __m128d;
+//
+//         Vec2 vecX = _mm_load_pd(x);
+//         Vec2 vecY = _mm_load_pd(y);
+//         vecX = _mm_sub_pd(vecX, vecY);
+//         vecX = _mm_mul_pd(vecX, vecX);
+// #if 1
+//         double r[2];
+//         _mm_store_pd(r,vecX);
+//
+//         return std::sqrt(r[0] + r[1]);
+// #else
+//         double r;
+//         vecX =  _mm_hadd_pd(vecX, vecX);
+//         _mm_store_ps(r, vecX);
+//         return std::sqrt(r);
+// #endif
+//     }
+// #else
+//     double calculateDistance(double* x, double* y, int length) const {
+// //          std::cerr << "B";
+//         double r = 0.0;
+//         for (int i = 0; i < 2; ++i, ++x, ++y) {
+//             const auto difference = *x - *y;
+//             r += difference * difference;
+//         }
+//         return std::sqrt(r);
+//
+//     }
+// #endif // VECTOR
 
-//#define VECTOR
-#ifdef VECTOR
-    double calculateDistance(double* x, double* y, int length) const {
-//     std::cerr << "A";
-        using Vec2 = __m128d;
+//     double calculateDistance(double* iX, double* iY, int length) const {
+//         auto sum = static_cast<double>(0);
+//
+//         typedef double more_aligned_double __attribute__ ((aligned (16)));
+//
+//         double* x = iX;
+//         double* y = iY;
+//
+//         #pragma clang loop vectorize(enable) interleave(enable)
+//         for (int i = 0; i < 2; ++i, ++x, ++y) {
+//             const auto difference = *x - *y;
+//             sum += difference * difference;
+//         }
+//         return std::sqrt(sum);
+// //         const auto difference1 = *x - *y;
+// //         ++x; ++y;
+// //         const auto difference2 = *x - *y;
+// //         return std::sqrt(difference1 * difference1 + difference2 * difference2);
+//     }
 
-        Vec2 vecX = _mm_load_pd(x);
-        Vec2 vecY = _mm_load_pd(y);
-        vecX = _mm_sub_pd(vecX, vecY);
-        vecX = _mm_mul_pd(vecX, vecX);
-#if 1
-        double r[2];
-        _mm_store_pd(r,vecX);
-
-        return std::sqrt(r[0] + r[1]);
-#else
-        double r;
-        vecX =  _mm_hadd_pd(vecX, vecX);
-        _mm_store_ps(r, vecX);
-        return std::sqrt(r);
-#endif
-    }
-#else
-    double calculateDistance(double* x, double* y, int length) const {
-//          std::cerr << "B";
-        double r = 0.0;
-        for (int i = 0; i < 2; ++i, ++x, ++y) {
-            const auto difference = *x - *y;
-            r += difference * difference;
-        }
-        return std::sqrt(r);
-
-    }
-#endif // VECTOR
-    template <typename Iterator>
-    double calculateDistance(Iterator x, Iterator y, int length) const {
-
+#ifdef SSE
+    template <typename VectorType, typename Iterator>
+    double calculateDistance(Iterator iX, Iterator iY, int length) const {
         auto sum = static_cast<double>(0);
+
+        using AlignedValueType = typename VectorType::allocator_type::aligned_value_type;
+
+        AlignedValueType* x = &*iX;
+        AlignedValueType* y = &*iY;
+
         for (int i = 0; i < 2; ++i, ++x, ++y) {
             const auto difference = *x - *y;
             sum += difference * difference;
         }
         return std::sqrt(sum);
-//         const auto difference1 = *x - *y;
-//         ++x; ++y;
-//         const auto difference2 = *x - *y;
-//         return std::sqrt(difference1 * difference1 + difference2 * difference2);
     }
+#else // SSE
+    template <typename VectorType, typename Iterator>
+    double calculateDistance(Iterator x, Iterator y, int length) const {
+        auto sum = static_cast<double>(0);
+
+        for (int i = 0; i < 2; ++i, ++x, ++y) {
+            const auto difference = *x - *y;
+            sum += difference * difference;
+        }
+        return std::sqrt(sum);
+    }
+#endif // SSE
 
 #endif
 
@@ -582,6 +632,7 @@ public:
 		return sum;
 	}
 
+#ifdef USE_C_ASYNC
 	template <typename Integer, typename Function, typename Real>
 	inline Real accumulate_thread(Integer begin, Integer end, Real sum, Function function) {
 		std::vector<std::future<Real>> results;
@@ -603,7 +654,9 @@ public:
 		}
 		return sum;
 	}
+#endif
 
+#ifdef USE_OMOP
 	template <typename Integer, typename Function, typename Real>
 	inline Real accumulate_omp(Integer begin, Integer end, Real sum, Function function) {
 		#pragma omp
@@ -612,8 +665,9 @@ public:
 		}
 		return sum;
 	}
+#endif
 
-
+#ifdef USE_THREAD_POOL
 	template <typename Integer, typename Function, typename Real>
 	inline Real accumulate_thread_pool(Integer begin, Integer end, Real sum, Function function) {
 		std::vector<std::future<Real>> results;
@@ -649,26 +703,29 @@ public:
 		}
 		return total;
 	}
+#endif
 
-// 	template <typename Integer, typename Function, typename Real>
-// 	inline Real accumulate_tbb(Integer begin, Integer end, Real sum, Function function) {
-// 		return tbb::parallel_reduce(
-//  			tbb::blocked_range<size_t>(begin, end
-//  			//, 200
-//  			),
-//  			sum,
-//  			[function](const tbb::blocked_range<size_t>& r, Real sum) -> Real {
-//  				//return accumulate
-//  				const auto end = r.end();
-//  				for (auto i = r.begin(); i != end; ++i) {
-//  					sum += function(i);
-//  				}
-//  				return sum;
-//  			},
-//  			std::plus<Real>()
-// 		);
-// 	}
-//
+#ifdef USE_TBB
+	template <typename Integer, typename Function, typename Real>
+	inline Real accumulate_tbb(Integer begin, Integer end, Real sum, Function function) {
+		return tbb::parallel_reduce(
+ 			tbb::blocked_range<size_t>(begin, end
+ 			//, 200
+ 			),
+ 			sum,
+ 			[function](const tbb::blocked_range<size_t>& r, Real sum) -> Real {
+ 				//return accumulate
+ 				const auto end = r.end();
+ 				for (auto i = r.begin(); i != end; ++i) {
+ 					sum += function(i);
+ 				}
+ 				return sum;
+ 			},
+ 			std::plus<Real>()
+		);
+	}
+#endif
+
 
 // #include <numeric>
 // #include <functional>
@@ -752,7 +809,7 @@ private:
     bool isStoredAllTruncationsEmpty;
 
     int nThreads;
-    ThreadPool pool;
+//     ThreadPool pool;
 
 };
 

@@ -1,0 +1,227 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+PROJECT(ARRAYFIRE)
+
+FIND_PACKAGE(OpenCL REQUIRED)
+
+INCLUDE("${CMAKE_MODULE_PATH}/CLKernelToH.cmake")
+
+IF (OPENCL_USE_F77_BLAS)
+  MESSAGE("Using F77 BLAS")
+  ADD_DEFINITIONS(-DUSE_F77_BLAS)
+ENDIF()
+
+IF (OPENCL_USE_MKL)
+  MESSAGE("Using MKL")
+  ADD_DEFINITIONS(-DUSE_MKL)
+ENDIF()
+
+FIND_PACKAGE(LAPACK)
+IF(NOT LAPACK_FOUND)
+  MESSAGE(WARNING "LAPACK not found. Functionality will be disabled")
+ELSE(NOT LAPACK_FOUND)
+  ADD_DEFINITIONS(-DLAPACK_${BLA_VENDOR})
+  ADD_DEFINITIONS(-DWITH_OPENCL_LINEAR_ALGEBRA)
+ENDIF()
+
+IF(NOT UNIX)
+  ADD_DEFINITIONS(-DAFDLL)
+ENDIF()
+
+ADD_DEFINITIONS(-DAF_OPENCL
+                -D__CL_ENABLE_EXCEPTIONS)
+
+OPTION(USE_SYSTEM_CLBLAS "Use system clBLAS" OFF)
+IF(USE_SYSTEM_CLBLAS)
+  FIND_PACKAGE(clBLAS REQUIRED)
+ELSE()
+  INCLUDE("${CMAKE_MODULE_PATH}/build_clBLAS.cmake")
+ENDIF()
+INCLUDE_DIRECTORIES(${CLBLAS_INCLUDE_DIRS})
+LINK_DIRECTORIES(${CLBLAS_LIBRARY_DIR})
+
+OPTION(USE_SYSTEM_CLFFT "Use system clFFT" OFF)
+IF(USE_SYSTEM_CLFFT)
+  FIND_PACKAGE(clFFT REQUIRED)
+ELSE()
+  INCLUDE("${CMAKE_MODULE_PATH}/build_clFFT.cmake")
+ENDIF()
+INCLUDE_DIRECTORIES(${CLFFT_INCLUDE_DIRS})
+LINK_DIRECTORIES(${CLFFT_LIBRARY_DIR})
+
+ADD_DEFINITIONS( -DBOOST_ALL_NO_LIB )
+SET(Boost_USE_STATIC_LIBS OFF)
+FIND_PACKAGE(Boost 1.48 REQUIRED)
+
+OPTION(USE_SYSTEM_BOOST_COMPUTE "Use system BoostCompute" OFF)
+IF(USE_SYSTEM_BOOST_COMPUTE)
+  FIND_PACKAGE(BoostCompute REQUIRED)
+ELSE()
+  INCLUDE("${CMAKE_MODULE_PATH}/build_boost_compute.cmake")
+ENDIF()
+
+SET( cl_kernel_headers
+    "kernel_headers")
+
+INCLUDE_DIRECTORIES(
+    ${CMAKE_INCLUDE_PATH}
+    "${CMAKE_SOURCE_DIR}/src/backend/opencl"
+    ${OpenCL_INCLUDE_DIRS}
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    ${CLBLAS_INCLUDE_DIRS}
+    ${CLFFT_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIR}
+    ${BoostCompute_INCLUDE_DIRS}
+    ${LAPACK_INCLUDE_DIR}
+    )
+
+FILE(GLOB opencl_headers
+  "*.hpp"
+  "*.h")
+
+FILE(GLOB opencl_sources
+    "*.cpp")
+
+FILE(GLOB magma_sources
+    "magma/*.cpp")
+
+FILE(GLOB magma_headers
+    "magma/*.h")
+
+FILE(GLOB jit_sources
+    "jit/*.hpp")
+
+FILE(GLOB kernel_headers
+    "kernel/*.hpp")
+
+FILE(GLOB opencl_kernels
+    "kernel/*.cl")
+
+FILE(GLOB kernel_sources
+     "kernel/*.cpp")
+
+FILE(GLOB conv_ker_headers
+    "kernel/convolve/*.hpp")
+
+FILE(GLOB conv_ker_sources
+     "kernel/convolve/*.cpp")
+
+source_group(backend\\opencl\\Headers FILES ${opencl_headers})
+source_group(backend\\opencl\\Sources FILES ${opencl_sources})
+source_group(backend\\opencl\\JIT FILES ${jit_sources})
+source_group(backend\\opencl\\kernel\\Headers FILES ${kernel_headers})
+source_group(backend\\opencl\\kernel\\cl FILES ${opencl_kernels})
+source_group(backend\\opencl\\kernel\\Sources FILES ${kernel_sources})
+source_group(backend\\opencl\\kernel\\convolve\\Headers FILES ${conv_ker_headers})
+source_group(backend\\opencl\\kernel\\convolve\\Sources FILES ${conv_ker_sources})
+source_group(backend\\opencl\\magma\\Sources FILES ${magma_sources})
+source_group(backend\\opencl\\magma\\Headers FILES ${magma_headers})
+
+FILE(GLOB backend_headers
+    "../*.hpp"
+    "../*.h"
+    )
+
+FILE(GLOB backend_sources
+    "../*.cpp"
+    )
+source_group(backend\\Headers FILES ${backend_headers})
+source_group(backend\\Sources FILES ${backend_sources})
+
+FILE(GLOB c_headers
+    "../../api/c/*.hpp"
+    "../../api/c/*.h"
+    )
+
+FILE(GLOB c_sources
+    "../../api/c/*.cpp"
+    )
+source_group(api\\c\\Headers FILES ${c_headers})
+source_group(api\\c\\Sources FILES ${c_sources})
+
+
+FILE(GLOB cpp_sources
+    "../../api/cpp/*.cpp"
+    )
+source_group(api\\cpp\\Sources FILES ${cpp_sources})
+
+FILE(GLOB kernel_src ${opencl_kernels} "kernel/KParam.hpp")
+
+CL_KERNEL_TO_H(
+    SOURCES ${kernel_src}
+    VARNAME kernel_files
+    EXTENSION "hpp"
+    OUTPUT_DIR ${cl_kernel_headers}
+    TARGETS cl_kernel_targets
+    NAMESPACE "opencl"
+    EOF "0"
+    )
+
+# OS Definitions
+IF(UNIX)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -pthread")
+ELSE(${UNIX}) #Windows
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
+ENDIF()
+
+
+ADD_LIBRARY(afopencl SHARED
+            ${opencl_headers}
+            ${opencl_sources}
+            ${jit_sources}
+            ${kernel_headers}
+            ${opencl_kernels}
+            ${kernel_sources}
+            ${conv_ker_headers}
+            ${conv_ker_sources}
+            ${backend_headers}
+            ${backend_sources}
+            ${c_sources}
+            ${c_headers}
+            ${cpp_sources}
+            ${magma_sources}
+            ${magma_headers}
+            )
+
+ADD_DEPENDENCIES(afopencl ${cl_kernel_targets})
+
+TARGET_LINK_LIBRARIES(afopencl
+  ${OpenCL_LIBRARIES}
+  ${FreeImage_LIBS}
+  ${CLBLAS_LIBRARIES}
+  ${CLFFT_LIBRARIES}
+  ${CMAKE_DL_LIBS}
+  ${Boost_LIBRARIES})
+
+IF(LAPACK_FOUND)
+   TARGET_LINK_LIBRARIES(afopencl
+   ${LAPACK_LIBRARIES}
+   )
+ENDIF()
+
+SET_TARGET_PROPERTIES(afopencl PROPERTIES
+    VERSION "${AF_VERSION}"
+    SOVERSION "${AF_VERSION_MAJOR}")
+
+# locally built but not installed libraries (clBLAS and clFFT) must NOT appear in the
+# link interface. The best option would be to use LINK_PRIVATE, but unfortunately
+# it is not available for older cmake than 2.8.7, so they must be remove from
+# the link interface manually. Both LINK_INTERFACE_LIBRARIES and INTERFACE_LINK_LIBRARIES
+# are used to keep it working with older cmake versions that 2.8.12 and avoid
+# warnings on newer versions - see CMP0022
+FOREACH(property LINK_INTERFACE_LIBRARIES INTERFACE_LINK_LIBRARIES)
+  GET_TARGET_PROPERTY(value afopencl ${property})
+  IF(value)
+    LIST(REMOVE_ITEM value ${CLBLAS_LIBRARIES} ${CLFFT_LIBRARIES})
+    SET_TARGET_PROPERTIES(afopencl PROPERTIES LINK_INTERFACE_LIBRARIES "${value}")
+    SET_TARGET_PROPERTIES(afopencl PROPERTIES INTERFACE_LINK_LIBRARIES "${value}")
+  ENDIF()
+ENDFOREACH()
+
+INSTALL(TARGETS afopencl EXPORT OpenCL DESTINATION lib COMPONENT libraries)
+
+export(TARGETS afopencl FILE ArrayFireOpenCL.cmake)
+INSTALL(EXPORT OpenCL DESTINATION ${ARRAYFIRE_CMAKE_DIR}
+    COMPONENT cmake
+    FILE ArrayFireOpenCL.cmake)

@@ -52,6 +52,12 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 }
 
 extern "C"
+JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_acceptState
+  (JNIEnv *, jobject, jint instance) {
+    instances[instance]->acceptState();
+}
+
+extern "C"
 JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_setPairwiseData
   (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {
   	jsize len = env->GetArrayLength(xArray);

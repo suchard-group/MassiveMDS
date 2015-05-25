@@ -118,6 +118,10 @@ public:
     	}
     }
 
+    void acceptState() {
+        // Do nothing
+    }
+
     void restoreState() {
     	sumOfSquaredResiduals = storedSumOfSquaredResiduals;
     	sumsOfResidualsAndTruncationsKnown = true;
