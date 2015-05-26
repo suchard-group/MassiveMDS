@@ -5,6 +5,8 @@
 
 // #include "AbstractMultiDimensionalScaling.hpp"
 #include "OpenCLMultiDimensionalScaling.hpp"
+#include "NewMultiDimensionalScaling.hpp"
+#include "MultiDimensionalScaling.hpp"
 
 
 template <typename T, typename PRNG, typename D>
@@ -24,24 +26,31 @@ int main(int argc, char* argv[]) {
 
 	int embeddingDimension = 2;
 	int locationCount = 6000;
-// 	long flags = 0L;
-	long flags = mds::Flags::LEFT_TRUNCATION;
+	long flags = 0L;
+// 	long flags = mds::Flags::LEFT_TRUNCATION;
 
 	auto normal = std::normal_distribution<double>(0.0, 1.0);
 	auto uniform = std::uniform_int_distribution<int>(0, locationCount - 1);
 	auto binomial = std::bernoulli_distribution(0.75);
 	auto normalData = std::normal_distribution<double>(0.0, 1.0);
 
-	mds::MultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
+// 	mds::MultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
+	mds::NewMultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
 
 //     mds::OpenCLMultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
 
 	auto elementCount = locationCount * locationCount;
 	std::vector<double> data(elementCount);
-	for (auto& datum : data) {
-	    double draw = normalData(prng);
-		datum = draw * draw;
+	for (int i = 0; i < locationCount; ++i) {
+	    data[i * locationCount + i] = 0.0;
+	    for (int j = i + 1; j < locationCount; ++j) {
+	        const double draw = normalData(prng);
+	        const double distance = draw * draw;
+	        data[i * locationCount + j] = distance;
+	        data[j * locationCount + i] = distance;
+	    }
 	}
+
 	instance.setPairwiseData(&data[0], elementCount);
 
 	std::vector<double> location(embeddingDimension);
@@ -59,6 +68,9 @@ int main(int argc, char* argv[]) {
 	auto startTime = std::chrono::steady_clock::now();
 
 	for (auto itr = 0; itr < iterations; ++itr) {
+
+// 	    double startDiagnostic = instance.getDiagnostic();
+
 		instance.storeState();
 
 		int dimension = uniform(prng);
@@ -68,9 +80,26 @@ int main(int argc, char* argv[]) {
 		logLik += inc;
 
 		bool restore = binomial(prng);
+//  		restore = false;
 		if (restore) {
 			instance.restoreState();
+		} else {
+		    instance.acceptState();
 		}
+
+// 		double endDiagnostic = instance.getDiagnostic();
+// 		if (restore && (startDiagnostic != endDiagnostic)) {
+// 		    std::cerr << "Failed restore" << std::endl;
+// 		    std::cerr << (endDiagnostic - startDiagnostic) << std::endl;
+// 		    exit(-1);
+// 		}
+// 		if (!restore && (startDiagnostic == endDiagnostic)) {
+// 		    std::cerr << "Failed accept" << std::endl;
+// 		    exit(-1);
+// 		}
+//
+// 		std::cerr << endDiagnostic << std::endl;
+// 		if (itr > 100) exit(-1);
 	}
 	logLik /= iterations + 1;
 
