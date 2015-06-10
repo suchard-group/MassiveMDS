@@ -7,7 +7,7 @@ namespace mds {
 namespace mm {
 
 template <typename T>
-using GPUMemoryManager = std::vector<T, util::aligned_allocator<T, 16> >;
+using GPUMemoryManager = boost::compute::vector<T>;
 
 } // namespace mm
 } // namespace mds

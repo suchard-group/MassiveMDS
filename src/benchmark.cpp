@@ -34,8 +34,8 @@ int main(int argc, char* argv[]) {
 
 	int embeddingDimension = 2;
 	int locationCount = 6000;
-// 	long flags = 0L;
-	long flags = mds::Flags::LEFT_TRUNCATION;
+	long flags = 0L;
+// 	long flags = mds::Flags::LEFT_TRUNCATION;
 
 	auto normal = std::normal_distribution<double>(0.0, 1.0);
 	auto uniform = std::uniform_int_distribution<int>(0, locationCount - 1);

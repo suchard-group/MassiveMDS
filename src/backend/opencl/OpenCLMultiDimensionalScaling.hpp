@@ -35,11 +35,28 @@ public:
 
 //           , nThreads(4) //, pool(nThreads)
     {
+		std::cerr << "ctor OpenCLMultiDimensionalScaling" << std::endl;
 
+		std::cerr << "All devices:" << std::endl;
+		for(const auto &device : boost::compute::system::devices()){
+		    std::cerr << "\t" << device.name() << std::endl;
+		}
 
 		device = boost::compute::system::default_device();
-		std::cerr << device.name() << std::endl;
+		std::cerr << "Using: " << device.name() << std::endl;
 
+		ctx = boost::compute::context{device};
+		queue = boost::compute::command_queue{ctx, device};
+
+		dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
+
+		dLocations0 = mm::GPUMemoryManager<RealType>(locations0.size(), ctx);
+		dLocations1 = mm::GPUMemoryManager<RealType>(locations1.size(), ctx);
+		dLocationsPtr = &dLocations0;
+		dStoredLocationsPtr = &dLocations1;
+
+		dSquaredResiduals = mm::GPUMemoryManager<RealType>(squaredResiduals.size(), ctx);
+		dStoredSquaredResiduals = mm::GPUMemoryManager<RealType>(storedSquaredResiduals.size(), ctx);
 
     	if (flags & Flags::LEFT_TRUNCATION) {
     		isLeftTruncated = true;
@@ -47,9 +64,11 @@ public:
 
     		truncations.resize(locationCount * locationCount);
     		storedTruncations.resize(locationCount);
+
+    		dTruncations = mm::GPUMemoryManager<RealType>(truncations.size(), ctx);
+    		dStoredTruncations = mm::GPUMemoryManager<RealType>(storedTruncations.size(), ctx);
     	}
 
-    	std::cerr << "ctor OpenCLMultiDimensionalScaling" << std::endl;
     }
 
     virtual ~OpenCLMultiDimensionalScaling() { }
@@ -68,6 +87,12 @@ public:
     	updatedLocation = locationIndex;
     	std::copy(location, location + length,
     		begin(*locationsPtr) + locationIndex * embeddingDimension
+    	);
+
+    	// COMPUTE
+    	boost::compute::copy(location, location + length,
+    		dLocationsPtr->begin() + locationIndex * embeddingDimension,
+    		queue
     	);
 
     	sumsOfResidualsAndTruncationsKnown = false;
@@ -113,6 +138,10 @@ public:
     	std::copy(begin(*locationsPtr), end(*locationsPtr),
     		begin(*storedLocationsPtr));
 
+    	// COMPUTE
+    	boost::compute::copy(dLocationsPtr->begin(), dLocationsPtr->end(),
+    		dStoredLocationsPtr->begin(), queue);
+
     	isStoredSquaredResidualsEmpty = true;
 
     	updatedLocation = -1;
@@ -139,10 +168,15 @@ public:
     		for (int j = 0; j < locationCount; ++j) {
     			squaredResiduals[j * locationCount + updatedLocation] = squaredResiduals[updatedLocation * locationCount + j];
     		}
+
+    		// COMPUTE TODO
+
     		if (isLeftTruncated) {
                 for (int j = 0; j < locationCount; ++j) {
 	    			truncations[j * locationCount + updatedLocation] = truncations[updatedLocation * locationCount + j];
 	    		}
+
+	    		// COMPUTE TODO
     		}
     	}
     }
@@ -157,6 +191,14 @@ public:
     			end(storedSquaredResiduals),
     			begin(squaredResiduals) + updatedLocation * locationCount
     		);
+
+    		// COMPUTE
+    		boost::compute::copy(
+    			dStoredSquaredResiduals.begin(),
+    			dStoredSquaredResiduals.end(),
+    			dSquaredResiduals.begin() + updatedLocation * locationCount, queue
+    		);
+
     		residualsAndTruncationsKnown = true;
     	} else {
     		residualsAndTruncationsKnown = false; // Force recompute;  TODO cache
@@ -172,6 +214,13 @@ public:
 	    			end(storedTruncations),
 	    			begin(truncations) + updatedLocation * locationCount
 	    		);
+
+	    		// COMPUTE
+	    		boost::compute::copy(
+	    			dStoredTruncations.begin(),
+	    			dStoredTruncations.end(),
+	    			dTruncations.begin() + updatedLocation * locationCount, queue
+	    		);
 	    	}
 	    }
 
@@ -186,6 +235,9 @@ public:
     void setPairwiseData(double* data, size_t length) {
 		assert(length == observations.size());
 		std::copy(data, data + length, begin(observations));
+
+		// COMPUTE
+		boost::compute::copy(data, data + length, dObservations.begin(), queue);
     }
 
     void setParameters(double* data, size_t length) {
@@ -240,6 +292,8 @@ public:
 			}
 		}
 
+		// COMPUTE TODO
+
     	lSumOfSquaredResiduals /= 2.0;
     	sumOfSquaredResiduals = lSumOfSquaredResiduals;
 
@@ -291,49 +345,13 @@ public:
             }
 		);
 
+		// COMPUTE TODO
+
 		sumOfSquaredResiduals += delta;
 	}
 
 // 	int count = 0
 	int count2 = 0;
-
-
-// 	void updateTruncations() {
-//
-// 		const int i = updatedLocation;
-//
-// 		isStoredTruncationsEmpty = false;
-//
-// 		auto start  = begin(*locationsPtr) + i * embeddingDimension;
-// 		auto offset = begin(*locationsPtr);
-//
-// 		RealType delta =
-// // 		accumulate_thread(0, locationCount, double(0),
-//  		accumulate(0, locationCount, RealType(0),
-// // 		accumulate_tbb(0, locationCount, double(0),
-//
-// 			[this, i, &offset, //oneOverSd,
-// 			&start](const int j) {
-//
-//                 const auto squaredResidual = squaredResiduals[i * locationCount + j];
-//
-//                 const auto truncation = (i == j) ? RealType(0) :
-//                 	math::logCdf<OpenCLMultiDimensionalScaling>(std::sqrt(squaredResidual) * oneOverSd);
-//
-//                 const auto oldTruncation = truncations[i * locationCount + j];
-//                 storedTruncations[j] = oldTruncation;
-//
-//                 const auto inc = truncation - oldTruncation;
-//
-//                 truncations[i * locationCount + j] = truncation;
-//                 truncations[j * locationCount + i] = truncation;
-//
-//                 return inc;
-//             }
-// 		);
-//
-//  		sumOfTruncations += delta;
-// 	}
 
 	void updateSumOfSquaredResidualsAndTruncations() {
 
@@ -381,6 +399,8 @@ public:
                 return std::complex<RealType>(inc, inc2);
             }
 		);
+
+		// COMPUTE TODO
 
 		sumOfSquaredResiduals += delta.real();
  		sumOfTruncations += delta.imag();
