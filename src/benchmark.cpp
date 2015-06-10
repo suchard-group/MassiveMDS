@@ -3,11 +3,19 @@
 #include <random>
 #include <iostream>
 
-// #include "AbstractMultiDimensionalScaling.hpp"
+#include "AbstractMultiDimensionalScaling.hpp"
 // #include "OpenCLMultiDimensionalScaling.hpp"
-#include "NewMultiDimensionalScaling.hpp"
-#include "MultiDimensionalScaling.hpp"
+// #include "NewMultiDimensionalScaling.hpp"
+// #include "MultiDimensionalScaling.hpp"
 
+typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> SharedPtr; // TODO Move to AMDS.hpp
+
+// forward reference
+namespace mds {
+	SharedPtr constructMultiDimensionalScalingDouble(int, int, long);
+	SharedPtr constructNewMultiDimensionalScalingDouble(int, int, long);
+	SharedPtr constructOpenCLMultiDimensionalScalingDouble(int, int, long);
+};
 
 template <typename T, typename PRNG, typename D>
 void generateLocation(T& locations, D& d, PRNG& prng) {
@@ -37,11 +45,11 @@ int main(int argc, char* argv[]) {
 // 	mds::MultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
 
 
-	std::shared_ptr<mds::AbstractMultiDimensionalScaling> instance = std::make_shared<
-// 			mds::MultiDimensionalScaling<double>
-			mds::NewMultiDimensionalScaling<double>
-// 			mds::OpenCLMultiDimensionalScaling<double>
-		>(embeddingDimension, locationCount, flags);
+	SharedPtr instance =
+// 		mds::constructMultiDimensionalScalingDouble
+// 		mds::constructNewMultiDimensionalScalingDouble
+		mds::constructOpenCLMultiDimensionalScalingDouble
+	(embeddingDimension, locationCount, flags);
 
 	auto elementCount = locationCount * locationCount;
 	std::vector<double> data(elementCount);

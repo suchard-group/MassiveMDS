@@ -95,6 +95,7 @@ set(JNI_SOURCE_FILES
 	)
 
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
+target_link_libraries(mds_jni mds_opencl)
 #target_link_libraries(mds_jni tbb)
 
 #IF(APPLE)

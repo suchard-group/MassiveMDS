@@ -723,6 +723,12 @@ private:
 
 };
 
+// factory
+std::shared_ptr<AbstractMultiDimensionalScaling>
+constructMultiDimensionalScalingDouble(int embeddingDimension, int locationCount, long flags) {
+	return std::make_shared<MultiDimensionalScaling<double>>(embeddingDimension, locationCount, flags);
+}
+
 } // namespace mds
 
 #endif // _MULTIDIMENSIONALSCALING_HPP
