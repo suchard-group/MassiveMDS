@@ -4,7 +4,7 @@
 #include <iostream>
 
 // #include "AbstractMultiDimensionalScaling.hpp"
-#include "OpenCLMultiDimensionalScaling.hpp"
+// #include "OpenCLMultiDimensionalScaling.hpp"
 #include "NewMultiDimensionalScaling.hpp"
 #include "MultiDimensionalScaling.hpp"
 
@@ -35,9 +35,13 @@ int main(int argc, char* argv[]) {
 	auto normalData = std::normal_distribution<double>(0.0, 1.0);
 
 // 	mds::MultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
-	mds::NewMultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
 
-//     mds::OpenCLMultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
+
+	std::shared_ptr<mds::AbstractMultiDimensionalScaling> instance = std::make_shared<
+// 			mds::MultiDimensionalScaling<double>
+			mds::NewMultiDimensionalScaling<double>
+// 			mds::OpenCLMultiDimensionalScaling<double>
+		>(embeddingDimension, locationCount, flags);
 
 	auto elementCount = locationCount * locationCount;
 	std::vector<double> data(elementCount);
@@ -51,16 +55,16 @@ int main(int argc, char* argv[]) {
 	    }
 	}
 
-	instance.setPairwiseData(&data[0], elementCount);
+	instance->setPairwiseData(&data[0], elementCount);
 
 	std::vector<double> location(embeddingDimension);
 	for (int i = 0; i < locationCount; ++i) {
 		generateLocation(location, normal, prng);
-		instance.updateLocations(i, &location[0], embeddingDimension);
+		instance->updateLocations(i, &location[0], embeddingDimension);
 	}
 
-	instance.makeDirty();
-	auto logLik = instance.getSumOfSquaredResiduals();
+	instance->makeDirty();
+	auto logLik = instance->getSumOfSquaredResiduals();
 
 	int iterations = 1000 * 10;
 
@@ -69,25 +73,25 @@ int main(int argc, char* argv[]) {
 
 	for (auto itr = 0; itr < iterations; ++itr) {
 
-// 	    double startDiagnostic = instance.getDiagnostic();
+// 	    double startDiagnostic = instance->getDiagnostic();
 
-		instance.storeState();
+		instance->storeState();
 
 		int dimension = uniform(prng);
 		generateLocation(location, normal, prng);
-		instance.updateLocations(dimension, &location[0], embeddingDimension);
-		double inc = instance.getSumOfSquaredResiduals();
+		instance->updateLocations(dimension, &location[0], embeddingDimension);
+		double inc = instance->getSumOfSquaredResiduals();
 		logLik += inc;
 
 		bool restore = binomial(prng);
 //  		restore = false;
 		if (restore) {
-			instance.restoreState();
+			instance->restoreState();
 		} else {
-		    instance.acceptState();
+		    instance->acceptState();
 		}
 
-// 		double endDiagnostic = instance.getDiagnostic();
+// 		double endDiagnostic = instance->getDiagnostic();
 // 		if (restore && (startDiagnostic != endDiagnostic)) {
 // 		    std::cerr << "Failed restore" << std::endl;
 // 		    std::cerr << (endDiagnostic - startDiagnostic) << std::endl;

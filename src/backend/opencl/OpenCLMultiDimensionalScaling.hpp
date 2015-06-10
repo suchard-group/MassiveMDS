@@ -41,6 +41,8 @@ public:
     		truncations.resize(locationCount * locationCount);
     		storedTruncations.resize(locationCount);
     	}
+
+    	std::cerr << "ctor OpenCLMultiDimensionalScaling" << std::endl;
     }
 
     virtual ~OpenCLMultiDimensionalScaling() { }
@@ -118,8 +120,24 @@ public:
     	}
     }
 
+//     double getDiagnostic() {
+//         return std::accumulate(
+//             begin(squaredResiduals),
+//             end(squaredResiduals),
+//             RealType(0));
+//     }
+
     void acceptState() {
-        // Do nothing
+        if (!isStoredSquaredResidualsEmpty) {
+    		for (int j = 0; j < locationCount; ++j) {
+    			squaredResiduals[j * locationCount + updatedLocation] = squaredResiduals[updatedLocation * locationCount + j];
+    		}
+    		if (isLeftTruncated) {
+                for (int j = 0; j < locationCount; ++j) {
+	    			truncations[j * locationCount + updatedLocation] = truncations[updatedLocation * locationCount + j];
+	    		}
+    		}
+    	}
     }
 
     void restoreState() {
@@ -132,10 +150,6 @@ public:
     			end(storedSquaredResiduals),
     			begin(squaredResiduals) + updatedLocation * locationCount
     		);
-    		for (int j = 0; j < locationCount; ++j) {
-    			squaredResiduals[j * locationCount + updatedLocation]
-    				= storedSquaredResiduals[j];
-    		}
     		residualsAndTruncationsKnown = true;
     	} else {
     		residualsAndTruncationsKnown = false; // Force recompute;  TODO cache
@@ -151,10 +165,6 @@ public:
 	    			end(storedTruncations),
 	    			begin(truncations) + updatedLocation * locationCount
 	    		);
-	    		for (int j = 0; j < locationCount; ++j) {
-	    			truncations[j * locationCount + updatedLocation]
-	    				= storedTruncations[j];
-	    		}
 	    	}
 	    }
 
@@ -202,9 +212,9 @@ public:
 		RealType lSumOfTruncations = 0.0;
 
 		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
-			for (int j = 0; j < locationCount; ++j) { // TODO j = i + 1 ???
+			for (int j = 0; j < locationCount; ++j) {
 
-				const auto distance = calculateDistance<mm::GPUMemoryManager<RealType>>(
+				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
 					begin(*locationsPtr) + i * embeddingDimension,
 					begin(*locationsPtr) + j * embeddingDimension,
 					embeddingDimension
@@ -212,14 +222,12 @@ public:
 				const auto residual = distance - observations[i * locationCount + j];
 				const auto squaredResidual = residual * residual;
 				squaredResiduals[i * locationCount + j] = squaredResidual;
-// 				squaredResiduals[j * locationCount + i] = squaredResidual;
 				lSumOfSquaredResiduals += squaredResidual;
 
 				if (withTruncation) { // compile-time check
 					const auto truncation = (i == j) ? RealType(0) :
 						math::logCdf(std::fabs(residual) * oneOverSd);
 					truncations[i * locationCount + j] = truncation;
-// 					truncations[j * locationCount + i] = truncation;
 					lSumOfTruncations += truncation;
 				}
 			}
@@ -254,7 +262,7 @@ public:
 
 			[this, i, &offset,
 			&start](const int j) {
-                const auto distance = calculateDistance<mm::GPUMemoryManager<RealType>>(
+                const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
                     start,
                     offset + embeddingDimension * j,
                     embeddingDimension
@@ -271,7 +279,6 @@ public:
 
             	// store new value
                 squaredResiduals[i * locationCount + j] = squaredResidual;
-                squaredResiduals[j * locationCount + i] = squaredResidual;
 
                 return inc;
             }
@@ -336,7 +343,7 @@ public:
 
 			[this, i, &offset, //oneOverSd,
 			&start](const int j) {
-                const auto distance = calculateDistance<mm::GPUMemoryManager<RealType>>(
+                const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
                     start,
                     offset + embeddingDimension * j,
                     embeddingDimension
@@ -353,7 +360,6 @@ public:
 
             	// store new value
                 squaredResiduals[i * locationCount + j] = squaredResidual;
-                squaredResiduals[j * locationCount + i] = squaredResidual;
 
                 const auto truncation = (i == j) ? RealType(0) :
                 	math::logCdf(std::fabs(residual) * oneOverSd);
@@ -364,7 +370,6 @@ public:
                 const auto inc2 = truncation - oldTruncation;
 
                 truncations[i * locationCount + j] = truncation;
-                truncations[j * locationCount + i] = truncation;
 
                 return std::complex<RealType>(inc, inc2);
             }
@@ -424,19 +429,35 @@ private:
     double sumOfTruncations;
     double storedSumOfTruncations;
 
-    mm::GPUMemoryManager<RealType> observations;
+    mm::MemoryManager<RealType> observations;
 
-    mm::GPUMemoryManager<RealType> locations0;
-    mm::GPUMemoryManager<RealType> locations1;
+    mm::MemoryManager<RealType> locations0;
+    mm::MemoryManager<RealType> locations1;
 
-    mm::GPUMemoryManager<RealType>* locationsPtr;
-    mm::GPUMemoryManager<RealType>* storedLocationsPtr;
+    mm::MemoryManager<RealType>* locationsPtr;
+    mm::MemoryManager<RealType>* storedLocationsPtr;
 
-    mm::GPUMemoryManager<RealType> squaredResiduals;
-    mm::GPUMemoryManager<RealType> storedSquaredResiduals;
+    mm::MemoryManager<RealType> squaredResiduals;
+    mm::MemoryManager<RealType> storedSquaredResiduals;
 
-    mm::GPUMemoryManager<RealType> truncations;
-    mm::GPUMemoryManager<RealType> storedTruncations;
+    mm::MemoryManager<RealType> truncations;
+    mm::MemoryManager<RealType> storedTruncations;
+
+
+
+//     mm::GPUMemoryManager<RealType> observations;
+//
+//     mm::GPUMemoryManager<RealType> locations0;
+//     mm::GPUMemoryManager<RealType> locations1;
+//
+//     mm::GPUMemoryManager<RealType>* locationsPtr;
+//     mm::GPUMemoryManager<RealType>* storedLocationsPtr;
+//
+//     mm::GPUMemoryManager<RealType> squaredResiduals;
+//     mm::GPUMemoryManager<RealType> storedSquaredResiduals;
+//
+//     mm::GPUMemoryManager<RealType> truncations;
+//     mm::GPUMemoryManager<RealType> storedTruncations;
 
     bool isStoredSquaredResidualsEmpty;
     bool isStoredTruncationsEmpty;

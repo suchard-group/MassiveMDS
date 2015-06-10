@@ -9,6 +9,15 @@ OPTION(BUILD_OPENCL "Build MDS with a OpenCL backend" ON)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x -ffast-math -Rpass=loop-vectorize -Rpass-missed=loop-vectorize  -Rpass-analysis=loop-vectorize")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x -ffast-math -Rpass=loop-vectorize")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x -fslp-vectorize-aggressive")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
+
+# -Rpass=loop-vectorize
+
+# -mllvm -debug-pass=loop-vectorize
+
 # OS Definitions
 IF(UNIX)
   IF(APPLE)   #OSX
@@ -48,15 +57,6 @@ ENDIF()
 
 ADD_EXECUTABLE(bin2cpp ${CMAKE_MODULE_PATH}/bin2cpp.cpp)
 
-
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x -ffast-math -Rpass=loop-vectorize -Rpass-missed=loop-vectorize  -Rpass-analysis=loop-vectorize")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x -ffast-math -Rpass=loop-vectorize")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -msse4.2 -std=c++0x -fslp-vectorize-aggressive")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
-
-# -Rpass=loop-vectorize
-
-# -mllvm -debug-pass=loop-vectorize
 
 find_package(JNI)
 
