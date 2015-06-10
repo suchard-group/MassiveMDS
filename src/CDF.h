@@ -311,6 +311,7 @@ double logCdf(double x) {
 
 #else // MIN_OPS
 
+template <typename T>
 double pnorm_both(double x)
 {
 /* i_tail in {0,1,2} means: "lower", "upper", or "both" :
@@ -516,7 +517,8 @@ double pnorm_both(double x)
     return cum;
 }
 
-double logCdf(double x) { return pnorm_both(x); }
+template <typename T>
+double logCdf(double x) { return pnorm_both<T>(x); }
 
 #endif // MIN_OPS
 

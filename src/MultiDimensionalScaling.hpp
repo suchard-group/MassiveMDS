@@ -228,7 +228,7 @@ public:
 
 				if (withTruncation) { // compile-time check
 					const auto truncation = (i == j) ? RealType(0) :
-						math::logCdf(std::fabs(residual) * oneOverSd);
+						math::logCdf<MultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
 					truncations[i * locationCount + j] = truncation;
 					lSumOfTruncations += truncation;
 				}
@@ -314,7 +314,7 @@ public:
                 const auto squaredResidual = squaredResiduals[i * locationCount + j];
 
                 const auto truncation = (i == j) ? RealType(0) :
-                	math::logCdf(std::sqrt(squaredResidual) * oneOverSd);
+                	math::logCdf<MultiDimensionalScaling>(std::sqrt(squaredResidual) * oneOverSd);
 
                 const auto oldTruncation = truncations[i * locationCount + j];
                 storedTruncations[j] = oldTruncation;
@@ -374,7 +374,7 @@ public:
                 squaredResiduals[j * locationCount + i] = squaredResidual;
 
                 const auto truncation = (i == j) ? RealType(0) :
-                	math::logCdf(std::fabs(residual) * oneOverSd);
+                	math::logCdf<MultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
 
                 const auto oldTruncation = truncations[i * locationCount + j];
                 storedTruncations[j] = oldTruncation;

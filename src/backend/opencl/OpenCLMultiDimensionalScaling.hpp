@@ -5,6 +5,8 @@
 
 #define SSE
 
+#include "OpenCLMemoryManagement.hpp"
+
 namespace mds {
 
 template <typename RealType>
@@ -33,6 +35,11 @@ public:
 
 //           , nThreads(4) //, pool(nThreads)
     {
+
+
+		device = boost::compute::system::default_device();
+		std::cerr << device.name() << std::endl;
+
 
     	if (flags & Flags::LEFT_TRUNCATION) {
     		isLeftTruncated = true;
@@ -226,7 +233,7 @@ public:
 
 				if (withTruncation) { // compile-time check
 					const auto truncation = (i == j) ? RealType(0) :
-						math::logCdf(std::fabs(residual) * oneOverSd);
+						math::logCdf<OpenCLMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
 					truncations[i * locationCount + j] = truncation;
 					lSumOfTruncations += truncation;
 				}
@@ -311,7 +318,7 @@ public:
 //                 const auto squaredResidual = squaredResiduals[i * locationCount + j];
 //
 //                 const auto truncation = (i == j) ? RealType(0) :
-//                 	math::logCdf(std::sqrt(squaredResidual) * oneOverSd);
+//                 	math::logCdf<OpenCLMultiDimensionalScaling>(std::sqrt(squaredResidual) * oneOverSd);
 //
 //                 const auto oldTruncation = truncations[i * locationCount + j];
 //                 storedTruncations[j] = oldTruncation;
@@ -362,7 +369,7 @@ public:
                 squaredResiduals[i * locationCount + j] = squaredResidual;
 
                 const auto truncation = (i == j) ? RealType(0) :
-                	math::logCdf(std::fabs(residual) * oneOverSd);
+                	math::logCdf<OpenCLMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
 
                 const auto oldTruncation = truncations[i * locationCount + j];
                 storedTruncations[j] = oldTruncation;
@@ -429,6 +436,10 @@ private:
     double sumOfTruncations;
     double storedSumOfTruncations;
 
+    boost::compute::device device;
+    boost::compute::context ctx;
+    boost::compute::command_queue queue;
+
     mm::MemoryManager<RealType> observations;
 
     mm::MemoryManager<RealType> locations0;
@@ -443,21 +454,19 @@ private:
     mm::MemoryManager<RealType> truncations;
     mm::MemoryManager<RealType> storedTruncations;
 
+    mm::GPUMemoryManager<RealType> dObservations;
 
+    mm::GPUMemoryManager<RealType> dLocations0;
+    mm::GPUMemoryManager<RealType> dLocations1;
 
-//     mm::GPUMemoryManager<RealType> observations;
-//
-//     mm::GPUMemoryManager<RealType> locations0;
-//     mm::GPUMemoryManager<RealType> locations1;
-//
-//     mm::GPUMemoryManager<RealType>* locationsPtr;
-//     mm::GPUMemoryManager<RealType>* storedLocationsPtr;
-//
-//     mm::GPUMemoryManager<RealType> squaredResiduals;
-//     mm::GPUMemoryManager<RealType> storedSquaredResiduals;
-//
-//     mm::GPUMemoryManager<RealType> truncations;
-//     mm::GPUMemoryManager<RealType> storedTruncations;
+    mm::GPUMemoryManager<RealType>* dLocationsPtr;
+    mm::GPUMemoryManager<RealType>* dStoredLocationsPtr;
+
+    mm::GPUMemoryManager<RealType> dSquaredResiduals;
+    mm::GPUMemoryManager<RealType> dStoredSquaredResiduals;
+
+    mm::GPUMemoryManager<RealType> dTruncations;
+    mm::GPUMemoryManager<RealType> dStoredTruncations;
 
     bool isStoredSquaredResidualsEmpty;
     bool isStoredTruncationsEmpty;
