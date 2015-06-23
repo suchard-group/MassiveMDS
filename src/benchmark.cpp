@@ -34,6 +34,9 @@ int main(int argc, char* argv[]) {
 
 	int embeddingDimension = 2;
 	int locationCount = 6000;
+	bool updateAllLocations = false;
+
+
 	long flags = 0L;
 // 	long flags = mds::Flags::LEFT_TRUNCATION;
 
@@ -47,8 +50,8 @@ int main(int argc, char* argv[]) {
 
 	SharedPtr instance =
 // 		mds::constructMultiDimensionalScalingDouble
-// 		mds::constructNewMultiDimensionalScalingDouble
-		mds::constructOpenCLMultiDimensionalScalingDouble
+		mds::constructNewMultiDimensionalScalingDouble
+// 		mds::constructOpenCLMultiDimensionalScalingDouble
 	(embeddingDimension, locationCount, flags);
 
 	auto elementCount = locationCount * locationCount;
@@ -66,6 +69,11 @@ int main(int argc, char* argv[]) {
 	instance->setPairwiseData(&data[0], elementCount);
 
 	std::vector<double> location(embeddingDimension);
+	std::vector<double> allLocations;
+	if (updateAllLocations) {
+		allLocations.resize(embeddingDimension * locationCount);
+	}
+
 	for (int i = 0; i < locationCount; ++i) {
 		generateLocation(location, normal, prng);
 		instance->updateLocations(i, &location[0], embeddingDimension);
@@ -74,7 +82,7 @@ int main(int argc, char* argv[]) {
 	instance->makeDirty();
 	auto logLik = instance->getSumOfSquaredResiduals();
 
-	int iterations = 1000 * 10;
+	int iterations = 100; //1000 * 10;
 
 	std::cout << "Starting MDS benchmark" << std::endl;
 	auto startTime = std::chrono::steady_clock::now();
@@ -85,9 +93,15 @@ int main(int argc, char* argv[]) {
 
 		instance->storeState();
 
-		int dimension = uniform(prng);
-		generateLocation(location, normal, prng);
-		instance->updateLocations(dimension, &location[0], embeddingDimension);
+		if (updateAllLocations) {
+			generateLocation(allLocations, normal, prng);
+			instance->updateLocations(-1, &allLocations[0], embeddingDimension * locationCount);
+		} else {
+			int dimension = uniform(prng);
+			generateLocation(location, normal, prng);
+			instance->updateLocations(dimension, &location[0], embeddingDimension);
+		}
+
 		double inc = instance->getSumOfSquaredResiduals();
 		logLik += inc;
 

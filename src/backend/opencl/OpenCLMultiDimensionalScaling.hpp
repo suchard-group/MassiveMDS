@@ -75,28 +75,53 @@ public:
 
     void updateLocations(int locationIndex, double* location, size_t length) {
 
-    	assert(length == embeddingDimension);
+		size_t offset{0};
 
-    	if (updatedLocation != - 1) {
-    		// more than one location updated -- do a full recomputation
-    		residualsAndTruncationsKnown = false;
-    		isStoredSquaredResidualsEmpty = true;
-    		isStoredTruncationsEmpty = true;
-    	}
+		if (locationIndex == -1) {
+			// Update all locations
+			assert(length == embeddingDimension * locationCount);
 
-    	updatedLocation = locationIndex;
+			residualsAndTruncationsKnown = false;
+			isStoredSquaredResidualsEmpty = true;
+			isStoredTruncationsEmpty = true;
+
+			// TODO Do anything with updatedLocation?
+		} else {
+			// Update a single location
+    		assert(length == embeddingDimension);
+
+	    	if (updatedLocation != - 1) {
+    			// more than one location updated -- do a full recomputation
+	    		residualsAndTruncationsKnown = false;
+	    		isStoredSquaredResidualsEmpty = true;
+	    		isStoredTruncationsEmpty = true;
+    		}
+
+	    	updatedLocation = locationIndex;
+	    	offset = locationIndex * embeddingDimension;
+	    }
+
     	std::copy(location, location + length,
-    		begin(*locationsPtr) + locationIndex * embeddingDimension
+    		begin(*locationsPtr) + offset
     	);
 
     	// COMPUTE
     	boost::compute::copy(location, location + length,
-    		dLocationsPtr->begin() + locationIndex * embeddingDimension,
+    		dLocationsPtr->begin() + offset,
     		queue
     	);
 
     	sumsOfResidualsAndTruncationsKnown = false;
     }
+
+
+// 	template <typename RealVectorPtr>
+// 	void bufferedCopyToDevice(double *begin, double *end, RealVectorPtr destination);
+//
+//
+// 	template <>
+// 	void bufferedCopyToDevice(double *begin, double *end,  mm::MemoryManager<double>::iterator
+
 
     void computeResidualsAndTruncations() {
 
@@ -490,6 +515,8 @@ private:
 
     bool isStoredSquaredResidualsEmpty;
     bool isStoredTruncationsEmpty;
+
+    mm::MemoryManager<double> buffer;
 
 //     bool isStoredAllTruncationsEmpty;
 

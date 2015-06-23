@@ -47,19 +47,36 @@ public:
 
     void updateLocations(int locationIndex, double* location, size_t length) {
 
-    	assert(length == embeddingDimension);
+		size_t offset{0};
 
-    	if (updatedLocation != - 1) {
-    		// more than one location updated -- do a full recomputation
-    		residualsAndTruncationsKnown = false;
-    		isStoredSquaredResidualsEmpty = true;
-    		isStoredTruncationsEmpty = true;
-    	}
+		if (locationIndex == -1) {
+			// Update all locations
+			assert(length == embeddingDimension * locationCount);
 
-    	updatedLocation = locationIndex;
-    	std::copy(location, location + length,
-    		begin(*locationsPtr) + locationIndex * embeddingDimension
-    	);
+			residualsAndTruncationsKnown = false;
+			isStoredSquaredResidualsEmpty = true;
+			isStoredTruncationsEmpty = true;
+
+			// TODO Do anything with updatedLocation?
+		} else {
+			// Update a single location
+    		assert(length == embeddingDimension);
+
+	    	if (updatedLocation != - 1) {
+    			// more than one location updated -- do a full recomputation
+	    		residualsAndTruncationsKnown = false;
+	    		isStoredSquaredResidualsEmpty = true;
+	    		isStoredTruncationsEmpty = true;
+    		}
+
+	    	updatedLocation = locationIndex;
+	    	offset = locationIndex * embeddingDimension;
+	    }
+
+		mm::bufferedCopy(location, location + length,
+			begin(*locationsPtr) + offset,
+			buffer
+		);
 
     	sumsOfResidualsAndTruncationsKnown = false;
     }
@@ -181,7 +198,7 @@ public:
 
     void setPairwiseData(double* data, size_t length) {
 		assert(length == observations.size());
-		std::copy(data, data + length, begin(observations));
+		mm::bufferedCopy(data, data + length, begin(observations), buffer);
     }
 
     void setParameters(double* data, size_t length) {
@@ -716,6 +733,9 @@ private:
     bool isStoredAllTruncationsEmpty;
 
     int nThreads;
+
+    mm::MemoryManager<double> buffer;
+
 //     ThreadPool pool;
 
 };

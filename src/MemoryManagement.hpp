@@ -28,6 +28,18 @@ namespace mm {
 template <typename T>
 using MemoryManager = std::vector<T, util::aligned_allocator<T, 16> >;
 
+
+// Copy functionality
+
+template <typename RealVectorPtr, typename Buffer>
+void bufferedCopy(double *begin, double *end, RealVectorPtr destination, Buffer& buffer);
+
+template <typename Buffer>
+void bufferedCopy(double *begin, double *end,
+		mm::MemoryManager<double>::iterator destination, Buffer&) {
+	std::copy(begin, end, destination);
+}
+
 } // namespace mm
 } // namespace mds
 
