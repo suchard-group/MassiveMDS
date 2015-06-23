@@ -2,6 +2,8 @@
 #define _MEMORYMANAGEMENT_HPP
 
 #include <vector>
+#include <algorithm>
+#include <iostream> // TODO Remove
 #include "aligned_allocator.hpp"
 
 namespace mds {
@@ -37,6 +39,12 @@ void bufferedCopy(double *begin, double *end, RealVectorPtr destination, Buffer&
 template <typename Buffer>
 void bufferedCopy(double *begin, double *end,
 		mm::MemoryManager<double>::iterator destination, Buffer&) {
+	std::copy(begin, end, destination);
+}
+
+template <typename Buffer>
+void bufferedCopy(double *begin, double *end,
+		mm::MemoryManager<float>::iterator destination, Buffer& buffer) {
 	std::copy(begin, end, destination);
 }
 

@@ -15,7 +15,32 @@ namespace mds {
 	SharedPtr constructMultiDimensionalScalingDouble(int, int, long);
 	SharedPtr constructNewMultiDimensionalScalingDouble(int, int, long);
 	SharedPtr constructOpenCLMultiDimensionalScalingDouble(int, int, long);
-};
+
+	SharedPtr constructMultiDimensionalScalingFloat(int, int, long);
+	SharedPtr constructNewMultiDimensionalScalingFloat(int, int, long);
+	SharedPtr constructOpenCLMultiDimensionalScalingFloat(int, int, long);
+
+
+SharedPtr factory(int dim1, int dim2, long flags) {
+	bool useFloat = flags & mds::Flags::FLOAT;
+	bool useOpenCL = flags & mds::Flags::OPENCL;
+
+	if (useFloat) {
+		if (useOpenCL) {
+			return constructOpenCLMultiDimensionalScalingFloat(dim1, dim2, flags);
+		} else {
+			return constructNewMultiDimensionalScalingFloat(dim1, dim2, flags);
+		}
+	} else {
+		if (useOpenCL) {
+			return constructOpenCLMultiDimensionalScalingDouble(dim1, dim2, flags);
+		} else {
+			return constructNewMultiDimensionalScalingDouble(dim1, dim2, flags);
+		}
+	}
+}
+
+}; // namespace mds
 
 template <typename T, typename PRNG, typename D>
 void generateLocation(T& locations, D& d, PRNG& prng) {
@@ -38,21 +63,21 @@ int main(int argc, char* argv[]) {
 
 
 	long flags = 0L;
-// 	long flags = mds::Flags::LEFT_TRUNCATION;
+// 	flags |= mds::Flags::LEFT_TRUNCATION;
 
 	auto normal = std::normal_distribution<double>(0.0, 1.0);
 	auto uniform = std::uniform_int_distribution<int>(0, locationCount - 1);
 	auto binomial = std::bernoulli_distribution(0.75);
 	auto normalData = std::normal_distribution<double>(0.0, 1.0);
 
-// 	mds::MultiDimensionalScaling<double> instance{embeddingDimension, locationCount, flags};
-
-
-	SharedPtr instance =
+// 	SharedPtr instance =
 // 		mds::constructMultiDimensionalScalingDouble
-		mds::constructNewMultiDimensionalScalingDouble
-// 		mds::constructOpenCLMultiDimensionalScalingDouble
-	(embeddingDimension, locationCount, flags);
+// 	(embeddingDimension, locationCount, flags);
+
+	flags |= mds::Flags::FLOAT;
+// 	flags |= mds::Flags::OPENCL;
+
+	SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
 
 	auto elementCount = locationCount * locationCount;
 	std::vector<double> data(elementCount);

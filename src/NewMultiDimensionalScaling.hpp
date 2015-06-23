@@ -746,6 +746,11 @@ constructNewMultiDimensionalScalingDouble(int embeddingDimension, int locationCo
 	return std::make_shared<NewMultiDimensionalScaling<double>>(embeddingDimension, locationCount, flags);
 }
 
+std::shared_ptr<AbstractMultiDimensionalScaling>
+constructNewMultiDimensionalScalingFloat(int embeddingDimension, int locationCount, long flags) {
+	return std::make_shared<NewMultiDimensionalScaling<float>>(embeddingDimension, locationCount, flags);
+}
+
 } // namespace mds
 
 #endif // _NEWMULTIDIMENSIONALSCALING_HPP
