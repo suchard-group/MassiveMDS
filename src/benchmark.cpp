@@ -99,10 +99,15 @@ int main(int argc, char* argv[]) {
 		allLocations.resize(embeddingDimension * locationCount);
 	}
 
+	double total = 0.0;
 	for (int i = 0; i < locationCount; ++i) {
 		generateLocation(location, normal, prng);
 		instance->updateLocations(i, &location[0], embeddingDimension);
+		for (int j = 0; j < embeddingDimension; ++j) {
+			total += location[j];
+		}
 	}
+	std::cerr << "FIND: " << total << std::endl;
 
 	instance->makeDirty();
 	auto logLik = instance->getSumOfSquaredResiduals();

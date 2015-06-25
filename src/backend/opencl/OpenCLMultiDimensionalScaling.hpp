@@ -5,10 +5,15 @@
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
+#include <boost/compute/algorithm/reduce.hpp>
 #include "reduce_fast.hpp"
 
 // #define SSE
 #undef SSE
+
+#define USE_VECTORS
+
+#define TILE_DIM 16
 
 #include "OpenCLMemoryManagement.hpp"
 
@@ -19,6 +24,7 @@ class OpenCLMultiDimensionalScaling : public AbstractMultiDimensionalScaling {
 public:
 
 	typedef typename OpenCLRealType::BaseType RealType;
+	typedef typename OpenCLRealType::VectorType VectorType;
 
     OpenCLMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags)
         : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
@@ -60,8 +66,19 @@ public:
 
 		dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
 
+		if (embeddingDimension != 2) {
+			std::cerr << "Currently only implemented for MDS dimension == 2" << std::endl;
+			exit(-1);
+		}
+
+#ifdef USE_VECTORS
+		dLocations0 = mm::GPUMemoryManager<VectorType>(locations0.size() / 2, ctx);
+		dLocations1 = mm::GPUMemoryManager<VectorType>(locations1.size() / 2, ctx);
+#else
 		dLocations0 = mm::GPUMemoryManager<RealType>(locations0.size(), ctx);
 		dLocations1 = mm::GPUMemoryManager<RealType>(locations1.size(), ctx);
+#endif // USE_VECTORS
+
 		dLocationsPtr = &dLocations0;
 		dStoredLocationsPtr = &dLocations1;
 
@@ -95,6 +112,7 @@ public:
     void updateLocations(int locationIndex, double* location, size_t length) {
 
 		size_t offset{0};
+		size_t deviceOffset{0};
 
 		if (locationIndex == -1) {
 			// Update all locations
@@ -117,7 +135,13 @@ public:
     		}
 
 	    	updatedLocation = locationIndex;
-	    	offset = locationIndex * embeddingDimension;
+
+			offset = locationIndex * embeddingDimension;
+#ifdef USE_VECTORS
+	    	deviceOffset = locationIndex;
+#else
+	    	deviceOffset = locationIndex * embeddingDimension;
+#endif
 	    }
 
 		mm::bufferedCopy(location, location + length,
@@ -127,7 +151,7 @@ public:
 
     	// COMPUTE
     	mm::bufferedCopyToDevice(location, location + length,
-    		dLocationsPtr->begin() + offset,
+    		dLocationsPtr->begin() + deviceOffset,
     		buffer, queue
     	);
 
@@ -311,6 +335,39 @@ public:
 	template <bool withTruncation>
 	void computeSumOfSquaredResiduals() {
 
+// 		RealType t1 = std::accumulate(begin(*locationsPtr), end(*locationsPtr), RealType(0));
+// 		VectorType t2;
+// 		boost::compute::reduce(dLocationsPtr->begin(), dLocationsPtr->end(), &t2, queue);
+//
+// 		std::cerr << (*locationsPtr)[0] << ", " << (*locationsPtr)[1] << std::endl;
+// 		std::cerr << (*dLocationsPtr)[0] << std::endl << std::endl;
+//
+// 		std::cerr << (*locationsPtr)[2] << ", " << (*locationsPtr)[3] << std::endl;
+// 		std::cerr << (*dLocationsPtr)[1] << std::endl << std::endl;
+//
+// 		std::cerr << (*locationsPtr)[2 * 6000 - 2] << ", " << (*locationsPtr)[2 * 6000 - 1] << std::endl;
+// 		std::cerr << (*dLocationsPtr)[6000 - 1] << std::endl << std::endl;
+//
+//
+// 		std::cerr << std::distance(begin(*locationsPtr), end(*locationsPtr)) << " "
+// 				  << std::distance(dLocationsPtr->begin(), dLocationsPtr->end()) << std::endl;
+// 		std::cerr << t1 << " " << t2 << std::endl;
+//
+// 		RealType t3 = 0;  RealType t5 = 0;
+// 		RealType t4 = 0;  RealType t6 = 0;
+// 		for (int i = 0; i < 6000; ++i) {
+// 			t3 += (*locationsPtr)[2 * i];
+// 			t4 += (*locationsPtr)[2 * i + 1];
+//
+// 			VectorType tmp = (*dLocationsPtr)[i];
+// 			t5 += tmp[0];
+// 			t6 += tmp[1];
+// 		}
+// 		std::cerr << t3 << " + " << t4 << std::endl;
+// 		std::cerr << t5 << " + " << t6 << std::endl;
+//
+// 		exit(-1);
+
 		RealType lSumOfSquaredResiduals = 0.0;
 		RealType lSumOfTruncations = 0.0;
 
@@ -345,8 +402,22 @@ public:
 		auto startTime2 = std::chrono::steady_clock::now();
 
 // 		std::cerr << "Prepare for launch..." << std::endl;
+#ifdef USE_VECTORS
+		kernelSumOfSquaredResidualsVector.set_arg(0, *dLocationsPtr);
+
+		const size_t local_work_size[2] = {TILE_DIM, TILE_DIM};
+		size_t work_groups = locationCount / TILE_DIM;
+		if (locationCount % TILE_DIM != 0) {
+			++work_groups;
+		}
+		const size_t global_work_size[2] = {work_groups * TILE_DIM, work_groups * TILE_DIM};
+
+		//queue.enqueue_1d_range_kernel(kernelSumOfSquaredResidualsVector, 0, locationCount * locationCount, 0);
+		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, 0, global_work_size, local_work_size);
+#else
 		kernelSumOfSquaredResiduals.set_arg(0, *dLocationsPtr);
 		queue.enqueue_1d_range_kernel(kernelSumOfSquaredResiduals, 0, locationCount * locationCount, 0);
+#endif // USE_VECTORS
 
 		queue.finish();
 		auto duration2 = std::chrono::steady_clock::now() - startTime2;
@@ -528,10 +599,10 @@ public:
 	}
 
 #ifdef SSE
-    template <typename VectorType, typename Iterator>
+    template <typename HostVectorType, typename Iterator>
     double calculateDistance(Iterator iX, Iterator iY, int length) const {
 
-        using AlignedValueType = typename VectorType::allocator_type::aligned_value_type;
+        using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
 
         auto sum = static_cast<AlignedValueType>(0);
         AlignedValueType* x = &*iX;
@@ -544,7 +615,7 @@ public:
         return std::sqrt(sum);
     }
 #else // SSE
-    template <typename VectorType, typename Iterator>
+    template <typename HostVectorType, typename Iterator>
     double calculateDistance(Iterator x, Iterator y, int length) const {
         auto sum = static_cast<RealType>(0);
 
@@ -565,6 +636,94 @@ public:
 	}
 
 
+#ifdef USE_VECTORS
+	void createOpenCLKernels() {
+
+		const char Test[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+			// approximation of the cumulative normal distribution function
+			static float cnd(float d)
+			{
+				const float A1 =  0.319381530f;
+				const float A2 = -0.356563782f;
+				const float A3 =  1.781477937f;
+				const float A4 = -1.821255978f;
+				const float A5 =  1.330274429f;
+				const float RSQRT2PI = 0.39894228040143267793994605993438f;
+
+				float K = 1.0f / (1.0f + 0.2316419f * fabs(d));
+				float cnd =
+					RSQRT2PI * exp(-0.5f * d * d) *
+					(K * (A1 + K * (A2 + K * (A3 + K * (A4 + K * A5)))));
+
+				if(d > 0){
+					cnd = 1.0f - cnd;
+				}
+
+				return cnd;
+			}
+		);
+
+		const char SumOfSquaredResidualsKernelVector[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+			__kernel void computeSSR(__global const float2 *locations,
+									 __global const float *observations,
+									 __global float *squaredResiduals,
+									 const uint locationCount) {
+
+				const uint i = get_group_id(1) * TILE_DIM + get_local_id(1);
+				const uint j = get_group_id(0) * TILE_DIM + get_local_id(0);
+
+				if (i < locationCount && j < locationCount) {
+
+					const float distance = length(locations[i] - locations[j]);
+
+					const float residual = distance - observations[i * locationCount + j];
+					const float squaredResidual = residual * residual;
+
+					squaredResiduals[i * locationCount + j] = squaredResidual;
+				}
+			}
+		);
+
+		std::stringstream options;
+	    options << "-DTILE_DIM=" << TILE_DIM;
+
+		std::cerr << "A" << std::endl;
+		program = boost::compute::program::build_with_source(SumOfSquaredResidualsKernelVector, ctx, options.str());
+	    std::cerr << "C" << std::endl;
+	    kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
+
+
+		std::cerr << program.source() << std::endl;
+
+		kernelSumOfSquaredResidualsVector.set_arg(0, dLocations0); // TODO Must update
+		kernelSumOfSquaredResidualsVector.set_arg(1, dObservations);
+		kernelSumOfSquaredResidualsVector.set_arg(2, dSquaredResiduals);
+		kernelSumOfSquaredResidualsVector.set_arg(3, boost::compute::uint_(locationCount));
+
+
+ 		using namespace boost::compute;
+        boost::shared_ptr<program_cache> cache = program_cache::get_global_cache(ctx);
+
+		RealType sum = RealType(0.0);
+		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
+
+		auto programInfo = *begin(cache->get_keys());
+		std::cerr << "Try " << programInfo.first << " : " << programInfo.second << std::endl;
+
+        boost::compute::program programReduce = *cache->get(programInfo.first, programInfo.second);
+        auto kernelReduce = kernel(programReduce, "reduce");
+        std::cerr << programReduce.source() << std::endl;
+
+
+        const auto &device2 = queue.get_device();
+        std::cerr << "nvidia? " << detail::is_nvidia_device(device) << " " << device.name() << " " << device.vendor() << std::endl;
+        std::cerr << "nvidia? " << detail::is_nvidia_device(device2) << " " << device2.name() << " " << device.vendor() << std::endl;
+
+		std::cerr << "Done compile VECTOR." << std::endl;
+
+// 		exit(-1);
+	}
+#else
 	void createOpenCLKernels() {
 
 		const char Test[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
@@ -632,6 +791,7 @@ public:
 // 			}
 // 		}
 
+
 		std::cerr << "A" << std::endl;
 		program = boost::compute::program::create_with_source(SumOfSquaredResidualsKernel, ctx);
 		std::cerr << "B" << std::endl;
@@ -670,6 +830,7 @@ public:
 
 // 		exit(-1);
 	}
+#endif // USE_VECTORS
 
 private:
 	double precision;
@@ -704,17 +865,20 @@ private:
 
     mm::GPUMemoryManager<RealType> dObservations;
 
+#ifdef USE_VECTORS
+    mm::GPUMemoryManager<VectorType> dLocations0;
+    mm::GPUMemoryManager<VectorType> dLocations1;
+
+    mm::GPUMemoryManager<VectorType>* dLocationsPtr;
+    mm::GPUMemoryManager<VectorType>* dStoredLocationsPtr;
+#else
     mm::GPUMemoryManager<RealType> dLocations0;
     mm::GPUMemoryManager<RealType> dLocations1;
 
     mm::GPUMemoryManager<RealType>* dLocationsPtr;
     mm::GPUMemoryManager<RealType>* dStoredLocationsPtr;
+#endif // USE_VECTORS
 
-//     mm::GPUMemoryManager<float> dLocations0;
-//     mm::GPUMemoryManager<float> dLocations1;
-//
-//     mm::GPUMemoryManager<float>* dLocationsPtr;
-//     mm::GPUMemoryManager<float>* dStoredLocationsPtr;
 
     mm::GPUMemoryManager<RealType> dSquaredResiduals;
     mm::GPUMemoryManager<RealType> dStoredSquaredResiduals;
@@ -728,7 +892,12 @@ private:
     mm::MemoryManager<RealType> buffer;
 
     boost::compute::program program;
+
+#ifdef USE_VECTORS
+	boost::compute::kernel kernelSumOfSquaredResidualsVector;
+#else
     boost::compute::kernel kernelSumOfSquaredResiduals;
+#endif // USE_VECTORS
 
 	double timer1 = 0;
 	double timer2 = 0;
