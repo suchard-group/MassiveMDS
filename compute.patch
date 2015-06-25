@@ -1,0 +1,45 @@
+diff -Naur compute-0.4/include/boost/compute/detail/lru_cache.hpp compute-0.4-patched/include/boost/compute/detail/lru_cache.hpp
+--- compute-0.4/include/boost/compute/detail/lru_cache.hpp	2014-12-14 17:03:36.000000000 -0800
++++ compute-0.4-patched/include/boost/compute/detail/lru_cache.hpp	2015-06-23 21:51:09.000000000 -0700
+@@ -116,6 +116,12 @@
+         m_map.clear();
+         m_list.clear();
+     }
++    
++    // MAS ADD
++    list_type get_keys() const
++    {
++        return m_list;
++    }
+ 
+ private:
+     void evict()
+diff -Naur compute-0.4/include/boost/compute/utility/program_cache.hpp compute-0.4-patched/include/boost/compute/utility/program_cache.hpp
+--- compute-0.4/include/boost/compute/utility/program_cache.hpp	2014-12-14 17:03:36.000000000 -0800
++++ compute-0.4-patched/include/boost/compute/utility/program_cache.hpp	2015-06-24 05:34:36.000000000 -0700
+@@ -161,6 +161,12 @@
+ 
+         return *cache;
+     }
++    
++    // MAS ADD
++    std::list<std::pair<std::string, std::string>> get_keys() const 
++    {
++        return m_cache.get_keys();
++    }        
+ 
+ private:
+     detail::lru_cache<std::pair<std::string, std::string>, program> m_cache;
+diff -Naur compute-0.4/include/boost/compute/detail/vendor.hpp compute-0.4-patched/include/boost/compute/detail/vendor.hpp
+--- compute-0.4/include/boost/compute/detail/vendor.hpp	2014-12-14 17:03:36.000000000 -0800
++++ compute-0.4-patched/include/boost/compute/detail/vendor.hpp	2015-06-24 06:09:33.000000000 -0700
+@@ -21,7 +21,8 @@
+ // returns true if the device is an nvidia gpu
+ inline bool is_nvidia_device(const device &device)
+ {
+-    return device.vendor() == "NVIDIA Corporation";
++    return device.vendor() == "NVIDIA Corporation"
++        || device.vendor() == "NVIDIA";
+ }
+ 
+ // returns true if the device is an amd cpu or gpu

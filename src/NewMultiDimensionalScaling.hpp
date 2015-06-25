@@ -481,10 +481,10 @@ public:
 #ifdef SSE
     template <typename VectorType, typename Iterator>
     double calculateDistance(Iterator iX, Iterator iY, int length) const {
-        auto sum = static_cast<double>(0);
 
         using AlignedValueType = typename VectorType::allocator_type::aligned_value_type;
 
+        auto sum = static_cast<AlignedValueType>(0);
         AlignedValueType* x = &*iX;
         AlignedValueType* y = &*iY;
 

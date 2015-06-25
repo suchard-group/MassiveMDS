@@ -12,12 +12,12 @@ namespace mds {
 // factory
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, int locationCount, long flags) {
-	return std::make_shared<OpenCLMultiDimensionalScaling<double>>(embeddingDimension, locationCount, flags);
+	return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble>>(embeddingDimension, locationCount, flags);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, int locationCount, long flags) {
-	return std::make_shared<OpenCLMultiDimensionalScaling<float>>(embeddingDimension, locationCount, flags);
+	return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat>>(embeddingDimension, locationCount, flags);
 }
 
 } // namespace mds

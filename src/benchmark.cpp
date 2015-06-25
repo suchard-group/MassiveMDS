@@ -58,8 +58,8 @@ int main(int argc, char* argv[]) {
 	std::cout << "Loading data" << std::endl;
 
 	int embeddingDimension = 2;
-	int locationCount = 6000;
-	bool updateAllLocations = false;
+	int locationCount = 6000; // 2000; // 6000;
+	bool updateAllLocations = true;
 
 
 	long flags = 0L;
@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
 // 	(embeddingDimension, locationCount, flags);
 
 	flags |= mds::Flags::FLOAT;
-// 	flags |= mds::Flags::OPENCL;
+	flags |= mds::Flags::OPENCL;
 
 	SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
 
