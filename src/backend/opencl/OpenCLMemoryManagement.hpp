@@ -1,10 +1,11 @@
 #ifndef _OPECLMEMORYMANAGEMENT_HPP
 #define _OPECLMEMORYMANAGEMENT_HPP
 
-#include <boost/compute.hpp>
+// #include <boost/compute.hpp>
+
+#include <boost/compute/types.hpp>
 
 namespace mds {
-
 
 struct OpenCLFloat {
 	typedef float BaseType;
@@ -34,6 +35,17 @@ void bufferedCopyToDevice(double *begin, double *end,
 
 template <typename Buffer, typename Queue>
 void bufferedCopyToDevice(double *begin, double *end,
+		mm::GPUMemoryManager<boost::compute::double2_>::iterator destination, Buffer&, Queue& queue) {
+	using namespace boost::compute;
+
+	copy(
+		reinterpret_cast<double2_ *>(begin),
+		reinterpret_cast<double2_ *>(begin) + std::distance(begin, end) / 2,
+		destination, queue);
+}
+
+template <typename Buffer, typename Queue>
+void bufferedCopyToDevice(double *begin, double *end,
 		mm::GPUMemoryManager<float>::iterator destination, Buffer& buffer, Queue& queue) {
 
 	const auto length = std::distance(begin, end);
@@ -46,8 +58,22 @@ void bufferedCopyToDevice(double *begin, double *end,
 		destination, queue);
 }
 
+template <typename Buffer, typename Queue>
+void bufferedCopyToDevice(double *begin, double *end,
+		mm::GPUMemoryManager<boost::compute::float2_>::iterator destination, Buffer& buffer, Queue& queue) {
+	using namespace boost::compute;
 
+	const auto length = std::distance(begin, end);
+	if (buffer.size() < length) {
+		buffer.resize(length);
+	}
+	std::copy(begin, end, std::begin(buffer));
 
+	copy(
+		reinterpret_cast<float2_ *>(&buffer[0]),
+		reinterpret_cast<float2_ *>(&buffer[0]) + length / 2,
+		destination, queue);
+}
 
 } // namespace mm
 } // namespace mds
