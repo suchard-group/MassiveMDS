@@ -669,12 +669,29 @@ public:
 									 __global float *squaredResiduals,
 									 const uint locationCount) {
 
-				const uint i = get_group_id(1) * TILE_DIM + get_local_id(1);
-				const uint j = get_group_id(0) * TILE_DIM + get_local_id(0);
+				const uint offsetJ = get_group_id(0) * TILE_DIM;
+				const uint offsetI = get_group_id(1) * TILE_DIM;
+
+				const uint j = offsetJ + get_local_id(0);
+				const uint i = offsetI + get_local_id(1);
+
+				__local float2 tile[2][TILE_DIM + 1]; // tile[0] == locations_j, tile[1] == locations_i
+
+				if (get_local_id(1) < 2) { // load just 2 rows
+					tile[get_local_id(1)][get_local_id(0)] = locations[
+						(get_local_id(1) - 0) * (offsetI + get_local_id(0)) + // tile[1] = locations_i
+						(1 - get_local_id(1)) * (offsetJ + get_local_id(0))   // tile[0] = locations_j
+					];
+				}
+
+				barrier(CLK_LOCAL_MEM_FENCE);
 
 				if (i < locationCount && j < locationCount) {
 
-					const float distance = length(locations[i] - locations[j]);
+					const float distance = length(
+						tile[1][get_local_id(1)] - tile[0][get_local_id(0)]
+// 						locations[i] - locations[j]
+					);
 
 					const float residual = distance - observations[i * locationCount + j];
 					const float squaredResidual = residual * residual;
@@ -684,8 +701,13 @@ public:
 			}
 		);
 
+		bool useLocalMemory = false;
+
 		std::stringstream options;
 	    options << "-DTILE_DIM=" << TILE_DIM;
+	    if (useLocalMemory) {
+	    	options << " -DLOCAL_MEM";
+	    }
 
 		std::cerr << "A" << std::endl;
 		program = boost::compute::program::build_with_source(SumOfSquaredResidualsKernelVector, ctx, options.str());
