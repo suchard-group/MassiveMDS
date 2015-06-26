@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
 // 		mds::constructMultiDimensionalScalingDouble
 // 	(embeddingDimension, locationCount, flags);
 
-	flags |= mds::Flags::FLOAT;
+	//flags |= mds::Flags::FLOAT;
 	flags |= mds::Flags::OPENCL;
 
 	SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);

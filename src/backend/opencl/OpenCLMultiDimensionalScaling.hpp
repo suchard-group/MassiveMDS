@@ -679,11 +679,11 @@ std::cerr << "A" << std::endl;
 		);
 
 		const char SumOfSquaredResidualsKernelVector[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-			__kernel void computeSSR(__global const float2 *locations,
-									 __global const float *observations,
-									 __global float *squaredResiduals,
+			__kernel void computeSSR(__global const REAL_VECTOR *locations,
+									 __global const REAL *observations,
+									 __global REAL *squaredResiduals,
 									 const uint locationCount) {
+
 
 				const uint offsetJ = get_group_id(0) * TILE_DIM;
 				const uint offsetI = get_group_id(1) * TILE_DIM;
@@ -691,7 +691,7 @@ std::cerr << "A" << std::endl;
 				const uint j = offsetJ + get_local_id(0);
 				const uint i = offsetI + get_local_id(1);
 
-				__local float2 tile[2][TILE_DIM + 1]; // tile[0] == locations_j, tile[1] == locations_i
+				__local REAL_VECTOR tile[2][TILE_DIM + 1]; // tile[0] == locations_j, tile[1] == locations_i
 
 				if (get_local_id(1) < 2) { // load just 2 rows
 					tile[get_local_id(1)][get_local_id(0)] = locations[
@@ -704,13 +704,13 @@ std::cerr << "A" << std::endl;
 
 				if (i < locationCount && j < locationCount) {
 
-					const float distance = length(
+					const REAL distance = length(
 						tile[1][get_local_id(1)] - tile[0][get_local_id(0)]
 // 						locations[i] - locations[j]
 					);
 
-					const float residual = distance - observations[i * locationCount + j];
-					const float squaredResidual = residual * residual;
+					const REAL residual = distance - observations[i * locationCount + j];
+					const REAL squaredResidual = residual * residual;
 
 					squaredResiduals[i * locationCount + j] = squaredResidual;
 				}
@@ -721,17 +721,25 @@ std::cerr << "A" << std::endl;
 
 		std::stringstream options;
 	    options << "-DTILE_DIM=" << TILE_DIM;
+		//options << " -DREAL=float -DREAL_VECTOR=float2";
+options << " -DREAL=double -DREAL_VECTOR=double2";
 	    if (useLocalMemory) {
 	    	options << " -DLOCAL_MEM";
 	    }
 
 		std::cerr << "A" << std::endl;
-		program = boost::compute::program::build_with_source(SumOfSquaredResidualsKernelVector, ctx, options.str());
+		
+		std::stringstream code;
+		code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n"
+		     << SumOfSquaredResidualsKernelVector;
+
+		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
 	    std::cerr << "C" << std::endl;
 	    kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
+ 	   // kernelSumOfSquaredResidualsVector.add_extension_pragma("cl_khr_fp64", "enable");
 
-
-		std::cerr << program.source() << std::endl;
+		std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
+		//exit(-1);
 
 		kernelSumOfSquaredResidualsVector.set_arg(0, dLocations0); // TODO Must update
 		kernelSumOfSquaredResidualsVector.set_arg(1, dObservations);
