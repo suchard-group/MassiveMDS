@@ -8,8 +8,8 @@
 #include <boost/compute/algorithm/reduce.hpp>
 #include "reduce_fast.hpp"
 
-// #define SSE
-#undef SSE
+#define SSE
+//#undef SSE
 
 #define USE_VECTORS
 
@@ -300,9 +300,9 @@ public:
 		mm::bufferedCopyToDevice(data, data + length, dObservations.begin(),
 			buffer, queue);
 
-		float sum = 0.0;
+		RealType sum = 0.0;
 		boost::compute::reduce(dObservations.begin(), dObservations.end(), &sum, queue);
-		float sum2 = std::accumulate(begin(observations), end(observations), 0.0);
+		RealType sum2 = std::accumulate(begin(observations), end(observations), RealType(0.0));
 
 		std::cerr << sum << " ?= " << sum2 << std::endl;
 // 		exit(-1);
@@ -334,7 +334,7 @@ public:
 
 	template <bool withTruncation>
 	void computeSumOfSquaredResiduals() {
-
+std::cerr << "A" << std::endl;
 // 		RealType t1 = std::accumulate(begin(*locationsPtr), end(*locationsPtr), RealType(0));
 // 		VectorType t2;
 // 		boost::compute::reduce(dLocationsPtr->begin(), dLocationsPtr->end(), &t2, queue);
@@ -368,6 +368,8 @@ public:
 //
 // 		exit(-1);
 
+
+
 		RealType lSumOfSquaredResiduals = 0.0;
 		RealType lSumOfTruncations = 0.0;
 
@@ -398,6 +400,9 @@ public:
 		auto duration1 = std::chrono::steady_clock::now() - startTime1;
 		if (count > 1) timer1 += std::chrono::duration<double, std::milli>(duration1).count();
 
+		std::cerr << "HERE2" << std::endl;
+		//exit(-1);
+
 		// COMPUTE TODO
 		auto startTime2 = std::chrono::steady_clock::now();
 
@@ -412,22 +417,32 @@ public:
 		}
 		const size_t global_work_size[2] = {work_groups * TILE_DIM, work_groups * TILE_DIM};
 
+		std::cerr << "HERE3" << std::endl;
+		//exit(-1);
+
 		//queue.enqueue_1d_range_kernel(kernelSumOfSquaredResidualsVector, 0, locationCount * locationCount, 0);
 		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, 0, global_work_size, local_work_size);
+		//std::cerr << "HERE4" << std::endl;
+		//exit(-1);
+
 #else
 		kernelSumOfSquaredResiduals.set_arg(0, *dLocationsPtr);
 		queue.enqueue_1d_range_kernel(kernelSumOfSquaredResiduals, 0, locationCount * locationCount, 0);
 #endif // USE_VECTORS
 
+		//std::cerr << "HERE4" << std::endl;
 		queue.finish();
+		//std::cerr << "HERE5" << std::endl;
 		auto duration2 = std::chrono::steady_clock::now() - startTime2;
 		if (count > 1) timer2 += std::chrono::duration<double, std::milli>(duration2).count();
 
-        auto startTime3 = std::chrono::steady_clock::now();
+        	auto startTime3 = std::chrono::steady_clock::now();
 
 // 		std::cerr << "Done with transform." << std::endl;
 		RealType sum = RealType(0.0);
-		boost::compute::reduce_fast(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
+		//boost::compute::reduce_fast(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
+		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
+		//std::cerr << "HERE6" << std::endl;
 
 		queue.finish();
 		auto duration3 = std::chrono::steady_clock::now() - startTime3;
@@ -664,6 +679,7 @@ public:
 		);
 
 		const char SumOfSquaredResidualsKernelVector[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+			#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 			__kernel void computeSSR(__global const float2 *locations,
 									 __global const float *observations,
 									 __global float *squaredResiduals,

@@ -1,3 +1,14 @@
 /opt/clang6.0/bin/clang++ -g -c -fverbose-asm  -std=c++0x -S -O3 -msse4.2 -Rpass=loop-vectorize -fslp-vectorize-aggressive ../src/benchmark.cpp
 
 clang++ -g -c -fverbose-asm  -std=c++0x -S -O3 -msse4.2 -fslp-vectorize-aggressive ../src/benchmark.cpp
+
+#g++ -g -c -fverbose-asm -Wa,-a,-ad -std=c++0x -S -O3 -msse4.2 ../src/benchmark.cpp 
+
+objdump -dS benchmark > benchmark.s
+
+
+
+# timer1 = 68906.3
+# timer2 = 472.271
+# timer3 = 101.427
+
