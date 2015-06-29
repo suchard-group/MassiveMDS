@@ -40,7 +40,7 @@ SharedPtr factory(int dim1, int dim2, long flags) {
 	}
 }
 
-}; // namespace mds
+} // namespace mds
 
 template <typename T, typename PRNG, typename D>
 void generateLocation(T& locations, D& d, PRNG& prng) {
@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
 // 	(embeddingDimension, locationCount, flags);
 
 	//flags |= mds::Flags::FLOAT;
-	flags |= mds::Flags::OPENCL;
+	//flags |= mds::Flags::OPENCL;
 
 	SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
 
@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
 	instance->makeDirty();
 	auto logLik = instance->getSumOfSquaredResiduals();
 
-	int iterations = 100; //1000 * 10;
+	int iterations = 10; //1000 * 10;
 
 	std::cout << "Starting MDS benchmark" << std::endl;
 	auto startTime = std::chrono::steady_clock::now();
