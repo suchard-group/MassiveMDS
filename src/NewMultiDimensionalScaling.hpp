@@ -5,6 +5,8 @@
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
+#define SSE
+
 namespace mds {
 
 template <typename RealType>
@@ -479,8 +481,9 @@ public:
 //     }
 
 #ifdef SSE
+#ifdef __clang__
     template <typename VectorType, typename Iterator>
-    double calculateDistance(Iterator iX, Iterator iY, int length) const {
+    RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
 
         using AlignedValueType = typename VectorType::allocator_type::aligned_value_type;
 
@@ -494,6 +497,59 @@ public:
         }
         return std::sqrt(sum);
     }
+#else // __clang__
+
+
+  template <typename VectorType, typename Iterator>
+  RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
+ 	return calculateDistance(iX, iY, length, RealType());
+  }
+
+  //namespace detail {
+   template <typename Iterator>
+    RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
+
+        //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
+
+ 	typedef float aligned_float __attribute__((aligned(16)));
+  	typedef aligned_float* SSE_PTR;
+
+	SSE_PTR __restrict__ x = &*iX;
+	SSE_PTR __restrict__ y = &*iY;
+
+	auto a = _mm_load_ps(x);
+	auto b = _mm_load_ps(y); // TODO second call is not aligned without padding
+	auto c = a - b;
+
+	const int mask = 0x49;
+	__m128 d = _mm_dp_ps(c, c, mask);
+	return  _mm_cvtss_f32(_mm_sqrt_ps(d));
+    }
+
+   template <typename Iterator>
+   RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
+
+        //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
+
+ 	typedef double aligned_double __attribute__((aligned(16)));
+  	typedef aligned_double* SSE_PTR;
+
+	SSE_PTR __restrict__ x = &*iX;
+	SSE_PTR __restrict__ y = &*iY;
+
+	auto a = _mm_load_pd(x);
+	auto b = _mm_load_pd(y);
+	auto c = a - b;
+
+	const int mask = 0x31;
+	__m128d d = _mm_dp_pd(c, c, mask);
+	return  _mm_cvtsd_f64(_mm_sqrt_pd(d));
+    }
+	//} // namespace detail
+
+#endif // __clang__
+
+
 #else // SSE
     template <typename VectorType, typename Iterator>
     double calculateDistance(Iterator x, Iterator y, int length) const {
