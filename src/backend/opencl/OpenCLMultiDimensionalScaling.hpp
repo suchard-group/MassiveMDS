@@ -438,18 +438,18 @@ std::cerr << "A" << std::endl;
 
         	auto startTime3 = std::chrono::steady_clock::now();
 
-// 		std::cerr << "Done with transform." << std::endl;
+ 		std::cerr << "Done with transform." << std::endl;
 		RealType sum = RealType(0.0);
 		//boost::compute::reduce_fast(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
 		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
-		//std::cerr << "HERE6" << std::endl;
+		std::cerr << "HERE6" << std::endl;
 
 		queue.finish();
 		auto duration3 = std::chrono::steady_clock::now() - startTime3;
 		if (count > 1) timer3 += std::chrono::duration<double, std::milli>(duration3).count();
 
 
-		RealType tmp = std::accumulate(begin(squaredResiduals), end(squaredResiduals), RealType(0.0));
+//		RealType tmp = std::accumulate(begin(squaredResiduals), end(squaredResiduals), RealType(0.0));
 
 
  		std::cerr << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
@@ -719,24 +719,27 @@ std::cerr << "A" << std::endl;
 
 		bool useLocalMemory = false;
 
+// 		std::cerr << "A" << std::endl;
+
+		std::stringstream code;
 		std::stringstream options;
-	    options << "-DTILE_DIM=" << TILE_DIM;
-		//options << " -DREAL=float -DREAL_VECTOR=float2";
-options << " -DREAL=double -DREAL_VECTOR=double2";
-	    if (useLocalMemory) {
+
+		options << "-DTILE_DIM=" << TILE_DIM;
+		if (useLocalMemory) {
 	    	options << " -DLOCAL_MEM";
 	    }
 
-		std::cerr << "A" << std::endl;
-		
-		std::stringstream code;
-		code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n"
-		     << SumOfSquaredResidualsKernelVector;
+		if (sizeof(RealType) == 8) { // 64-bit fp
+			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
+			options << " -DREAL=double -DREAL_VECTOR=double2";
+		} else { // 32-bit fp
+			options << " -DREAL=float -DREAL_VECTOR=float2";
+		}
+		code << SumOfSquaredResidualsKernelVector;
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
-	    std::cerr << "C" << std::endl;
+// 	    std::cerr << "C" << std::endl;
 	    kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
- 	   // kernelSumOfSquaredResidualsVector.add_extension_pragma("cl_khr_fp64", "enable");
 
 		std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
 		//exit(-1);
