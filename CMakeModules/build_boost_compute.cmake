@@ -67,4 +67,12 @@ IF(NOT rv EQUAL 0)
     MESSAGE(FATAL_ERROR "'${archive}' extraction failed")
 ENDIF()
 
+MESSAGE(STATUS " patching ${archive}")
+EXECUTE_PROCESS(COMMAND patch -p0 -i compute.patch
+    WORKING_DIRECTORY ${thirdPartyDir}
+    RESULT_VARIABLE rv)
+IF(NOT rv EQUAL 0)
+	MESSAGE(FATAL_ERROR "`${archive}` patch failed")
+ENDIF()
+
 FILE(WRITE ${inflated} "${MD5}")
