@@ -23,6 +23,16 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++0x")
 
 # -mllvm -debug-pass=loop-vectorize
 
+OPTION(USE_SYSTEM_TBB "Use system TBB" ON)
+IF(USE_SYSTEM_TBB)
+  FIND_PACKAGE(TBB REQUIRED)
+ELSE()
+  INCLUDE("${CMAKE_MODULE_PATH}/build_tbb.cmake")
+ENDIF()
+INCLUDE_DIRECTORIES(${TBB_INCLUDE_DIRS})
+MESSAGE(STATUS "TBB directory: ${TBB_INCLUDE_DIRS}")
+
+
 # OS Definitions
 IF(UNIX)
   IF(APPLE)   #OSX
@@ -62,6 +72,7 @@ ENDIF()
 
 ADD_EXECUTABLE(bin2cpp ${CMAKE_MODULE_PATH}/bin2cpp.cpp)
 
+MESSAGE(STATUS "TBB libraries: ${TBB_LIBRARIES}")
 
 find_package(JNI)
 
@@ -88,12 +99,12 @@ if (JNI_FOUND)
    message (STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
 
 include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni
-	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/include"
+	TBB_INCLUDE_DIRS
 	)
 
-link_directories(
-	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/lib"
-	)
+#link_directories(
+#	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/lib"
+#	)
 
 set(JNI_SOURCE_FILES
 	src/jni/dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.cpp
@@ -101,6 +112,8 @@ set(JNI_SOURCE_FILES
 
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
 target_link_libraries(mds_jni mds_opencl)
+target_link_libraries(mds_jni ${TBB_LIBRARIES})
+
 #target_link_libraries(mds_jni tbb)
 
 #IF(APPLE)
@@ -119,8 +132,7 @@ target_link_libraries(mds_jni mds_opencl)
 
 add_executable(benchmark src/benchmark.cpp)
 target_link_libraries(benchmark mds_jni)
-target_link_libraries(benchmark tbb)
-
+target_link_libraries(benchmark ${TBB_LIBRARIES})
 
 ##
 # Packaging
