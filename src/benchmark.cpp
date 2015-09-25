@@ -62,7 +62,13 @@ int main(int argc, char* argv[]) {
 		("iterations", po::value<int>()->default_value(10), "number of iterations")
 	;
 	po::variables_map vm;
-	po::store(po::parse_command_line(argc, argv, desc), vm);
+
+	try {
+		po::store(po::parse_command_line(argc, argv, desc), vm);
+		po::notify(vm);
+	} catch (std::exception& e) {
+		std::cout << desc << std::endl;
+	}
 
 	if (vm.count("help")) {
 		std::cout << desc << std::endl;
