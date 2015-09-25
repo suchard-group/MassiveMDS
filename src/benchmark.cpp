@@ -3,6 +3,8 @@
 #include <random>
 #include <iostream>
 
+#include <boost/program_options.hpp>
+
 #include "AbstractMultiDimensionalScaling.hpp"
 // #include "OpenCLMultiDimensionalScaling.hpp"
 // #include "NewMultiDimensionalScaling.hpp"
@@ -51,6 +53,22 @@ void generateLocation(T& locations, D& d, PRNG& prng) {
 
 int main(int argc, char* argv[]) {
 
+	// Set-up CLI
+	namespace po = boost::program_options;
+	po::options_description desc("Allowed options");
+	desc.add_options()
+		("help", "produce help message")
+		("gpu", "run on first GPU")
+		("iterations", po::value<int>()->default_value(10), "number of iterations")
+	;
+	po::variables_map vm;
+	po::store(po::parse_command_line(argc, argv, desc), vm);
+
+	if (vm.count("help")) {
+		std::cout << desc << std::endl;
+		return 1;
+	}
+
 	long seed = 666L;
 
 	auto prng = std::mt19937(seed);
@@ -75,7 +93,13 @@ int main(int argc, char* argv[]) {
 // 	(embeddingDimension, locationCount, flags);
 
 	//flags |= mds::Flags::FLOAT;
-	//flags |= mds::Flags::OPENCL;
+
+	if (vm.count("gpu")) {
+		std::cout << "Running on GPU" << std::endl;
+		flags |= mds::Flags::OPENCL;
+	} else {
+		std::cout << "Running on CPU" << std::endl;
+	}
 
 	SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
 
@@ -112,10 +136,10 @@ int main(int argc, char* argv[]) {
 	instance->makeDirty();
 	auto logLik = instance->getSumOfSquaredResiduals();
 
-	int iterations = 10; //1000 * 10;
-
 	std::cout << "Starting MDS benchmark" << std::endl;
 	auto startTime = std::chrono::steady_clock::now();
+
+	int iterations = vm["iterations"].as<int>();
 
 	for (auto itr = 0; itr < iterations; ++itr) {
 

@@ -102,10 +102,6 @@ include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE
 	TBB_INCLUDE_DIRS
 	)
 
-#link_directories(
-#	"/Users/msuchard/Dropbox/Projects/tbb43_20140724oss/lib"
-#	)
-
 set(JNI_SOURCE_FILES
 	src/jni/dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.cpp
 	)
@@ -114,25 +110,25 @@ add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
 target_link_libraries(mds_jni mds_opencl)
 target_link_libraries(mds_jni ${TBB_LIBRARIES})
 
-#target_link_libraries(mds_jni tbb)
 
-#IF(APPLE)
-#  SET_TARGET_PROPERTIES(${SWIG_MODULE_<module_name>_REAL_NAME} PROPERTIES
-#    PREFIX "lib" SUFFIX ".jnilib")
-#ELSEIF(WIN32)
-#  SET_TARGET_PROPERTIES(${SWIG_MODULE_<module_name>_REAL_NAME} PROPERTIES
-#    PREFIX "" SUFFIX ".dll")
-#ELSEIF(UNIX)
-#  SET_TARGET_PROPERTIES(${SWIG_MODULE_<module_name>_REAL_NAME} PROPERTIES
-#    PREFIX "lib" SUFFIX ".so")
-#ENDIF(APPLE)
+##
+# Build boost program_options for benchmark
+##
+INCLUDE("${CMAKE_MODULE_PATH}/build_boost_headers.cmake")
+file(GLOB BOOST_PO_FILES
+    "${BoostHeaders_INCLUDE_DIRS}/libs/program_options/src/*.cpp"
+)
+include_directories(${BoostHeaders_INCLUDE_DIRS})
+add_library(boost_program_options ${BOOST_PO_FILES})
 
-#add_definitions(-DDOUBLE_PRECISION)
-#target_link_libraries(bsccs_jni base_bsccs-dp)
+##
+# Build benchmark
+##
 
 add_executable(benchmark src/benchmark.cpp)
 target_link_libraries(benchmark mds_jni)
 target_link_libraries(benchmark ${TBB_LIBRARIES})
+target_link_libraries(benchmark boost_program_options)
 
 ##
 # Packaging
