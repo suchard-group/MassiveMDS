@@ -38,6 +38,7 @@ public:
     virtual void updateLocations(int, double*, size_t) = 0;
     virtual double getSumOfSquaredResiduals() = 0;
     virtual double getSumOfLogTruncations() = 0;
+    virtual void getLogLikelihoodGradient(std::vector<double>& result) { /* Do nothing */ };
     virtual void storeState() = 0;
     virtual void restoreState() = 0;
     virtual void acceptState() = 0;

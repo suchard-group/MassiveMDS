@@ -197,4 +197,7 @@ int main(int argc, char* argv[]) {
 	std::cout << std::chrono::duration<double, std::milli> (duration).count() << " ms "
 			  << std::endl;
 
+	std::vector<double> gradient(locationCount * embeddingDimension);
+	instance->getLogLikelihoodGradient(gradient);
+
 }
