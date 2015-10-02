@@ -59,7 +59,10 @@ int main(int argc, char* argv[]) {
 	desc.add_options()
 		("help", "produce help message")
 		("gpu", "run on first GPU")
+		("float", "run in single-precision")
+		("truncation", "enable truncation")
 		("iterations", po::value<int>()->default_value(10), "number of iterations")
+		("locations", po::value<int>()->default_value(6000), "number of locations")
 	;
 	po::variables_map vm;
 
@@ -68,6 +71,7 @@ int main(int argc, char* argv[]) {
 		po::notify(vm);
 	} catch (std::exception& e) {
 		std::cout << desc << std::endl;
+		return 1;
 	}
 
 	if (vm.count("help")) {
@@ -82,29 +86,34 @@ int main(int argc, char* argv[]) {
 	std::cout << "Loading data" << std::endl;
 
 	int embeddingDimension = 2;
-	int locationCount = 6000; // 2000; // 6000;
+	int locationCount = vm["locations"].as<int>();
+	
 	bool updateAllLocations = true;
 
-
 	long flags = 0L;
-// 	flags |= mds::Flags::LEFT_TRUNCATION;
 
 	auto normal = std::normal_distribution<double>(0.0, 1.0);
 	auto uniform = std::uniform_int_distribution<int>(0, locationCount - 1);
 	auto binomial = std::bernoulli_distribution(0.75);
 	auto normalData = std::normal_distribution<double>(0.0, 1.0);
 
-// 	SharedPtr instance =
-// 		mds::constructMultiDimensionalScalingDouble
-// 	(embeddingDimension, locationCount, flags);
-
-	//flags |= mds::Flags::FLOAT;
-
 	if (vm.count("gpu")) {
 		std::cout << "Running on GPU" << std::endl;
 		flags |= mds::Flags::OPENCL;
 	} else {
 		std::cout << "Running on CPU" << std::endl;
+	}
+	
+	if (vm.count("float")) {
+		std::cout << "Running in single-precision" << std::endl;
+		flags |= mds::Flags::FLOAT;
+	} else {
+		std::cout << "Running in double-precision" << std::endl;
+	}
+	
+	if (vm.count("truncation")) {
+		std::cout << "Enabling truncation" << std::endl;
+		flags |= mds::Flags::LEFT_TRUNCATION;		
 	}
 
 	SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
@@ -166,7 +175,6 @@ int main(int argc, char* argv[]) {
 		logLik += inc;
 
 		bool restore = binomial(prng);
-//  		restore = false;
 		if (restore) {
 			instance->restoreState();
 		} else {

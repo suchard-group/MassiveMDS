@@ -230,8 +230,8 @@ public:
 		assert(result.size() == locationsPtr->size());
 		std::fill(std::begin(result), std::end(result), 0.0);
 
-		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
-			for (int j = 0; j < locationCount; ++j) {
+		for (int i = 0; i < locationCount; ++i) {
+			for (int j = i; j < locationCount; ++j) {
 				if (i != j) {
 					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
 						begin(*locationsPtr) + i * embeddingDimension,
@@ -252,7 +252,6 @@ public:
 
 					result[j * embeddingDimension + 0] -= update0;
 					result[j * embeddingDimension + 1] -= update1;
-
 				}
 			}
 		}
