@@ -104,6 +104,7 @@ include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE
 
 set(JNI_SOURCE_FILES
 	src/jni/dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.cpp
+	src/factory.cpp
 	)
 
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})

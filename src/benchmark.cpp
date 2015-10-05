@@ -6,43 +6,6 @@
 #include <boost/program_options.hpp>
 
 #include "AbstractMultiDimensionalScaling.hpp"
-// #include "OpenCLMultiDimensionalScaling.hpp"
-// #include "NewMultiDimensionalScaling.hpp"
-// #include "MultiDimensionalScaling.hpp"
-
-typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> SharedPtr; // TODO Move to AMDS.hpp
-
-// forward reference
-namespace mds {
-	SharedPtr constructMultiDimensionalScalingDouble(int, int, long);
-	SharedPtr constructNewMultiDimensionalScalingDouble(int, int, long);
-	SharedPtr constructOpenCLMultiDimensionalScalingDouble(int, int, long);
-
-	SharedPtr constructMultiDimensionalScalingFloat(int, int, long);
-	SharedPtr constructNewMultiDimensionalScalingFloat(int, int, long);
-	SharedPtr constructOpenCLMultiDimensionalScalingFloat(int, int, long);
-
-
-SharedPtr factory(int dim1, int dim2, long flags) {
-	bool useFloat = flags & mds::Flags::FLOAT;
-	bool useOpenCL = flags & mds::Flags::OPENCL;
-
-	if (useFloat) {
-		if (useOpenCL) {
-			return constructOpenCLMultiDimensionalScalingFloat(dim1, dim2, flags);
-		} else {
-			return constructNewMultiDimensionalScalingFloat(dim1, dim2, flags);
-		}
-	} else {
-		if (useOpenCL) {
-			return constructOpenCLMultiDimensionalScalingDouble(dim1, dim2, flags);
-		} else {
-			return constructNewMultiDimensionalScalingDouble(dim1, dim2, flags);
-		}
-	}
-}
-
-} // namespace mds
 
 template <typename T, typename PRNG, typename D>
 void generateLocation(T& locations, D& d, PRNG& prng) {
@@ -59,6 +22,7 @@ int main(int argc, char* argv[]) {
 	desc.add_options()
 		("help", "produce help message")
 		("gpu", "run on first GPU")
+		("tbb", "use TBB")
 		("float", "run in single-precision")
 		("truncation", "enable truncation")
 		("iterations", po::value<int>()->default_value(10), "number of iterations")
@@ -102,6 +66,10 @@ int main(int argc, char* argv[]) {
 		flags |= mds::Flags::OPENCL;
 	} else {
 		std::cout << "Running on CPU" << std::endl;
+		if (vm.count("tbb")) {
+			std::cout << "Using TBB" << std::endl;
+			flags |= mds::Flags::TBB;
+		}
 	}
 	
 	if (vm.count("float")) {
@@ -116,7 +84,7 @@ int main(int argc, char* argv[]) {
 		flags |= mds::Flags::LEFT_TRUNCATION;		
 	}
 
-	SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
+	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
 
 	auto elementCount = locationCount * locationCount;
 	std::vector<double> data(elementCount);

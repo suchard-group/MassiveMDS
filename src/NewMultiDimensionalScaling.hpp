@@ -10,7 +10,7 @@
 
 namespace mds {
 
-template <typename RealType>
+template <typename RealType, typename ParallelType>
 class NewMultiDimensionalScaling : public AbstractMultiDimensionalScaling {
 public:
     NewMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags)
@@ -263,10 +263,22 @@ public:
 	template <bool withTruncation>
 	void computeSumOfSquaredResiduals() {
 
-		RealType lSumOfSquaredResiduals = 0.0;
-		RealType lSumOfTruncations = 0.0;
+// 		RealType lSumOfSquaredResiduals = 0.0;
+// 		RealType lSumOfTruncations = 0.0;
 
-		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
+		std::complex<RealType> delta =
+
+// 		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
+// #ifdef USE_TBB
+// 		accumulate_tbb(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),	
+// #else
+		accumulate(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
+// #endif							
+			[this](const int i) {
+		
+			double lSumOfSquaredResiduals{0.0};
+			double lSumOfTruncations{0.0};
+
 			for (int j = 0; j < locationCount; ++j) {
 
 				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
@@ -286,7 +298,12 @@ public:
 					lSumOfTruncations += truncation;
 				}
 			}
-		}
+			
+			return std::complex<RealType>(lSumOfSquaredResiduals, lSumOfSquaredResiduals);
+		}, ParallelType());
+		
+		double lSumOfSquaredResiduals = delta.real();
+		double lSumOfTruncations = delta.imag();
 
     	lSumOfSquaredResiduals /= 2.0;
     	sumOfSquaredResiduals = lSumOfSquaredResiduals;
@@ -336,7 +353,7 @@ public:
                 squaredResiduals[i * locationCount + j] = squaredResidual;
 
                 return inc;
-            }
+            }, ParallelType()
 		);
 
 		sumOfSquaredResiduals += delta;
@@ -395,11 +412,11 @@ public:
 
 // 		accumulate_thread(0, locationCount, double(0),
 
-#ifdef USE_TBB
-        accumulate_tbb(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
-#else
+// #ifdef USE_TBB
+//         accumulate_tbb(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
+// #else
  		accumulate(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
-#endif
+// #endif
 // 		accumulate_tbb(0, locationCount, double(0),
 
 			[this, i, &offset, //oneOverSd,
@@ -433,7 +450,7 @@ public:
                 truncations[i * locationCount + j] = truncation;
 
                 return std::complex<RealType>(inc, inc2);
-            }
+            }, ParallelType()
 		);
 
 		sumOfSquaredResiduals += delta.real();
@@ -637,7 +654,7 @@ public:
 	}
 
 	template <typename Integer, typename Function, typename Real>
-	inline Real accumulate(Integer begin, Integer end, Real sum, Function function) {
+	inline Real accumulate(Integer begin, Integer end, Real sum, Function function, CpuAccumulate) {
 		for (; begin != end; ++begin) {
 			sum += function(begin);
 		}
@@ -719,7 +736,7 @@ public:
 
 #ifdef USE_TBB
 	template <typename Integer, typename Function, typename Real>
-	inline Real accumulate_tbb(Integer begin, Integer end, Real sum, Function function) {
+	inline Real accumulate(Integer begin, Integer end, Real sum, Function function, TbbAccumulate) {
 		return tbb::parallel_reduce(
  			tbb::blocked_range<size_t>(begin, end
  			//, 200
@@ -830,13 +847,23 @@ private:
 
 // factory
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDouble(int embeddingDimension, int locationCount, long flags) {
-	return std::make_shared<NewMultiDimensionalScaling<double>>(embeddingDimension, locationCount, flags);
+constructNewMultiDimensionalScalingDoubleNoParallel(int embeddingDimension, int locationCount, long flags) {
+	return std::make_shared<NewMultiDimensionalScaling<double, CpuAccumulate>>(embeddingDimension, locationCount, flags);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloat(int embeddingDimension, int locationCount, long flags) {
-	return std::make_shared<NewMultiDimensionalScaling<float>>(embeddingDimension, locationCount, flags);
+constructNewMultiDimensionalScalingDoubleTbb(int embeddingDimension, int locationCount, long flags) {
+	return std::make_shared<NewMultiDimensionalScaling<double, TbbAccumulate>>(embeddingDimension, locationCount, flags);
+}
+
+std::shared_ptr<AbstractMultiDimensionalScaling>
+constructNewMultiDimensionalScalingFloatNoParallel(int embeddingDimension, int locationCount, long flags) {
+	return std::make_shared<NewMultiDimensionalScaling<float, CpuAccumulate>>(embeddingDimension, locationCount, flags);
+}
+
+std::shared_ptr<AbstractMultiDimensionalScaling>
+constructNewMultiDimensionalScalingFloatTbb(int embeddingDimension, int locationCount, long flags) {
+	return std::make_shared<NewMultiDimensionalScaling<float, TbbAccumulate>>(embeddingDimension, locationCount, flags);
 }
 
 } // namespace mds

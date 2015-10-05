@@ -7,6 +7,7 @@ enum Flags {
 	FLOAT = 1 << 1,
 	OPENCL = 1 << 2,
     LEFT_TRUNCATION = 1 << 5,
+    TBB = 1 << 10,
 };
 
 } // namespace mds

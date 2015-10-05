@@ -14,7 +14,9 @@ JNIEXPORT jint JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
   (JNIEnv *, jobject, jint embeddingDimension, jint elementCount, jlong flags) {
     instances.emplace_back(
 //         std::make_shared<mds::MultiDimensionalScaling<double>>(embeddingDimension, elementCount, flags));
-        std::make_shared<mds::NewMultiDimensionalScaling<double>>(embeddingDimension, elementCount, flags));
+//         std::make_shared<mds::NewMultiDimensionalScaling<double,mds::CpuAccumulate>>(embeddingDimension, elementCount, flags)
+		mds::factory(embeddingDimension, elementCount, flags)
+    );
     return instances.size() - 1;
   }
 

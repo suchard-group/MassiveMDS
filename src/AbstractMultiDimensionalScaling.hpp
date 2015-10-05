@@ -11,7 +11,7 @@
 //#include <xmmintrin.h>
 #include <emmintrin.h>
 
-// #define USE_TBB
+#define USE_TBB
 
 #ifdef USE_TBB
     #include "tbb/parallel_reduce.h"
@@ -60,8 +60,19 @@ protected:
     bool isLeftTruncated = false;
 };
 
+typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> SharedPtr;
+
+SharedPtr factory(int dim1, int dim2, long flags);
+
 template <typename T>
 struct DetermineType;
+
+struct CpuAccumulate { };
+
+#ifdef USE_TBB
+struct TbbAccumulate{ };
+#endif
+
 
 } // namespace mds
 
