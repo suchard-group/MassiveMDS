@@ -2,7 +2,7 @@
 #include <vector>
 #include <iostream>
 
-#include "MultiDimensionalScaling.hpp"
+// #include "MultiDimensionalScaling.hpp"
 #include "NewMultiDimensionalScaling.hpp"
 #include "dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.h"
 
