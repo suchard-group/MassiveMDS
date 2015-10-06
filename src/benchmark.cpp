@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include <boost/program_options.hpp>
+#include <tbb/task_scheduler_init.h>
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
@@ -22,7 +23,7 @@ int main(int argc, char* argv[]) {
 	desc.add_options()
 		("help", "produce help message")
 		("gpu", "run on first GPU")
-		("tbb", "use TBB")
+		("tbb", po::value<int>()->default_value(0), "use TBB with specified number of threads")
 		("float", "run in single-precision")
 		("truncation", "enable truncation")
 		("iterations", po::value<int>()->default_value(10), "number of iterations")
@@ -60,15 +61,22 @@ int main(int argc, char* argv[]) {
 	auto uniform = std::uniform_int_distribution<int>(0, locationCount - 1);
 	auto binomial = std::bernoulli_distribution(0.75);
 	auto normalData = std::normal_distribution<double>(0.0, 1.0);
+	
+	std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
 
 	if (vm.count("gpu")) {
 		std::cout << "Running on GPU" << std::endl;
 		flags |= mds::Flags::OPENCL;
 	} else {
 		std::cout << "Running on CPU" << std::endl;
-		if (vm.count("tbb")) {
-			std::cout << "Using TBB" << std::endl;
+		
+		int threads = vm["tbb"].as<int>();
+		if (threads != 0) {
+			std::cout << "Using TBB with " << threads << " out of " 
+			          << tbb::task_scheduler_init::default_num_threads()
+			          << " threads" << std::endl;
 			flags |= mds::Flags::TBB;
+			task = std::make_shared<tbb::task_scheduler_init>(threads);
 		}
 	}
 	
