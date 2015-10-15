@@ -7,11 +7,13 @@
 
 #include <boost/compute/algorithm/reduce.hpp>
 #include "reduce_fast.hpp"
-
+ 
 #define SSE
 //#undef SSE
 
 #define USE_VECTORS
+
+// #define DOUBLE_CHECK
 
 #define TILE_DIM 16
 
@@ -104,9 +106,9 @@ public:
     }
 
     virtual ~OpenCLMultiDimensionalScaling() {
-    	std::cerr << "timer1 = " << timer1 << std::endl;
-    	std::cerr << "timer2 = " << timer2 << std::endl;
-    	std::cerr << "timer3 = " << timer3 << std::endl;
+    	std::cout << "timer1 = " << timer1 << std::endl;
+    	std::cout << "timer2 = " << timer2 << std::endl;
+    	std::cout << "timer3 = " << timer3 << std::endl;
     }
 
     void updateLocations(int locationIndex, double* location, size_t length) {
@@ -300,12 +302,12 @@ public:
 		mm::bufferedCopyToDevice(data, data + length, dObservations.begin(),
 			buffer, queue);
 
+#ifdef DOUBLE_CHECK
 		RealType sum = 0.0;
 		boost::compute::reduce(dObservations.begin(), dObservations.end(), &sum, queue);
 		RealType sum2 = std::accumulate(begin(observations), end(observations), RealType(0.0));
-
 		std::cerr << sum << " ?= " << sum2 << std::endl;
-// 		exit(-1);
+#endif
 
     }
 
@@ -334,7 +336,7 @@ public:
 
 	template <bool withTruncation>
 	void computeSumOfSquaredResiduals() {
-std::cerr << "A" << std::endl;
+// std::cerr << "A" << std::endl;
 // 		RealType t1 = std::accumulate(begin(*locationsPtr), end(*locationsPtr), RealType(0));
 // 		VectorType t2;
 // 		boost::compute::reduce(dLocationsPtr->begin(), dLocationsPtr->end(), &t2, queue);
@@ -368,11 +370,10 @@ std::cerr << "A" << std::endl;
 //
 // 		exit(-1);
 
-
-
 		RealType lSumOfSquaredResiduals = 0.0;
 		RealType lSumOfTruncations = 0.0;
 
+#ifdef DOUBLE_CHECK
 		auto startTime1 = std::chrono::steady_clock::now();
 
 		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
@@ -399,8 +400,9 @@ std::cerr << "A" << std::endl;
 
 		auto duration1 = std::chrono::steady_clock::now() - startTime1;
 		if (count > 1) timer1 += std::chrono::duration<double, std::milli>(duration1).count();
+#endif // DOUBLE_CHECK
 
-		std::cerr << "HERE2" << std::endl;
+//		std::cerr << "HERE2" << std::endl;
 		//exit(-1);
 
 		// COMPUTE TODO
@@ -417,7 +419,7 @@ std::cerr << "A" << std::endl;
 		}
 		const size_t global_work_size[2] = {work_groups * TILE_DIM, work_groups * TILE_DIM};
 
-		std::cerr << "HERE3" << std::endl;
+	//	std::cerr << "HERE3" << std::endl;
 		//exit(-1);
 
 		//queue.enqueue_1d_range_kernel(kernelSumOfSquaredResidualsVector, 0, locationCount * locationCount, 0);
@@ -436,13 +438,14 @@ std::cerr << "A" << std::endl;
 		auto duration2 = std::chrono::steady_clock::now() - startTime2;
 		if (count > 1) timer2 += std::chrono::duration<double, std::milli>(duration2).count();
 
-        	auto startTime3 = std::chrono::steady_clock::now();
 
- 		std::cerr << "Done with transform." << std::endl;
+        auto startTime3 = std::chrono::steady_clock::now();
+// 		std::cerr << "Done with transform." << std::endl;
 		RealType sum = RealType(0.0);
 		//boost::compute::reduce_fast(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
 		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
-		std::cerr << "HERE6" << std::endl;
+//		std::cerr << "HERE6" << std::endl;
+
 
 		queue.finish();
 		auto duration3 = std::chrono::steady_clock::now() - startTime3;
@@ -452,7 +455,9 @@ std::cerr << "A" << std::endl;
 //		RealType tmp = std::accumulate(begin(squaredResiduals), end(squaredResiduals), RealType(0.0));
 
 
- 		std::cerr << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
+#ifdef DOUBLE_CHECK
+  		std::cerr << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
+#endif
 
 //  		using namespace boost::compute;
 //         boost::shared_ptr<program_cache> cache = program_cache::get_global_cache(ctx);
@@ -495,7 +500,8 @@ std::cerr << "A" << std::endl;
 // 		exit(-1);
 // 		std::cerr << "Sum = " << sum << std::endl;
 
-
+	    lSumOfSquaredResiduals = sum;
+	    // lSumOfTruncations = // TODO
 
 		//
 
@@ -741,8 +747,10 @@ std::cerr << "A" << std::endl;
 // 	    std::cerr << "C" << std::endl;
 	    kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
 
+#ifdef DOUBLE_CHECK
 		std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
 		//exit(-1);
+#endif // DOUBLE_CHECK
 
 		kernelSumOfSquaredResidualsVector.set_arg(0, dLocations0); // TODO Must update
 		kernelSumOfSquaredResidualsVector.set_arg(1, dObservations);
@@ -750,6 +758,7 @@ std::cerr << "A" << std::endl;
 		kernelSumOfSquaredResidualsVector.set_arg(3, boost::compute::uint_(locationCount));
 
 
+#ifdef DOUBLE_CHECK
  		using namespace boost::compute;
         boost::shared_ptr<program_cache> cache = program_cache::get_global_cache(ctx);
 
@@ -769,6 +778,7 @@ std::cerr << "A" << std::endl;
         std::cerr << "nvidia? " << detail::is_nvidia_device(device2) << " " << device2.name() << " " << device.vendor() << std::endl;
 
 		std::cerr << "Done compile VECTOR." << std::endl;
+#endif
 
 // 		exit(-1);
 	}
@@ -840,6 +850,7 @@ std::cerr << "A" << std::endl;
 // 			}
 // 		}
 
+#ifdef DOUBLE_CHECK
 
 		std::cerr << "A" << std::endl;
 		program = boost::compute::program::create_with_source(SumOfSquaredResidualsKernel, ctx);
@@ -850,13 +861,14 @@ std::cerr << "A" << std::endl;
 
 
 		std::cerr << program.source() << std::endl;
+#endif // DOUBLE_CHECK	 
 
 		kernelSumOfSquaredResiduals.set_arg(0, dLocations0); // TODO Must update
 		kernelSumOfSquaredResiduals.set_arg(1, dObservations);
 		kernelSumOfSquaredResiduals.set_arg(2, dSquaredResiduals);
 		kernelSumOfSquaredResiduals.set_arg(3, locationCount);
 
-
+#ifdef DOUBLE_CHECK
  		using namespace boost::compute;
         boost::shared_ptr<program_cache> cache = program_cache::get_global_cache(ctx);
 
@@ -876,6 +888,7 @@ std::cerr << "A" << std::endl;
         std::cerr << "nvidia? " << detail::is_nvidia_device(device2) << " " << device2.name() << " " << device.vendor() << std::endl;
 
 		std::cerr << "Done compile." << std::endl;
+#endif // DOUBLE_CHECK
 
 // 		exit(-1);
 	}
