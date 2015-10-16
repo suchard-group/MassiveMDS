@@ -131,6 +131,8 @@ int main(int argc, char* argv[]) {
 	auto startTime = std::chrono::steady_clock::now();
 
 	int iterations = vm["iterations"].as<int>();
+	
+	double timer = 0;
 
 	for (auto itr = 0; itr < iterations; ++itr) {
 
@@ -146,9 +148,14 @@ int main(int argc, char* argv[]) {
 			generateLocation(location, normal, prng);
 			instance->updateLocations(dimension, &location[0], embeddingDimension);
 		}
+		
+		auto startTime1 = std::chrono::steady_clock::now();
 
 		double inc = instance->getSumOfSquaredResiduals();
 		logLik += inc;
+		
+		auto duration1 = std::chrono::steady_clock::now() - startTime1;
+		timer += std::chrono::duration<double, std::milli>(duration1).count();
 
 		bool restore = binomial(prng);
 		if (restore) {
@@ -178,6 +185,7 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "End MDS benchmark" << std::endl;
 	std::cout << "AvgLogLik = " << logLik << std::endl;
+	std::cout << timer << " ms" << std::endl;
 	std::cout << std::chrono::duration<double, std::milli> (duration).count() << " ms "
 			  << std::endl;
 
