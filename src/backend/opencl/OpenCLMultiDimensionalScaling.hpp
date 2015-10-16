@@ -7,7 +7,7 @@
 
 #include <boost/compute/algorithm/reduce.hpp>
 #include "reduce_fast.hpp"
- 
+
 #define SSE
 //#undef SSE
 
@@ -684,6 +684,57 @@ public:
 			}
 		);
 
+		const char cdfString1[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+			static REAL cdf(REAL);
+
+			static REAL cdf(REAL value) {
+	    		return REAL(0.5) * erfc(-value * M_SQRT1_2);
+	    	}
+		);
+
+		const char cdfString2[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+			static REAL cdf(REAL);
+
+			static REAL cdf(REAL x) {
+
+			   const REAL RT2PI = sqrt(4.0*acos(0.0));
+			const REAL SPLIT = 7.07106781186547;
+
+ 			   const REAL N0 = 220.206867912376;
+ 			   const REAL N1 = 221.213596169931;
+ 			   const REAL N2 = 112.079291497871;
+ 			   const REAL N3 = 33.912866078383;
+ 			   const REAL N4 = 6.37396220353165;
+ 			   const REAL N5 = 0.700383064443688;
+ 			   const REAL N6 = 3.52624965998911e-02;
+ 			   const REAL M0 = 440.413735824752;
+ 			   const REAL M1 = 793.826512519948;
+ 			   const REAL M2 = 637.333633378831;
+ 			   const REAL M3 = 296.564248779674;
+ 			   const REAL M4 = 86.7807322029461;
+ 			   const REAL M5 = 16.064177579207;
+ 			   const REAL M6 = 1.75566716318264;
+  			   const REAL M7 = 8.83883476483184e-02;
+
+			  const REAL z = fabs(x);
+			  REAL c = 0.0;
+
+			  if (z <= 37.0) {
+				const REAL e = exp(-z*z/2.0);
+				if (z < SPLIT) {
+				  const REAL n = (((((N6*z + N5)*z + N4)*z + N3)*z + N2)*z + N1)*z + N0;
+				  const REAL d = ((((((M7*z + M6)*z + M5)*z + M4)*z + M3)*z + M2)*z + M1)*z + M0;
+				  c = e*n/d;
+				} else {
+				  const REAL f = z + 1.0/(z + 2.0/(z + 3.0/(z + 4.0/(z + 13.0/20.0))));
+				  c = e/(RT2PI*f);
+				}
+			  }
+			  return x <= 0.0 ? c : 1.0 - c;
+
+			}
+		);
+
 		const char SumOfSquaredResidualsKernelVector[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
 			__kernel void computeSSR(__global const REAL_VECTOR *locations,
 									 __global const REAL *observations,
@@ -719,6 +770,8 @@ public:
 					const REAL squaredResidual = residual * residual;
 
 					squaredResiduals[i * locationCount + j] = squaredResidual;
+
+					squaredResiduals[i * locationCount + j] = log(cdf(squaredResidual));
 				}
 			}
 		);
@@ -741,6 +794,9 @@ public:
 		} else { // 32-bit fp
 			options << " -DREAL=float -DREAL_VECTOR=float2";
 		}
+
+		code << cdfString1;
+
 		code << SumOfSquaredResidualsKernelVector;
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
@@ -861,7 +917,7 @@ public:
 
 
 		std::cerr << program.source() << std::endl;
-#endif // DOUBLE_CHECK	 
+#endif // DOUBLE_CHECK
 
 		kernelSumOfSquaredResiduals.set_arg(0, dLocations0); // TODO Must update
 		kernelSumOfSquaredResiduals.set_arg(1, dObservations);
