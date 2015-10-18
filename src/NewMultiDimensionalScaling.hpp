@@ -293,7 +293,11 @@ public:
 
 				if (withTruncation) { // compile-time check
 					const auto truncation = (i == j) ? RealType(0) :
+#if 0					
 						math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
+#else
+						math::phi2<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
+#endif
 					truncations[i * locationCount + j] = truncation;
 					lSumOfTruncations += truncation;
 				}
