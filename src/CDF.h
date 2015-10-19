@@ -563,7 +563,7 @@ double phi1(double x) {
 
 template <typename T>
 double phi2(double value) {
-   return 0.5 * erfc(-value * M_SQRT1_2);
+   return log(0.5 * erfc(-value * M_SQRT1_2));
 }
 
 } // namespace math

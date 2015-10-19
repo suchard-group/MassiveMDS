@@ -87,9 +87,11 @@ int main(int argc, char* argv[]) {
 		std::cout << "Running in double-precision" << std::endl;
 	}
 	
+	bool truncation = false;
 	if (vm.count("truncation")) {
 		std::cout << "Enabling truncation" << std::endl;
 		flags |= mds::Flags::LEFT_TRUNCATION;		
+		truncation = true;
 	}
 
 	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
@@ -124,8 +126,16 @@ int main(int argc, char* argv[]) {
 	}
 // 	std::cerr << "FIND: " << total << std::endl;
 
+	double precision = 1.0;
+	instance->setParameters(&precision, 1);
+
 	instance->makeDirty();
 	auto logLik = instance->getSumOfSquaredResiduals();
+	
+	double logTrunc = 0.0;
+	if (truncation) {
+		logTrunc = instance->getSumOfLogTruncations();
+	}
 
 	std::cout << "Starting MDS benchmark" << std::endl;
 	auto startTime = std::chrono::steady_clock::now();
@@ -154,6 +164,11 @@ int main(int argc, char* argv[]) {
 		double inc = instance->getSumOfSquaredResiduals();
 		logLik += inc;
 		
+		if (truncation) {
+			double trunc = instance->getSumOfLogTruncations();
+			logTrunc += trunc;
+		}
+		
 		auto duration1 = std::chrono::steady_clock::now() - startTime1;
 		timer += std::chrono::duration<double, std::milli>(duration1).count();
 
@@ -179,12 +194,14 @@ int main(int argc, char* argv[]) {
 // 		if (itr > 100) exit(-1);
 	}
 	logLik /= iterations + 1;
+	logTrunc /= iterations + 1;
 
 	auto endTime = std::chrono::steady_clock::now();
 	auto duration = endTime - startTime;
 
 	std::cout << "End MDS benchmark" << std::endl;
 	std::cout << "AvgLogLik = " << logLik << std::endl;
+	std::cout << "AveLogTru = " << logTrunc << std::endl;
 	std::cout << timer << " ms" << std::endl;
 	std::cout << std::chrono::duration<double, std::milli> (duration).count() << " ms "
 			  << std::endl;

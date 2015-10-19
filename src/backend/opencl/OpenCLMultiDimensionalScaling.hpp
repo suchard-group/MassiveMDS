@@ -87,12 +87,6 @@ public:
 		dSquaredResiduals = mm::GPUMemoryManager<RealType>(squaredResiduals.size(), ctx);
 		dStoredSquaredResiduals = mm::GPUMemoryManager<RealType>(storedSquaredResiduals.size(), ctx);
 
-
-		createOpenCLKernels();
-
-
-
-
     	if (flags & Flags::LEFT_TRUNCATION) {
     		isLeftTruncated = true;
     		std::cout << "Using left truncation" << std::endl;
@@ -103,6 +97,8 @@ public:
     		dTruncations = mm::GPUMemoryManager<RealType>(truncations.size(), ctx);
     		dStoredTruncations = mm::GPUMemoryManager<RealType>(storedTruncations.size(), ctx);
     	}
+    	
+		createOpenCLKernels();    	
     }
 
     virtual ~OpenCLMultiDimensionalScaling() {
@@ -412,6 +408,10 @@ public:
 #ifdef USE_VECTORS
 		kernelSumOfSquaredResidualsVector.set_arg(0, *dLocationsPtr);
 
+		if (isLeftTruncated) {
+			kernelSumOfSquaredResidualsVector.set_arg(4, static_cast<RealType>(oneOverSd));
+		}
+
 		const size_t local_work_size[2] = {TILE_DIM, TILE_DIM};
 		size_t work_groups = locationCount / TILE_DIM;
 		if (locationCount % TILE_DIM != 0) {
@@ -446,6 +446,11 @@ public:
 		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
 //		std::cerr << "HERE6" << std::endl;
 
+		if (isLeftTruncated) {
+			RealType sum2 = RealType(0.0);
+			boost::compute::reduce(dTruncations.begin(), dTruncations.end(), &sum2, queue);
+			lSumOfTruncations = sum2;
+		}
 
 		queue.finish();
 		auto duration3 = std::chrono::steady_clock::now() - startTime3;
@@ -657,7 +662,6 @@ public:
 	}
 
 
-#ifdef USE_VECTORS
 	void createOpenCLKernels() {
 
 		const char Test[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
@@ -684,64 +688,25 @@ public:
 			}
 		);
 
-		const char cdfString1[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			static REAL cdf(REAL);
+		const char cdfString1Double[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+			static double cdf(double);
 
-			static REAL cdf(REAL value) {
-	    		return REAL(0.5) * erfc(-value * M_SQRT1_2);
+			static double cdf(double value) {
+	    		return 0.5 * erfc(-value * M_SQRT1_2);
 	    	}
 		);
 
-		const char cdfString2[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			static REAL cdf(REAL);
+		const char cdfString1Float[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+			static float cdf(float);
 
-			static REAL cdf(REAL x) {
-
-			   const REAL RT2PI = sqrt(4.0*acos(0.0));
-			const REAL SPLIT = 7.07106781186547;
-
- 			   const REAL N0 = 220.206867912376;
- 			   const REAL N1 = 221.213596169931;
- 			   const REAL N2 = 112.079291497871;
- 			   const REAL N3 = 33.912866078383;
- 			   const REAL N4 = 6.37396220353165;
- 			   const REAL N5 = 0.700383064443688;
- 			   const REAL N6 = 3.52624965998911e-02;
- 			   const REAL M0 = 440.413735824752;
- 			   const REAL M1 = 793.826512519948;
- 			   const REAL M2 = 637.333633378831;
- 			   const REAL M3 = 296.564248779674;
- 			   const REAL M4 = 86.7807322029461;
- 			   const REAL M5 = 16.064177579207;
- 			   const REAL M6 = 1.75566716318264;
-  			   const REAL M7 = 8.83883476483184e-02;
-
-			  const REAL z = fabs(x);
-			  REAL c = 0.0;
-
-			  if (z <= 37.0) {
-				const REAL e = exp(-z*z/2.0);
-				if (z < SPLIT) {
-				  const REAL n = (((((N6*z + N5)*z + N4)*z + N3)*z + N2)*z + N1)*z + N0;
-				  const REAL d = ((((((M7*z + M6)*z + M5)*z + M4)*z + M3)*z + M2)*z + M1)*z + M0;
-				  c = e*n/d;
-				} else {
-				  const REAL f = z + 1.0/(z + 2.0/(z + 3.0/(z + 4.0/(z + 13.0/20.0))));
-				  c = e/(RT2PI*f);
-				}
-			  }
-			  return x <= 0.0 ? c : 1.0 - c;
-
-			}
+			static float cdf(float value) {	   
+			
+				const float rsqrt2f =  0.70710678118655f;	
+	    		return 0.5f * erfc(-value * rsqrt2f);
+	    	}
 		);
 
-		const char SumOfSquaredResidualsKernelVector[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			__kernel void computeSSR(__global const REAL_VECTOR *locations,
-									 __global const REAL *observations,
-									 __global REAL *squaredResiduals,
-									 const uint locationCount) {
-
-
+		const char SumOfSquaredResidualsKernelVectorBody[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
 				const uint offsetJ = get_group_id(0) * TILE_DIM;
 				const uint offsetI = get_group_id(1) * TILE_DIM;
 
@@ -770,8 +735,6 @@ public:
 					const REAL squaredResidual = residual * residual;
 
 					squaredResiduals[i * locationCount + j] = squaredResidual;
-
-					squaredResiduals[i * locationCount + j] = log(cdf(squaredResidual));
 				}
 			}
 		);
@@ -791,16 +754,72 @@ public:
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
 			options << " -DREAL=double -DREAL_VECTOR=double2";
+			
+			code << cdfString1Double;
+			
 		} else { // 32-bit fp
 			options << " -DREAL=float -DREAL_VECTOR=float2";
+			
+			code << cdfString1Float;
 		}
+				
+		code << 
+			" __kernel void computeSSR(__global const REAL_VECTOR *locations,  \n" <<
+			"  						   __global const REAL *observations,      \n" <<
+			"						   __global REAL *squaredResiduals,        \n"; 
+		
+		if (isLeftTruncated) {
+			code << 
+			"						   __global REAL *truncations,             \n"	<<
+			"                          const REAL oneOverSd,                   \n";				
+		}
+		code << 
+			"						   const uint locationCount) {            \n";
+									
+		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
+				const uint offsetJ = get_group_id(0) * TILE_DIM;
+				const uint offsetI = get_group_id(1) * TILE_DIM;
 
-		code << cdfString1;
+				const uint j = offsetJ + get_local_id(0);
+				const uint i = offsetI + get_local_id(1);
 
-		code << SumOfSquaredResidualsKernelVector;
+				__local REAL_VECTOR tile[2][TILE_DIM + 1]; // tile[0] == locations_j, tile[1] == locations_i
+
+				if (get_local_id(1) < 2) { // load just 2 rows
+					tile[get_local_id(1)][get_local_id(0)] = locations[
+						(get_local_id(1) - 0) * (offsetI + get_local_id(0)) + // tile[1] = locations_i
+						(1 - get_local_id(1)) * (offsetJ + get_local_id(0))   // tile[0] = locations_j
+					];
+				}
+
+				barrier(CLK_LOCAL_MEM_FENCE);
+
+				if (i < locationCount && j < locationCount) {
+
+					const REAL distance = length(
+						tile[1][get_local_id(1)] - tile[0][get_local_id(0)]
+// 						locations[i] - locations[j]
+					);
+
+					const REAL residual = distance - observations[i * locationCount + j];
+					const REAL squaredResidual = residual * residual;
+
+					squaredResiduals[i * locationCount + j] = squaredResidual;
+		);
+		
+		if (isLeftTruncated) {
+			code << BOOST_COMPUTE_STRINGIZE_SOURCE(
+					const REAL truncation = (i == j) ? REAL(0) : log(cdf(fabs(residual) * oneOverSd));
+					truncations[i * locationCount + j] = truncation;			
+			);
+		}
+		
+		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
+				}
+			}
+		);				
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
-// 	    std::cerr << "C" << std::endl;
 	    kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
 
 #ifdef DOUBLE_CHECK
@@ -808,10 +827,15 @@ public:
 		//exit(-1);
 #endif // DOUBLE_CHECK
 
-		kernelSumOfSquaredResidualsVector.set_arg(0, dLocations0); // TODO Must update
-		kernelSumOfSquaredResidualsVector.set_arg(1, dObservations);
-		kernelSumOfSquaredResidualsVector.set_arg(2, dSquaredResiduals);
-		kernelSumOfSquaredResidualsVector.set_arg(3, boost::compute::uint_(locationCount));
+		int index = 0;
+		kernelSumOfSquaredResidualsVector.set_arg(index++, dLocations0); // TODO Must update
+		kernelSumOfSquaredResidualsVector.set_arg(index++, dObservations);
+		kernelSumOfSquaredResidualsVector.set_arg(index++, dSquaredResiduals);
+		if (isLeftTruncated) {
+			kernelSumOfSquaredResidualsVector.set_arg(index++, dTruncations);
+			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(oneOverSd));
+		}
+		kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(locationCount));
 
 
 #ifdef DOUBLE_CHECK
@@ -836,119 +860,7 @@ public:
 		std::cerr << "Done compile VECTOR." << std::endl;
 #endif
 
-// 		exit(-1);
 	}
-#else
-	void createOpenCLKernels() {
-
-		const char Test[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			// approximation of the cumulative normal distribution function
-			static float cnd(float d)
-			{
-				const float A1 =  0.319381530f;
-				const float A2 = -0.356563782f;
-				const float A3 =  1.781477937f;
-				const float A4 = -1.821255978f;
-				const float A5 =  1.330274429f;
-				const float RSQRT2PI = 0.39894228040143267793994605993438f;
-
-				float K = 1.0f / (1.0f + 0.2316419f * fabs(d));
-				float cnd =
-					RSQRT2PI * exp(-0.5f * d * d) *
-					(K * (A1 + K * (A2 + K * (A3 + K * (A4 + K * A5)))));
-
-				if(d > 0){
-					cnd = 1.0f - cnd;
-				}
-
-				return cnd;
-			}
-		);
-
-		const char SumOfSquaredResidualsKernel[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			__kernel void computeSSR(__global const float *locations,
-									 __global const float *observations,
-									 __global float *squaredResiduals,
-									 const int locationCount) {
-				const uint i = get_global_id(0) / locationCount;
-				const uint j = get_global_id(0) % locationCount;
-
-				const float distance1 = locations[i * 2] - locations[j * 2];
-				const float distance2 = locations[i * 2 + 1] - locations[j * 2 + 1];
-				const float distance = sqrt(distance1 * distance1 + distance2 * distance2);
-
-				const float residual = distance - observations[i * locationCount + j];
-				const float squaredResidual = residual * residual;
-
-				squaredResiduals[i * locationCount + j] = squaredResidual;
-			}
-		);
-
-// 		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
-// 			for (int j = 0; j < locationCount; ++j) {
-//
-// 				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-// 					begin(*locationsPtr) + i * embeddingDimension,
-// 					begin(*locationsPtr) + j * embeddingDimension,
-// 					embeddingDimension
-// 				);
-// 				const auto residual = distance - observations[i * locationCount + j];
-// 				const auto squaredResidual = residual * residual;
-// 				squaredResiduals[i * locationCount + j] = squaredResidual;
-// 				lSumOfSquaredResiduals += squaredResidual;
-//
-// 				if (withTruncation) { // compile-time check
-// 					const auto truncation = (i == j) ? RealType(0) :
-// 						math::logCdf<OpenCLMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
-// 					truncations[i * locationCount + j] = truncation;
-// 					lSumOfTruncations += truncation;
-// 				}
-// 			}
-// 		}
-
-#ifdef DOUBLE_CHECK
-
-		std::cerr << "A" << std::endl;
-		program = boost::compute::program::create_with_source(SumOfSquaredResidualsKernel, ctx);
-		std::cerr << "B" << std::endl;
-	    program.build();
-	    std::cerr << "C" << std::endl;
-	    kernelSumOfSquaredResiduals = boost::compute::kernel(program, "computeSSR");
-
-
-		std::cerr << program.source() << std::endl;
-#endif // DOUBLE_CHECK
-
-		kernelSumOfSquaredResiduals.set_arg(0, dLocations0); // TODO Must update
-		kernelSumOfSquaredResiduals.set_arg(1, dObservations);
-		kernelSumOfSquaredResiduals.set_arg(2, dSquaredResiduals);
-		kernelSumOfSquaredResiduals.set_arg(3, locationCount);
-
-#ifdef DOUBLE_CHECK
- 		using namespace boost::compute;
-        boost::shared_ptr<program_cache> cache = program_cache::get_global_cache(ctx);
-
-		RealType sum = RealType(0.0);
-		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
-
-		auto programInfo = *begin(cache->get_keys());
-		std::cerr << "Try " << programInfo.first << " : " << programInfo.second << std::endl;
-
-        boost::compute::program programReduce = *cache->get(programInfo.first, programInfo.second);
-        auto kernelReduce = kernel(programReduce, "reduce");
-        std::cerr << programReduce.source() << std::endl;
-
-
-        const auto &device2 = queue.get_device();
-        std::cerr << "nvidia? " << detail::is_nvidia_device(device) << " " << device.name() << " " << device.vendor() << std::endl;
-        std::cerr << "nvidia? " << detail::is_nvidia_device(device2) << " " << device2.name() << " " << device.vendor() << std::endl;
-
-		std::cerr << "Done compile." << std::endl;
-#endif // DOUBLE_CHECK
-
-// 		exit(-1);
-	}
-#endif // USE_VECTORS
 
 private:
 	double precision;

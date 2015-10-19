@@ -296,14 +296,19 @@ public:
 #if 0					
 						math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
 #else
-						math::phi2<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
+						math::phi2<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);						
+// 						double diff = math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd) - std::log(math::phi2<NewMultiDimensionalScaling>(residual * oneOverSd));
+// 						std::cerr << residual << " " << oneOverSd << " " 
+// 								  << math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd) << " " 
+// 								  << std::log(math::phi2<NewMultiDimensionalScaling>(residual * oneOverSd)) << " " 
+// 								  << diff << std::endl;						
 #endif
 					truncations[i * locationCount + j] = truncation;
 					lSumOfTruncations += truncation;
 				}
 			}
 			
-			return std::complex<RealType>(lSumOfSquaredResiduals, lSumOfSquaredResiduals);
+			return std::complex<RealType>(lSumOfSquaredResiduals, lSumOfTruncations);
 		}, ParallelType());
 		
 		double lSumOfSquaredResiduals = delta.real();
