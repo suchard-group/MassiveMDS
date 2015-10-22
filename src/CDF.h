@@ -550,15 +550,19 @@ double phi1(double x) {
   if (z <= 37.0) {
     const double e = exp(-z*z/2.0);
     if (z < SPLIT) {
-      const double n = (((((N6*z + N5)*z + N4)*z + N3)*z + N2)*z + N1)*z + N0;
-      const double d = ((((((M7*z + M6)*z + M5)*z + M4)*z + M3)*z + M2)*z + M1)*z + M0;
+      // ops count = 26
+      const double n = (((((N6 * z + N5) * z + N4) * z + N3) * z + N2) * z + N1) * z + N0;
+      const double d = ((((((M7 * z + M6) * z + M5) * z + M4) * z + M3) * z + M2) * z + M1) * z + M0;
       c = e*n/d;
     } else {
-      const double f = z + 1.0/(z + 2.0/(z + 3.0/(z + 4.0/(z + 13.0/20.0))));
+      const double f = z + 1.0 / (z + 2.0 / (z + 3.0 / (z + 4.0 / (z + 13.0 / 20.0))));
       c = e/(RT2PI*f);
     }
   }
-  return x <= 0.0 ? c : 1.0 - c;
+  if (x > 0.0) {
+  	c = 1.0 - c;
+  }
+  return log(c);
 }
 
 template <typename T>

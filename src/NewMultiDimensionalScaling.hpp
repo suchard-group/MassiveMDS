@@ -5,8 +5,8 @@
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
-//#undef SSE
-#define SSE
+#undef SSE
+//#define SSE
 
 namespace mds {
 
