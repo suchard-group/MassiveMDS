@@ -692,7 +692,7 @@ public:
 			static double cdf(double);
 
 			static double cdf(double value) {
-	    		return 0.5 * erfc(-value * M_SQRT1_2);
+	    		return 0.5 * erfc(-value * M_SQRT1_2); 
 	    	}
 		);
 
@@ -753,12 +753,12 @@ public:
 
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-			options << " -DREAL=double -DREAL_VECTOR=double2";
+			options << " -DREAL=double -DREAL_VECTOR=double2 -DZERO=0.0";
 			
 			code << cdfString1Double;
 			
 		} else { // 32-bit fp
-			options << " -DREAL=float -DREAL_VECTOR=float2";
+			options << " -DREAL=float -DREAL_VECTOR=float2 -DZERO=0.0f";
 			
 			code << cdfString1Float;
 		}
@@ -809,7 +809,7 @@ public:
 		
 		if (isLeftTruncated) {
 			code << BOOST_COMPUTE_STRINGIZE_SOURCE(
-					const REAL truncation = (i == j) ? REAL(0) : log(cdf(fabs(residual) * oneOverSd));
+					const REAL truncation = (i == j) ? ZERO : log(cdf(fabs(residual) * oneOverSd));;
 					truncations[i * locationCount + j] = truncation;			
 			);
 		}
@@ -820,7 +820,7 @@ public:
 		);				
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
-	    kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
+	    	kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
 
 #ifdef DOUBLE_CHECK
 		std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
