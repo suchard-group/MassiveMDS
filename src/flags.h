@@ -4,10 +4,10 @@
 namespace mds {
 
 enum Flags {
-	FLOAT = 1 << 1,
-	OPENCL = 1 << 2,
+	FLOAT = 1 << 2,
+	TBB = 1 << 3,
+	OPENCL = 1 << 4,
     LEFT_TRUNCATION = 1 << 5,
-    TBB = 1 << 10,
 };
 
 } // namespace mds

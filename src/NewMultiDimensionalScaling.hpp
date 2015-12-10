@@ -857,21 +857,25 @@ private:
 // factory
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingDoubleNoParallel(int embeddingDimension, int locationCount, long flags) {
+	std::cerr << "DOUBLE, NO PARALLEL" << std::endl;
 	return std::make_shared<NewMultiDimensionalScaling<double, CpuAccumulate>>(embeddingDimension, locationCount, flags);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingDoubleTbb(int embeddingDimension, int locationCount, long flags) {
+	std::cerr << "DOUBLE, TBB PARALLEL" << std::endl;
 	return std::make_shared<NewMultiDimensionalScaling<double, TbbAccumulate>>(embeddingDimension, locationCount, flags);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingFloatNoParallel(int embeddingDimension, int locationCount, long flags) {
+	std::cerr << "SINGLE, NO PARALLEL" << std::endl;
 	return std::make_shared<NewMultiDimensionalScaling<float, CpuAccumulate>>(embeddingDimension, locationCount, flags);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingFloatTbb(int embeddingDimension, int locationCount, long flags) {
+	std::cerr << "SINGLE, TBB PARALLEL" << std::endl;
 	return std::make_shared<NewMultiDimensionalScaling<float, TbbAccumulate>>(embeddingDimension, locationCount, flags);
 }
 
