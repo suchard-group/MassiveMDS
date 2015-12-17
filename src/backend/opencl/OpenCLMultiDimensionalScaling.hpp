@@ -755,12 +755,16 @@ public:
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
 			options << " -DREAL=double -DREAL_VECTOR=double2 -DZERO=0.0";
 			
-			code << cdfString1Double;
+			if (isLeftTruncated) {
+				code << cdfString1Double;
+			}
 			
 		} else { // 32-bit fp
 			options << " -DREAL=float -DREAL_VECTOR=float2 -DZERO=0.0f";
 			
-			code << cdfString1Float;
+			if (isLeftTruncated) {
+				code << cdfString1Float;
+			}
 		}
 				
 		code << 
