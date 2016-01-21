@@ -10,6 +10,7 @@
 
 //#include <xmmintrin.h>
 #include <emmintrin.h>
+#include <smmintrin.h>
 
 #define USE_TBB
 

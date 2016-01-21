@@ -542,19 +542,63 @@ public:
 #ifdef __clang__
     template <typename VectorType, typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
+    	return calculateDistance(iX, iY, length, RealType());
+    }
+    
+   template <typename Iterator>
+    RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {    
 
-        using AlignedValueType = typename VectorType::allocator_type::aligned_value_type;
+        using AlignedValueType = typename mm::MemoryManager<float>::allocator_type::aligned_value_type;
 
-        auto sum = static_cast<AlignedValueType>(0);
         AlignedValueType* x = &*iX;
         AlignedValueType* y = &*iY;
-
+        
+// 		__m128 xv = _mm_load_ps(iX);
+// 		__m128 yv = _mm_load_ps(iY);
+//         
+//         
+//         const auto diff = _mm_sub_ps(xv, yv);
+//         
+// 	const int mask = 0x49;
+// 	const auto d = _mm_dp_ps(diff, diff, mask);
+// 	return  _mm_cvtss_f32(_mm_sqrt_ps(d));        
+       
+        auto sum = static_cast<AlignedValueType>(0);
         for (int i = 0; i < 2; ++i, ++x, ++y) {
             const auto difference = *x - *y;
             sum += difference * difference;
         }
+        
         return std::sqrt(sum);
     }
+    
+   template <typename Iterator>
+    RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {    
+
+        using AlignedValueType = typename mm::MemoryManager<double>::allocator_type::aligned_value_type;
+
+        AlignedValueType* x = &*iX;
+        AlignedValueType* y = &*iY;
+//         
+//         const auto diff = *x - *y;
+        
+        __m128d xv = _mm_load_pd(x);
+        __m128d yv = _mm_load_pd(y);
+        
+       __m128d diff = _mm_sub_pd(xv, yv);
+        
+	const int mask = 0x31;
+	__m128d d = _mm_dp_pd(diff, diff, mask);
+	return  std::sqrt(_mm_cvtsd_f64(d));     
+       
+//         auto sum = static_cast<AlignedValueType>(0);
+//         for (int i = 0; i < 2; ++i, ++x, ++y) {
+//             const auto difference = *x - *y;
+//             sum += difference * difference;
+//         }
+        
+//         return std::sqrt(sum);
+    }    
 #else // __clang__
 
 
@@ -595,9 +639,11 @@ public:
 	SSE_PTR __restrict__ x = &*iX;
 	SSE_PTR __restrict__ y = &*iY;
 
-	auto a = _mm_load_pd(x);
-	auto b = _mm_load_pd(y);
-	auto c = a - b;
+	const auto a = _mm_load_pd(x);
+	const auto b = _mm_load_pd(y);
+	const auto c = a - b;
+// 	const auto c = _mm_sub_pd(_mm_load_pd(x), _mm_load_pd(y));
+// 	const auto c = _mm_sub_pd(x, y);
 
 	const int mask = 0x31;
 	__m128d d = _mm_dp_pd(c, c, mask);

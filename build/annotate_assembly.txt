@@ -12,3 +12,7 @@ objdump -dS benchmark > benchmark.s
 # timer2 = 472.271
 # timer3 = 101.427
 
+
+clang++ -I/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers -I../src -g -c -fverbose-asm  -std=c++0x -S -O3 -msse4.2 -fslp-vectorize-aggressive ../src/jni/dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.cpp
+
+clang++ -Ithird_party/vectorclass -I/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers -I../src -g -c -fverbose-asm  -std=c++0x -S -O3 -msse4.2 -fslp-vectorize-aggressive ../src/jni/dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.cpp 
