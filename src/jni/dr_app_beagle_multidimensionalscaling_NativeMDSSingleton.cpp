@@ -32,15 +32,9 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 }
 
 extern "C"
-JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_getSumOfLogTruncations
+JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_getSumOfIncrements
   (JNIEnv *, jobject, jint instance) {
-    return instances[instance]->getSumOfLogTruncations();
-}
-
-extern "C"
-JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_getSumOfSquaredResiduals
-  (JNIEnv *, jobject, jint instance) {
-    return instances[instance]->getSumOfSquaredResiduals();
+    return instances[instance]->getSumOfIncrements();
 }
 
 extern "C"

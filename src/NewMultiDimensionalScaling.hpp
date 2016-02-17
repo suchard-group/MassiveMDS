@@ -17,8 +17,7 @@ public:
         : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
           precision(0.0), storedPrecision(0.0),
           oneOverSd(0.0), storedOneOverSd(0.0),
-          sumOfSquaredResiduals(0.0), storedSumOfSquaredResiduals(0.0),
-          sumOfTruncations(0.0), storedSumOfTruncations(0.0),
+          sumOfIncrements(0.0), storedSumOfIncrements(0.0),
 
           observations(locationCount * locationCount),
 
@@ -27,12 +26,10 @@ public:
 		  locationsPtr(&locations0),
 		  storedLocationsPtr(&locations1),
 
-          squaredResiduals(locationCount * locationCount),
-          storedSquaredResiduals(locationCount),
+          increments(locationCount * locationCount),
+          storedIncrements(locationCount),
 
-          isStoredSquaredResidualsEmpty(false),
-          isStoredTruncationsEmpty(false),
-          isStoredAllTruncationsEmpty(false)
+          isStoredIncrementsEmpty(false)
 
           , nThreads(4) //, pool(nThreads)
     {
@@ -40,9 +37,6 @@ public:
     	if (flags & Flags::LEFT_TRUNCATION) {
     		isLeftTruncated = true;
     		std::cout << "Using left truncation" << std::endl;
-
-    		truncations.resize(locationCount * locationCount);
-    		storedTruncations.resize(locationCount);
     	}
     }
 
@@ -56,9 +50,8 @@ public:
 			// Update all locations
 			assert(length == embeddingDimension * locationCount);
 
-			residualsAndTruncationsKnown = false;
-			isStoredSquaredResidualsEmpty = true;
-			isStoredTruncationsEmpty = true;
+			incrementsKnown = false;
+			isStoredIncrementsEmpty = true;
 
 			// TODO Do anything with updatedLocation?
 		} else {
@@ -67,9 +60,8 @@ public:
 
 	    	if (updatedLocation != - 1) {
     			// more than one location updated -- do a full recomputation
-	    		residualsAndTruncationsKnown = false;
-	    		isStoredSquaredResidualsEmpty = true;
-	    		isStoredTruncationsEmpty = true;
+	    		incrementsKnown = false;
+	    		isStoredIncrementsEmpty = true;
     		}
 
 	    	updatedLocation = locationIndex;
@@ -81,55 +73,55 @@ public:
 			buffer
 		);
 
-    	sumsOfResidualsAndTruncationsKnown = false;
+    	sumOfIncrementsKnown = false;
     }
 
-    void computeResidualsAndTruncations() {
+    void computeIncrements() {
 
-		if (!residualsAndTruncationsKnown) {
+		if (!incrementsKnown) {
 			if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-				computeSumOfSquaredResiduals<true>();
+				computeSumOfIncrements<true>();
 			} else {
-				computeSumOfSquaredResiduals<false>();
+				computeSumOfIncrements<false>();
 			}
-			residualsAndTruncationsKnown = true;
+			incrementsKnown = true;
 		} else {
 			if (isLeftTruncated) {
-#if 1
-				updateSumOfSquaredResidualsAndTruncations();
-#else
-				updateSumOfSquaredResiduals();
-				updateTruncations();
-#endif
+				updateSumOfIncrements<true>();
 			} else {
-				updateSumOfSquaredResiduals();
+				updateSumOfIncrements<false>();
 			}
 		}
     }
 
-    double getSumOfSquaredResiduals() {
-    	if (!sumsOfResidualsAndTruncationsKnown) {
-			computeResidualsAndTruncations();
-			sumsOfResidualsAndTruncationsKnown = true;
+    double getSumOfIncrements() {
+    	if (!sumOfIncrementsKnown) {
+			computeIncrements();
+			sumOfIncrementsKnown = true;
 		}
-		return sumOfSquaredResiduals;
+		if (isLeftTruncated) {			
+			return sumOfIncrements;
+		} else {
+			return 0.5 * precision * sumOfIncrements;
+		}
  	}
 
- 	double getSumOfLogTruncations() {
-    	if (!sumsOfResidualsAndTruncationsKnown) {
-			computeResidualsAndTruncations();
-			sumsOfResidualsAndTruncationsKnown = true;
-		}
- 		return sumOfTruncations;
- 	}
+//  	double getSumOfLogTruncations() {
+// //     	if (!sumOfIncrementsKnown) {
+// // 			computeResidualsAndTruncations();
+// // 			sumOfIncrementsKnown = true;
+// // 		}
+// //  		return sumOfTruncations;
+// 		return 0.0; // TODO Remove function
+//  	}
 
     void storeState() {
-    	storedSumOfSquaredResiduals = sumOfSquaredResiduals;
+    	storedSumOfIncrements = sumOfIncrements;
 
     	std::copy(begin(*locationsPtr), end(*locationsPtr),
     		begin(*storedLocationsPtr));
 
-    	isStoredSquaredResidualsEmpty = true;
+    	isStoredIncrementsEmpty = true;
 
     	updatedLocation = -1;
 
@@ -137,59 +129,59 @@ public:
     	storedOneOverSd = oneOverSd;
 
     	// Handle truncation
-    	if (isLeftTruncated) {
-    		storedSumOfTruncations = sumOfTruncations;
-			isStoredTruncationsEmpty = true;
-    	}
+//     	if (isLeftTruncated) {
+//     		storedSumOfTruncations = sumOfTruncations;
+// 			isStoredTruncationsEmpty = true;
+//     	}
     }
 
     double getDiagnostic() {
         return std::accumulate(
-            begin(squaredResiduals),
-            end(squaredResiduals),
+            begin(increments),
+            end(increments),
             RealType(0));
     }
 
     void acceptState() {
-        if (!isStoredSquaredResidualsEmpty) {
+        if (!isStoredIncrementsEmpty) {
     		for (int j = 0; j < locationCount; ++j) {
-    			squaredResiduals[j * locationCount + updatedLocation] = squaredResiduals[updatedLocation * locationCount + j];
+    			increments[j * locationCount + updatedLocation] = increments[updatedLocation * locationCount + j];
     		}
-    		if (isLeftTruncated) {
-                for (int j = 0; j < locationCount; ++j) {
-	    			truncations[j * locationCount + updatedLocation] = truncations[updatedLocation * locationCount + j];
-	    		}
-    		}
+//     		if (isLeftTruncated) {
+//                 for (int j = 0; j < locationCount; ++j) {
+// 	    			truncations[j * locationCount + updatedLocation] = truncations[updatedLocation * locationCount + j];
+// 	    		}
+//     		}
     	}
     }
 
     void restoreState() {
-    	sumOfSquaredResiduals = storedSumOfSquaredResiduals;
-    	sumsOfResidualsAndTruncationsKnown = true;
+    	sumOfIncrements = storedSumOfIncrements;
+    	sumOfIncrementsKnown = true;
 
-		if (!isStoredSquaredResidualsEmpty) {
+		if (!isStoredIncrementsEmpty) {
     		std::copy(
-    			begin(storedSquaredResiduals),
-    			end(storedSquaredResiduals),
-    			begin(squaredResiduals) + updatedLocation * locationCount
+    			begin(storedIncrements),
+    			end(storedIncrements),
+    			begin(increments) + updatedLocation * locationCount
     		);
-    		residualsAndTruncationsKnown = true;
+    		incrementsKnown = true;
     	} else {
-    		residualsAndTruncationsKnown = false; // Force recompute;  TODO cache
+    		incrementsKnown = false; // Force recompute;  TODO cache
     	}
 
     	// Handle truncation
-    	if (isLeftTruncated) {
-	    	sumOfTruncations = storedSumOfTruncations;
-
-	    	if (!isStoredTruncationsEmpty) {
-	    		std::copy(
-	    			begin(storedTruncations),
-	    			end(storedTruncations),
-	    			begin(truncations) + updatedLocation * locationCount
-	    		);
-	    	}
-	    }
+//     	if (isLeftTruncated) {
+// 	    	sumOfTruncations = storedSumOfTruncations;
+// 
+// 	    	if (!isStoredTruncationsEmpty) {
+// 	    		std::copy(
+// 	    			begin(storedTruncations),
+// 	    			end(storedTruncations),
+// 	    			begin(truncations) + updatedLocation * locationCount
+// 	    		);
+// 	    	}
+// 	    }
 
     	precision = storedPrecision;
     	oneOverSd = storedOneOverSd;
@@ -211,18 +203,18 @@ public:
 
 		// Handle truncations
 		if (isLeftTruncated) {
-			residualsAndTruncationsKnown = false;
-			sumsOfResidualsAndTruncationsKnown = false;
+			incrementsKnown = false;
+			sumOfIncrementsKnown = false;
 
-    		isStoredSquaredResidualsEmpty = true;
-    		isStoredTruncationsEmpty = true;
+    		isStoredIncrementsEmpty = true;
+//     		isStoredTruncationsEmpty = true;
 
 		}
     }
 
     void makeDirty() {
-    	sumsOfResidualsAndTruncationsKnown = false;
-    	residualsAndTruncationsKnown = false;
+    	sumOfIncrementsKnown = false;
+    	incrementsKnown = false;
     }
 
 	void getLogLikelihoodGradient(std::vector<double>& result) {
@@ -261,23 +253,14 @@ public:
 	int count = 0;
 
 	template <bool withTruncation>
-	void computeSumOfSquaredResiduals() {
+	void computeSumOfIncrements() {
 
-// 		RealType lSumOfSquaredResiduals = 0.0;
-// 		RealType lSumOfTruncations = 0.0;
+		const RealType scale = 0.5 * precision;
 
-		std::complex<RealType> delta =
-
-// 		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
-// #ifdef USE_TBB
-// 		accumulate_tbb(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),	
-// #else
-		accumulate(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
-// #endif							
-			[this](const int i) {
+		RealType delta = 
+		accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
 		
-			double lSumOfSquaredResiduals{0.0};
-			double lSumOfTruncations{0.0};
+			RealType lSumOfSquaredResiduals{0};
 
 			for (int j = 0; j < locationCount; ++j) {
 
@@ -287,148 +270,61 @@ public:
 					embeddingDimension
 				);
 				const auto residual = distance - observations[i * locationCount + j];
-				const auto squaredResidual = residual * residual;
-				squaredResiduals[i * locationCount + j] = squaredResidual;
+				auto squaredResidual = residual * residual;
+				
+				if (withTruncation) {
+					squaredResidual = scale * squaredResidual;
+					if (i != j) {					
+						squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+					}
+				}
+				
+				increments[i * locationCount + j] = squaredResidual;
 				lSumOfSquaredResiduals += squaredResidual;
 
-				if (withTruncation) { // compile-time check
-					const auto truncation = (i == j) ? RealType(0) :
-#if 0					
-						math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
-#else
-						math::phi2<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);						
-// 						double diff = math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd) - std::log(math::phi2<NewMultiDimensionalScaling>(residual * oneOverSd));
-// 						std::cerr << residual << " " << oneOverSd << " " 
-// 								  << math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd) << " " 
-// 								  << std::log(math::phi2<NewMultiDimensionalScaling>(residual * oneOverSd)) << " " 
-// 								  << diff << std::endl;						
-#endif
-					truncations[i * locationCount + j] = truncation;
-					lSumOfTruncations += truncation;
-				}
-			}
-			
-			return std::complex<RealType>(lSumOfSquaredResiduals, lSumOfTruncations);
+// 				if (withTruncation) { // compile-time check
+// 					const auto truncation = (i == j) ? RealType(0) :
+// #if 0					
+// 						math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
+// #else
+// 						math::phi2<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);						
+// #endif
+// 					truncations[i * locationCount + j] = truncation;
+// 					lSumOfTruncations += truncation;
+// 				}
+
+			}			
+			return lSumOfSquaredResiduals;
 		}, ParallelType());
 		
-		double lSumOfSquaredResiduals = delta.real();
-		double lSumOfTruncations = delta.imag();
+		double lSumOfSquaredResiduals = delta;
 
     	lSumOfSquaredResiduals /= 2.0;
-    	sumOfSquaredResiduals = lSumOfSquaredResiduals;
+    	sumOfIncrements = lSumOfSquaredResiduals;
 
-    	if (withTruncation) {
-    		lSumOfTruncations /= 2.0;
-    		sumOfTruncations = lSumOfTruncations;
-    	}
-
-	    residualsAndTruncationsKnown = true;
-	    sumsOfResidualsAndTruncationsKnown = true;
-	}
-
-	void updateSumOfSquaredResiduals() {
-		// double delta = 0.0;
-
-		const int i = updatedLocation;
-		isStoredSquaredResidualsEmpty = false;
-
-		auto start  = begin(*locationsPtr) + i * embeddingDimension;
-		auto offset = begin(*locationsPtr);
-
-		RealType delta =
-
-// 		accumulate_thread(0, locationCount, double(0),
- 		accumulate(0, locationCount, RealType(0),
-// 		accumulate_tbb(0, locationCount, double(0),
-
-			[this, i, &offset,
-			&start](const int j) {
-                const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-                    start,
-                    offset + embeddingDimension * j,
-                    embeddingDimension
-                );
-
-                const auto residual = distance - observations[i * locationCount + j];
-                const auto squaredResidual = residual * residual;
-
-            	// store old value
-            	const auto oldSquaredResidual = squaredResiduals[i * locationCount + j];
-            	storedSquaredResiduals[j] = oldSquaredResidual;
-
-                const auto inc = squaredResidual - oldSquaredResidual;
-
-            	// store new value
-                squaredResiduals[i * locationCount + j] = squaredResidual;
-
-                return inc;
-            }, ParallelType()
-		);
-
-		sumOfSquaredResiduals += delta;
+	    incrementsKnown = true;
+	    sumOfIncrementsKnown = true;
 	}
 
 // 	int count = 0
 	int count2 = 0;
 
+	template <bool withTruncation>
+	void updateSumOfIncrements() {
 
-	void updateTruncations() {
+		const RealType scale = RealType(0.5) * precision;
 
 		const int i = updatedLocation;
-
-		isStoredTruncationsEmpty = false;
+		isStoredIncrementsEmpty = false;
+// 		isStoredTruncationsEmpty = false;
 
 		auto start  = begin(*locationsPtr) + i * embeddingDimension;
 		auto offset = begin(*locationsPtr);
 
 		RealType delta =
-// 		accumulate_thread(0, locationCount, double(0),
  		accumulate(0, locationCount, RealType(0),
-// 		accumulate_tbb(0, locationCount, double(0),
 
-			[this, i, &offset, //oneOverSd,
-			&start](const int j) {
-
-                const auto squaredResidual = squaredResiduals[i * locationCount + j];
-
-                const auto truncation = (i == j) ? RealType(0) :
-                	math::logCdf<NewMultiDimensionalScaling>(std::sqrt(squaredResidual) * oneOverSd);
-
-                const auto oldTruncation = truncations[i * locationCount + j];
-                storedTruncations[j] = oldTruncation;
-
-                const auto inc = truncation - oldTruncation;
-
-                truncations[i * locationCount + j] = truncation;
-
-                return inc;
-            }
-		);
-
- 		sumOfTruncations += delta;
-	}
-
-	void updateSumOfSquaredResidualsAndTruncations() {
-
-		const int i = updatedLocation;
-		isStoredSquaredResidualsEmpty = false;
-		isStoredTruncationsEmpty = false;
-
-		auto start  = begin(*locationsPtr) + i * embeddingDimension;
-		auto offset = begin(*locationsPtr);
-
-		std::complex<RealType> delta =
-
-// 		accumulate_thread(0, locationCount, double(0),
-
-// #ifdef USE_TBB
-//         accumulate_tbb(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
-// #else
- 		accumulate(0, locationCount, std::complex<RealType>(RealType(0), RealType(0)),
-// #endif
-// 		accumulate_tbb(0, locationCount, double(0),
-
-			[this, i, &offset, //oneOverSd,
+			[this, i, &offset, scale,
 			&start](const int j) {
                 const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
                     start,
@@ -437,33 +333,40 @@ public:
                 );
 
                 const auto residual = distance - observations[i * locationCount + j];
-                const auto squaredResidual = residual * residual;
+                auto squaredResidual = residual * residual;
+                
+                if (withTruncation) { // Compile-time
+                	squaredResidual = scale * squaredResidual;
+                	if (i != j) {
+                		squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+                	}                                
+                }
 
             	// store old value
-            	const auto oldSquaredResidual = squaredResiduals[i * locationCount + j];
-            	storedSquaredResiduals[j] = oldSquaredResidual;
+            	const auto oldSquaredResidual = increments[i * locationCount + j];
+            	storedIncrements[j] = oldSquaredResidual;
 
                 const auto inc = squaredResidual - oldSquaredResidual;
 
             	// store new value
-                squaredResiduals[i * locationCount + j] = squaredResidual;
+                increments[i * locationCount + j] = squaredResidual;
 
-                const auto truncation = (i == j) ? RealType(0) :
-                	math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
+//                 const auto truncation = (i == j) ? RealType(0) :
+//                 	math::logCdf<NewMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
+// 
+//                 const auto oldTruncation = truncations[i * locationCount + j];
+//                 storedTruncations[j] = oldTruncation;
+// 
+//                 const auto inc2 = truncation - oldTruncation;
+// 
+//                 truncations[i * locationCount + j] = truncation;
 
-                const auto oldTruncation = truncations[i * locationCount + j];
-                storedTruncations[j] = oldTruncation;
-
-                const auto inc2 = truncation - oldTruncation;
-
-                truncations[i * locationCount + j] = truncation;
-
-                return std::complex<RealType>(inc, inc2);
+                return inc;
             }, ParallelType()
 		);
 
-		sumOfSquaredResiduals += delta.real();
- 		sumOfTruncations += delta.imag();
+		sumOfIncrements += delta;
+//  		sumOfTruncations += delta.imag();
 	}
 
 #if 0
@@ -867,11 +770,8 @@ private:
 	double oneOverSd;
 	double storedOneOverSd;
 
-    double sumOfSquaredResiduals;
-    double storedSumOfSquaredResiduals;
-
-    double sumOfTruncations;
-    double storedSumOfTruncations;
+    double sumOfIncrements;
+    double storedSumOfIncrements;
 
     mm::MemoryManager<RealType> observations;
 
@@ -881,23 +781,14 @@ private:
     mm::MemoryManager<RealType>* locationsPtr;
     mm::MemoryManager<RealType>* storedLocationsPtr;
 
-    mm::MemoryManager<RealType> squaredResiduals;
-    mm::MemoryManager<RealType> storedSquaredResiduals;
+    mm::MemoryManager<RealType> increments;
+    mm::MemoryManager<RealType> storedIncrements;
 
-    mm::MemoryManager<RealType> truncations;
-    mm::MemoryManager<RealType> storedTruncations;
-
-    bool isStoredSquaredResidualsEmpty;
-    bool isStoredTruncationsEmpty;
-
-    bool isStoredAllTruncationsEmpty;
-
+    bool isStoredIncrementsEmpty;
+    
     int nThreads;
 
     mm::MemoryManager<double> buffer;
-
-//     ThreadPool pool;
-
 };
 
 // factory

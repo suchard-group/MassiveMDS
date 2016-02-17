@@ -116,7 +116,7 @@ public:
 			// Update all locations
 			assert(length == embeddingDimension * locationCount);
 
-			residualsAndTruncationsKnown = false;
+			incrementsKnown = false;
 			isStoredSquaredResidualsEmpty = true;
 			isStoredTruncationsEmpty = true;
 
@@ -127,7 +127,7 @@ public:
 
 	    	if (updatedLocation != - 1) {
     			// more than one location updated -- do a full recomputation
-	    		residualsAndTruncationsKnown = false;
+	    		incrementsKnown = false;
 	    		isStoredSquaredResidualsEmpty = true;
 	    		isStoredTruncationsEmpty = true;
     		}
@@ -153,18 +153,18 @@ public:
     		buffer, queue
     	);
 
-    	sumsOfResidualsAndTruncationsKnown = false;
+    	sumOfIncrementsKnown = false;
     }
 
     void computeResidualsAndTruncations() {
 
-		if (!residualsAndTruncationsKnown) {
+		if (!incrementsKnown) {
 			if (isLeftTruncated) { // run-time dispatch to compile-time optimization
 				computeSumOfSquaredResiduals<true>();
 			} else {
 				computeSumOfSquaredResiduals<false>();
 			}
-			residualsAndTruncationsKnown = true;
+			incrementsKnown = true;
 		} else {
 			if (isLeftTruncated) {
 				updateSumOfSquaredResidualsAndTruncations();
@@ -174,18 +174,18 @@ public:
 		}
     }
 
-    double getSumOfSquaredResiduals() {
-    	if (!sumsOfResidualsAndTruncationsKnown) {
+    double getSumOfIncrements() {
+    	if (!sumOfIncrementsKnown) {
 			computeResidualsAndTruncations();
-			sumsOfResidualsAndTruncationsKnown = true;
+			sumOfIncrementsKnown = true;
 		}
 		return sumOfSquaredResiduals;
  	}
 
  	double getSumOfLogTruncations() {
-    	if (!sumsOfResidualsAndTruncationsKnown) {
+    	if (!sumOfIncrementsKnown) {
 			computeResidualsAndTruncations();
-			sumsOfResidualsAndTruncationsKnown = true;
+			sumOfIncrementsKnown = true;
 		}
  		return sumOfTruncations;
  	}
@@ -241,7 +241,7 @@ public:
 
     void restoreState() {
     	sumOfSquaredResiduals = storedSumOfSquaredResiduals;
-    	sumsOfResidualsAndTruncationsKnown = true;
+    	sumOfIncrementsKnown = true;
 
 		if (!isStoredSquaredResidualsEmpty) {
     		std::copy(
@@ -257,9 +257,9 @@ public:
     			dSquaredResiduals.begin() + updatedLocation * locationCount, queue
     		);
 
-    		residualsAndTruncationsKnown = true;
+    		incrementsKnown = true;
     	} else {
-    		residualsAndTruncationsKnown = false; // Force recompute;  TODO cache
+    		incrementsKnown = false; // Force recompute;  TODO cache
     	}
 
     	// Handle truncation
@@ -314,8 +314,8 @@ public:
 
 		// Handle truncations
 		if (isLeftTruncated) {
-			residualsAndTruncationsKnown = false;
-			sumsOfResidualsAndTruncationsKnown = false;
+			incrementsKnown = false;
+			sumOfIncrementsKnown = false;
 
     		isStoredSquaredResidualsEmpty = true;
     		isStoredTruncationsEmpty = true;
@@ -324,8 +324,8 @@ public:
     }
 
     void makeDirty() {
-    	sumsOfResidualsAndTruncationsKnown = false;
-    	residualsAndTruncationsKnown = false;
+    	sumOfIncrementsKnown = false;
+    	incrementsKnown = false;
     }
 
 	int count = 0;
@@ -518,8 +518,8 @@ public:
     		sumOfTruncations = lSumOfTruncations;
     	}
 
-	    residualsAndTruncationsKnown = true;
-	    sumsOfResidualsAndTruncationsKnown = true;
+	    incrementsKnown = true;
+	    sumOfIncrementsKnown = true;
 
 	    count++;
 	}

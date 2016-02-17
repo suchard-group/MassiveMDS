@@ -37,8 +37,9 @@ public:
 
     // Interface
     virtual void updateLocations(int, double*, size_t) = 0;
-    virtual double getSumOfSquaredResiduals() = 0;
-    virtual double getSumOfLogTruncations() = 0;
+//     virtual double getSumOfSquaredResiduals() = 0;
+//     virtual double getSumOfLogTruncations() = 0;
+    virtual double getSumOfIncrements() = 0;
     virtual void getLogLikelihoodGradient(std::vector<double>& result) { /* Do nothing */ };
     virtual void storeState() = 0;
     virtual void restoreState() = 0;
@@ -56,8 +57,8 @@ protected:
     long flags;
 
     int updatedLocation = -1;
-    bool residualsAndTruncationsKnown = false;
-    bool sumsOfResidualsAndTruncationsKnown = false;
+    bool incrementsKnown = false;
+    bool sumOfIncrementsKnown = false;
     bool isLeftTruncated = false;
 };
 
