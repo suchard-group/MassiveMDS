@@ -4,13 +4,13 @@
 
 // #include "MultiDimensionalScaling.hpp"
 #include "NewMultiDimensionalScaling.hpp"
-#include "dr_app_beagle_multidimensionalscaling_NativeMDSSingleton.h"
+#include "dr_inference_multidimensionalscaling_NativeMDSSingleton.h"
 
 typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> InstancePtr;
 std::vector<InstancePtr> instances;
 
 extern "C"
-JNIEXPORT jint JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_initialize
+JNIEXPORT jint JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_initialize
   (JNIEnv *, jobject, jint embeddingDimension, jint elementCount, jlong flags) {
     instances.emplace_back(
 //         std::make_shared<mds::MultiDimensionalScaling<double>>(embeddingDimension, elementCount, flags));
@@ -21,7 +21,7 @@ JNIEXPORT jint JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
   }
 
 extern "C"
-JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_updateLocations
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_updateLocations
   (JNIEnv *env, jobject, jint instance, jint index, jdoubleArray xArray) {
   	jsize len = env->GetArrayLength(xArray);
   	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
@@ -32,31 +32,31 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 }
 
 extern "C"
-JNIEXPORT jdouble JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_getSumOfIncrements
+JNIEXPORT jdouble JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_getSumOfIncrements
   (JNIEnv *, jobject, jint instance) {
     return instances[instance]->getSumOfIncrements();
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_storeState
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_storeState
   (JNIEnv *, jobject, jint instance) {
     instances[instance]->storeState();
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_restoreState
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_restoreState
   (JNIEnv *, jobject, jint instance) {
     instances[instance]->restoreState();
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_acceptState
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_acceptState
   (JNIEnv *, jobject, jint instance) {
     instances[instance]->acceptState();
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_setPairwiseData
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_setPairwiseData
   (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {
   	jsize len = env->GetArrayLength(xArray);
   	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
@@ -67,7 +67,7 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_setParameters
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_setParameters
   (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {
   	jsize len = env->GetArrayLength(xArray);
   	jdouble* x = env->GetDoubleArrayElements(xArray, NULL);
@@ -78,7 +78,7 @@ JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingl
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_dr_app_beagle_multidimensionalscaling_NativeMDSSingleton_makeDirty
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_makeDirty
   (JNIEnv *, jobject, jint instance) {
     instances[instance]->makeDirty();
 }
