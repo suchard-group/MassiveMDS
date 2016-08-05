@@ -9,4 +9,5 @@ compiler:
 # Build steps
 script:
   - cd build
-  - cmake .. && make
+  - cmake -DUSE_SYSTEM_TBB=OFF ..
+  - make
