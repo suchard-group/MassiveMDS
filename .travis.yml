@@ -23,6 +23,11 @@ before_install:
       rm AMD-APP-SDK*.sh
       rm AMD-SDK.tar.bz2
     fi    
+    
+install:
+  - export CPLUS_INCLUDE_PATH=${AMDAPPSDKROOT}/include
+  - export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
+  - export LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LIBRARY_PATH}
   
 # Build steps
 script:
