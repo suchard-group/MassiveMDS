@@ -29,3 +29,11 @@ script:
   - cd build
   - cmake -DUSE_SYSTEM_TBB=OFF ..
   - make
+  
+env:
+  global:
+  - OPENCL_ROOT=$HOME/opencl
+  - OPENCL_LIB=amdappsdk
+  - OPENCL_VERSION="12"
+  - AMDAPPSDK_VERSION=291 # OpenCL 1.2   
+  - AMDAPPSDKROOT=${OPENCL_ROOT}/AMDAPPSDK    
