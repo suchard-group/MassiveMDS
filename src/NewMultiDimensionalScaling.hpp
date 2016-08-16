@@ -101,7 +101,7 @@ public:
 		}
 		if (isLeftTruncated) {			
 			return sumOfIncrements;
-		} else {
+		} else {		
 			return 0.5 * precision * sumOfIncrements;
 		}
  	}
@@ -273,6 +273,7 @@ public:
 				auto squaredResidual = residual * residual;
 				
 				if (withTruncation) {
+			//	std::cerr << "A";
 					squaredResidual = scale * squaredResidual;
 					if (i != j) {					
 						squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
@@ -311,7 +312,7 @@ public:
 
 	template <bool withTruncation>
 	void updateSumOfIncrements() {
-
+std::cerr << "HERE?" << std::endl;
 		const RealType scale = RealType(0.5) * precision;
 
 		const int i = updatedLocation;

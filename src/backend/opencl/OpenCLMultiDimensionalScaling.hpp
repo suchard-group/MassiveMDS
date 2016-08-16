@@ -166,6 +166,7 @@ public:
 			}
 			incrementsKnown = true;
 		} else {
+			std::cerr << "SHOULD NOT BE HERE" << std::endl;
 			if (isLeftTruncated) {
 				updateSumOfSquaredResidualsAndTruncations();
 			} else {
@@ -173,14 +174,26 @@ public:
 			}
 		}
     }
-
+    
     double getSumOfIncrements() {
     	if (!sumOfIncrementsKnown) {
 			computeResidualsAndTruncations();
 			sumOfIncrementsKnown = true;
 		}
-		return sumOfSquaredResiduals;
- 	}
+		if (isLeftTruncated) {			
+			return sumOfSquaredResiduals;
+		} else {		
+			return 0.5 * precision * sumOfSquaredResiduals;
+		}
+ 	}    // TODO Duplicated code with CPU version
+
+  //   double getSumOfIncrements() {
+//     	if (!sumOfIncrementsKnown) {
+// 			computeResidualsAndTruncations();
+// 			sumOfIncrementsKnown = true;
+// 		}
+// 		return sumOfSquaredResiduals;
+//  	}
 
  	double getSumOfLogTruncations() {
     	if (!sumOfIncrementsKnown) {
