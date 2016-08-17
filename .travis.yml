@@ -39,7 +39,7 @@ install:
 # Build steps
 script:
   - cd build
-  - cmake -DUSE_SYSTEM_TBB=OFF ..
+  - cmake -DUSE_SYSTEM_TBB=OFF -DNO_RTM=TRUE ..
   - make
   
 env:
