@@ -114,6 +114,8 @@ find_path(OpenCL_INCLUDE_DIR
     OpenCL/common/inc
     "AMD APP/include")
 
+message(STATUS "OCL: " ${OpenCL_INCLUDE_DIR})
+
 _FIND_OPENCL_VERSION()
 
 if(WIN32)
@@ -150,7 +152,13 @@ if(WIN32)
   endif()
 else()
   find_library(OpenCL_LIBRARY
-    NAMES OpenCL)
+    NAMES OpenCL
+    PATHS     
+      ENV CUDA_PATH
+      ENV NVSDKCOMPUTE_ROOT
+      ENV AMDAPPSDKROOT
+      ENV INTELOCLSDKROOT
+      ENV ATISTREAMSDKROOT)
 endif()
 
 set(OpenCL_LIBRARIES ${OpenCL_LIBRARY})
