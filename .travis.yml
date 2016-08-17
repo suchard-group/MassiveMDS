@@ -11,9 +11,6 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-4.9
-      env: 
-        - CXX=g++-4.9
-        - CC=gcc-4.9
         
 before_install:
   - |
@@ -37,8 +34,7 @@ install:
   - export CPLUS_INCLUDE_PATH=${AMDAPPSDKROOT}/include
   - export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
   - export LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LIBRARY_PATH}
-  - ls /home/travis/opencl/AMDAPPSDK/include
-  - ls /home/travis/opencl/AMDAPPSDK/include/CL
+  - export CXX="g++-4.9"
   
 # Build steps
 script:
