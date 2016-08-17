@@ -29,6 +29,7 @@ install:
   - export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
   - export LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LIBRARY_PATH}
   - ls /home/travis/opencl/AMDAPPSDK/include
+  - ls /home/travis/opencl/AMDAPPSDK/include/CL
   
 # Build steps
 script:
