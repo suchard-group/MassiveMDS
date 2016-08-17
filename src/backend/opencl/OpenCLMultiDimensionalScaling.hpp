@@ -422,6 +422,7 @@ public:
 		kernelSumOfSquaredResidualsVector.set_arg(0, *dLocationsPtr);
 
 		if (isLeftTruncated) {
+			kernelSumOfSquaredResidualsVector.set_arg(3, static_cast<RealType>(precision));		
 			kernelSumOfSquaredResidualsVector.set_arg(4, static_cast<RealType>(oneOverSd));
 		}
 
@@ -459,11 +460,11 @@ public:
 		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
 //		std::cerr << "HERE6" << std::endl;
 
-		if (isLeftTruncated) {
-			RealType sum2 = RealType(0.0);
-			boost::compute::reduce(dTruncations.begin(), dTruncations.end(), &sum2, queue);
-			lSumOfTruncations = sum2;
-		}
+// 		if (isLeftTruncated) {
+// 			RealType sum2 = RealType(0.0);
+// 			boost::compute::reduce(dTruncations.begin(), dTruncations.end(), &sum2, queue);
+// 			lSumOfTruncations = sum2;
+// 		}
 
 		queue.finish();
 		auto duration3 = std::chrono::steady_clock::now() - startTime3;
@@ -526,10 +527,13 @@ public:
     	lSumOfSquaredResiduals /= 2.0;
     	sumOfSquaredResiduals = lSumOfSquaredResiduals;
 
-    	if (withTruncation) {
-    		lSumOfTruncations /= 2.0;
-    		sumOfTruncations = lSumOfTruncations;
-    	}
+//     	if (withTruncation) {
+//     		lSumOfTruncations /= 2.0;
+//     		sumOfTruncations = lSumOfTruncations;
+//     	}
+
+// 		std::cerr << lSumOfSquaredResiduals << " " << lSumOfTruncations << std::endl;
+// 		exit(-1);
 
 	    incrementsKnown = true;
 	    sumOfIncrementsKnown = true;
@@ -766,14 +770,14 @@ public:
 
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-			options << " -DREAL=double -DREAL_VECTOR=double2 -DZERO=0.0";
+			options << " -DREAL=double -DREAL_VECTOR=double2 -DZERO=0.0 -DHALF=0.5";
 			
 			if (isLeftTruncated) {
 				code << cdfString1Double;
 			}
 			
 		} else { // 32-bit fp
-			options << " -DREAL=float -DREAL_VECTOR=float2 -DZERO=0.0f";
+			options << " -DREAL=float -DREAL_VECTOR=float2 -DZERO=0.0f -DHALF=0.5f";
 			
 			if (isLeftTruncated) {
 				code << cdfString1Float;
@@ -787,7 +791,8 @@ public:
 		
 		if (isLeftTruncated) {
 			code << 
-			"						   __global REAL *truncations,             \n"	<<
+// 			"						   __global REAL *truncations,             \n"	<<
+            "                          const REAL precision,                   \n" <<
 			"                          const REAL oneOverSd,                   \n";				
 		}
 		code << 
@@ -819,19 +824,22 @@ public:
 					);
 
 					const REAL residual = distance - observations[i * locationCount + j];
-					const REAL squaredResidual = residual * residual;
+					REAL squaredResidual = residual * residual;
 
-					squaredResiduals[i * locationCount + j] = squaredResidual;
+					
 		);
 		
 		if (isLeftTruncated) {
 			code << BOOST_COMPUTE_STRINGIZE_SOURCE(
-					const REAL truncation = (i == j) ? ZERO : log(cdf(fabs(residual) * oneOverSd));;
-					truncations[i * locationCount + j] = truncation;			
+					squaredResidual *= HALF * precision;
+					const REAL truncation = (i == j) ? ZERO : log(cdf(fabs(distance) * oneOverSd));
+					squaredResidual += truncation;
+// 					truncations[i * locationCount + j] = truncation; // * ZERO;
 			);
 		}
 		
 		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
+			 		squaredResiduals[i * locationCount + j] = squaredResidual;
 				}
 			}
 		);				
@@ -849,8 +857,9 @@ public:
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dObservations);
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dSquaredResiduals);
 		if (isLeftTruncated) {
-			kernelSumOfSquaredResidualsVector.set_arg(index++, dTruncations);
-			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(oneOverSd));
+// 			kernelSumOfSquaredResidualsVector.set_arg(index++, dTruncations);
+			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(precision)); // TODO Must update
+			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(oneOverSd)); // TODO Must update
 		}
 		kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(locationCount));
 
