@@ -40,7 +40,15 @@ install:
 script:
   - cd build
   - cmake -DUSE_SYSTEM_TBB=OFF -DNO_RTM=TRUE ..
-  - make VERBOSE=1
+  - make
+  - ./benchmark --iterations 10
+  - ./benchmark --iterations 10 --gpu
+  - ./benchmark --iterations 10 --float
+  - ./benchmaak --iterations 10 --float --gpu
+  - ./benchmark --iterations 10 --truncation
+  - ./benchmark --iterations 10 --truncation --gpu
+  - ./benchmark --iterations 10 --truncation --float
+  - ./benchmaak --iterations 10 --truncation --float --gpu  
   
 env:
   global:
