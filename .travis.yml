@@ -13,7 +13,7 @@ matrix:
             - g++-4.9
             - gdb
             - apport  
-      env: COMPILER=gcc++-4.9 
+      env: COMPILER=g++-4.9 
     - compiler: clang
       addons:
         apt:
