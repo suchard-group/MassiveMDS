@@ -273,7 +273,6 @@ public:
 				auto squaredResidual = residual * residual;
 				
 				if (withTruncation) {
-			//	std::cerr << "A";
 					squaredResidual = scale * squaredResidual;
 					if (i != j) {					
 						squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
