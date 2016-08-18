@@ -526,7 +526,7 @@ std::cerr << "HERE?" << std::endl;
 	auto b = _mm_loadu_ps(y); // TODO second call is not aligned without padding
 	auto c = a - b;
 
-	const int mask = 0x49;
+	const int mask = 0x31;
 	__m128 d = _mm_dp_ps(c, c, mask);
 	return  _mm_cvtss_f32(_mm_sqrt_ps(d));
     }
