@@ -522,8 +522,8 @@ std::cerr << "HERE?" << std::endl;
 	SSE_PTR __restrict__ x = &*iX;
 	SSE_PTR __restrict__ y = &*iY;
 
-	auto a = _mm_load_ps(x);
-	auto b = _mm_load_ps(y); // TODO second call is not aligned without padding
+	auto a = _mm_loadu_ps(x);
+	auto b = _mm_loadu_ps(y); // TODO second call is not aligned without padding
 	auto c = a - b;
 
 	const int mask = 0x49;
