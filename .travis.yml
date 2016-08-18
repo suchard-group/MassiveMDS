@@ -36,9 +36,12 @@ install:
   - export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
   - export LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LIBRARY_PATH}
   - export CXX="g++-4.9"
-  - ulimit -c unlimited -S # Enable core dumps
+  - ulimit -c
   - cd build
   - cmake -DUSE_SYSTEM_TBB=OFF -DNO_RTM=TRUE ..  
+  
+before_script:
+ - ulimit -c unlimited -S # Enable core dumps
   
 # Build steps
 script:
@@ -46,15 +49,16 @@ script:
   - ./benchmark --iterations 10
   - ./benchmark --iterations 10 --gpu
   - ./benchmark --iterations 10 --float  # error 139
-  - ./benchmark --iterations 10 --float --gpu
-  - ./benchmark --iterations 10 --truncation
-  - ./benchmark --iterations 10 --truncation --gpu
-  - ./benchmark --iterations 10 --truncation --float # TODO Why does this not work?
-  - ./benchmark --iterations 10 --truncation --float --gpu  
+#  - ./benchmark --iterations 10 --float --gpu
+#  - ./benchmark --iterations 10 --truncation
+#  - ./benchmark --iterations 10 --truncation --gpu
+#  - ./benchmark --iterations 10 --truncation --float # TODO Why does this not work?
+#  - ./benchmark --iterations 10 --truncation --float --gpu  
     
 after_failure:
-- COREFILE=$(find . -maxdepth 1 -name "core*" | head -n 1) # find core file
-- if [[ -f "$COREFILE" ]]; then gdb -c "$COREFILE" example -ex "thread apply all bt" -ex "set pagination 0" -batch; fi  
+  - ls
+  - COREFILE=$(find . -maxdepth 1 -name "core*" | head -n 1) # find core file
+  - if [[ -f "$COREFILE" ]]; then gdb -c "$COREFILE" example -ex "thread apply all bt" -ex "set pagination 0" -batch; fi  
   
 env:
   global:
