@@ -11,6 +11,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-4.9
+            - gdb
         
 before_install:
   - |
@@ -35,6 +36,7 @@ install:
   - export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
   - export LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LIBRARY_PATH}
   - export CXX="g++-4.9"
+  - ulimit -c unlimited -S # Enable core dumps
   - cd build
   - cmake -DUSE_SYSTEM_TBB=OFF -DNO_RTM=TRUE ..  
   
@@ -43,12 +45,13 @@ script:
   - make
   - ./benchmark --iterations 10
   - ./benchmark --iterations 10 --gpu
-#  - ./benchmark --iterations 10 --float  # error 139
-  - ./benchmark --iterations 10 --float --gpu
-  - ./benchmark --iterations 10 --truncation
-  - ./benchmark --iterations 10 --truncation --gpu
+  - ./benchmark --iterations 10 --float  # error 139
+  - ls
+#  - ./benchmark --iterations 10 --float --gpu
+#  - ./benchmark --iterations 10 --truncation
+#  - ./benchmark --iterations 10 --truncation --gpu
 #  - ./benchmark --iterations 10 --truncation --float # TODO Why does this not work?
-  - ./benchmark --iterations 10 --truncation --float --gpu  
+#  - ./benchmark --iterations 10 --truncation --float --gpu  
   
 env:
   global:
