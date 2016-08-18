@@ -12,6 +12,7 @@ matrix:
           packages:
             - g++-4.9
             - gdb
+            - apport
         
 before_install:
   - |
@@ -37,6 +38,9 @@ install:
   - export LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64:${LIBRARY_PATH}
   - export CXX="g++-4.9"
   - ulimit -c
+  - ulimit -a -S
+  - ulimit -a -H
+  - cat /proc/sys/kernel/core_pattern  
   - cd build
   - cmake -DUSE_SYSTEM_TBB=OFF -DNO_RTM=TRUE ..  
   
@@ -49,6 +53,7 @@ script:
   - ./benchmark --iterations 10
   - ./benchmark --iterations 10 --gpu
   - ./benchmark --iterations 10 --float  # error 139
+  - find ./ -maxdepth 1 -name 'core*' -print
 #  - ./benchmark --iterations 10 --float --gpu
 #  - ./benchmark --iterations 10 --truncation
 #  - ./benchmark --iterations 10 --truncation --gpu
