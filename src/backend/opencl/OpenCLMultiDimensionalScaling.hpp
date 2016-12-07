@@ -301,6 +301,12 @@ public:
     	auto tmp1 = storedLocationsPtr;
     	storedLocationsPtr = locationsPtr;
     	locationsPtr = tmp1;
+    	
+    	// COMPUTE
+    	auto tmp2 = dStoredLocationsPtr;
+    	dStoredLocationsPtr = dLocationsPtr;
+    	dLocationsPtr = tmp2;
+    	
     }
 
     void setPairwiseData(double* data, size_t length) {
