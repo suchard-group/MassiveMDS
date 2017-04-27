@@ -48,6 +48,23 @@ void bufferedCopy(double *begin, double *end,
 	std::copy(begin, end, destination);
 }
 
+template <typename RealVectorPtr, typename Buffer>
+void bufferedCopy(RealVectorPtr begin, RealVectorPtr end, double* destination, Buffer& buffer);
+
+template <typename Buffer>
+void bufferedCopy(mm::MemoryManager<double>::iterator begin, 
+		mm::MemoryManager<double>::iterator end, 
+        double* destination, Buffer& buffer) {
+	std::copy(begin, end, destination);                  
+}
+
+template <typename Buffer>
+void bufferedCopy(mm::MemoryManager<float>::iterator begin, 
+		mm::MemoryManager<float>::iterator end, 
+        double* destination, Buffer& buffer) {
+	std::copy(begin, end, destination);                  
+}
+
 } // namespace mm
 } // namespace mds
 

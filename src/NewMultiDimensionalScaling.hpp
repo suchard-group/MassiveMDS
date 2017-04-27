@@ -220,8 +220,14 @@ public:
 	void getLogLikelihoodGradient(double* result, size_t length) {
 
 		assert(length == locationsPtr->size());
-		std::fill(result, result + length, 0.0);
+		if (length != gradient.size()) {
+			gradient.resize(length);
+		}
+		
+		std::fill(std::begin(gradient), std::end(gradient), static_cast<RealType>(0.0));
 
+		const RealType scale = precision;
+		
 		for (int i = 0; i < locationCount; ++i) {
 			for (int j = i; j < locationCount; ++j) {
 				if (i != j) {
@@ -231,22 +237,24 @@ public:
 						embeddingDimension
 					);
 
-					const double dataContribution =
-						(observations[i * locationCount + j] - distance) * precision / distance;
+					const RealType dataContribution =
+						(observations[i * locationCount + j] - distance) * scale / distance;
 
-					const double update0 = dataContribution *
+					const RealType update0 = dataContribution *
 						((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
-					const double update1 = dataContribution *
+					const RealType update1 = dataContribution *
 						((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
 
-					*(result + i * embeddingDimension + 0) += update0;
-					*(result + i * embeddingDimension + 1) += update1;
+					gradient[i * embeddingDimension + 0] += update0;
+					gradient[i * embeddingDimension + 1] += update1;
 
-					*(result + j * embeddingDimension + 0) -= update0;
-					*(result + j * embeddingDimension + 1) -= update1;
+					gradient[j * embeddingDimension + 0] -= update0;
+					gradient[j * embeddingDimension + 1] -= update1;
 				}
 			}
 		}
+		
+		mm::bufferedCopy(std::begin(gradient), std::end(gradient), result, buffer);
 	};
 
 
@@ -783,12 +791,16 @@ private:
 
     mm::MemoryManager<RealType> increments;
     mm::MemoryManager<RealType> storedIncrements;
+    
+    mm::MemoryManager<RealType> gradient;
+    
+    mm::MemoryManager<double> buffer;
 
     bool isStoredIncrementsEmpty;
     
     int nThreads;
 
-    mm::MemoryManager<double> buffer;
+   
 };
 
 // factory
