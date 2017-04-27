@@ -67,6 +67,17 @@ JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingle
 }
 
 extern "C"
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_getLocationGradient
+  (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {
+	jsize len = env->GetArrayLength(xArray);
+	jdouble* x = env->GetDoubleArrayElements(xArray, NULL); // TODO: Try GetPrimitiveArrayCritical
+	
+	instances[instance]->getLogLikelihoodGradient(x, len);
+	
+	env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);	  
+}
+
+extern "C"
 JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_setParameters
   (JNIEnv *env, jobject, jint instance, jdoubleArray xArray) {
   	jsize len = env->GetArrayLength(xArray);

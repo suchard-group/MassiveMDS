@@ -49,7 +49,7 @@ JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingle
 
 /*
  * Class:     dr_inference_multidimensionalscaling_NativeMDSSingleton
- * Method:    accepteState
+ * Method:    acceptState
  * Signature: (I)V
  */
 JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_acceptState
@@ -77,6 +77,22 @@ JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingle
  * Signature: (I[D)V
  */
 JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_setParameters
+  (JNIEnv *, jobject, jint, jdoubleArray);
+
+/*
+ * Class:     dr_inference_multidimensionalscaling_NativeMDSSingleton
+ * Method:    getPairwiseData
+ * Signature: (I)[D
+ */
+JNIEXPORT jdoubleArray JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_getPairwiseData
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     dr_inference_multidimensionalscaling_NativeMDSSingleton
+ * Method:    getLocationGradient
+ * Signature: (I[D)V
+ */
+JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_getLocationGradient
   (JNIEnv *, jobject, jint, jdoubleArray);
 
 #ifdef __cplusplus
