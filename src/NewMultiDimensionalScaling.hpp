@@ -217,10 +217,10 @@ public:
     	incrementsKnown = false;
     }
 
-	void getLogLikelihoodGradient(std::vector<double>& result) {
+	void getLogLikelihoodGradient(double* result, size_t length) {
 
-		assert(result.size() == locationsPtr->size());
-		std::fill(std::begin(result), std::end(result), 0.0);
+		assert(length == locationsPtr->size());
+		std::fill(result, result + length, 0.0);
 
 		for (int i = 0; i < locationCount; ++i) {
 			for (int j = i; j < locationCount; ++j) {
@@ -239,11 +239,11 @@ public:
 					const double update1 = dataContribution *
 						((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
 
-					result[i * embeddingDimension + 0] += update0;
-					result[i * embeddingDimension + 1] += update1;
+					*(result + i * embeddingDimension + 0) += update0;
+					*(result + i * embeddingDimension + 1) += update1;
 
-					result[j * embeddingDimension + 0] -= update0;
-					result[j * embeddingDimension + 1] -= update1;
+					*(result + j * embeddingDimension + 0) -= update0;
+					*(result + j * embeddingDimension + 1) -= update1;
 				}
 			}
 		}

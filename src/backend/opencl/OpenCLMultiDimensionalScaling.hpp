@@ -155,6 +155,10 @@ public:
 
     	sumOfIncrementsKnown = false;
     }
+    
+	void getLogLikelihoodGradient(double*, size_t) {
+	 // Do nothing
+	}
 
     void computeResidualsAndTruncations() {
 

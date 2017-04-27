@@ -207,6 +207,6 @@ int main(int argc, char* argv[]) {
 			  << std::endl;
 
 	std::vector<double> gradient(locationCount * embeddingDimension);
-	instance->getLogLikelihoodGradient(gradient);
+	instance->getLogLikelihoodGradient(gradient.data(), locationCount * embeddingDimension);
 
 }
