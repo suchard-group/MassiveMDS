@@ -72,9 +72,9 @@ JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingle
 	jsize len = env->GetArrayLength(xArray);
 	jdouble* x = env->GetDoubleArrayElements(xArray, NULL); // TODO: Try GetPrimitiveArrayCritical
 	
-	instances[instance]->getLogLikelihoodGradient(x, len);
+	instances[instance]->getLogLikelihoodGradient(x, len);	
 	
-	env->ReleaseDoubleArrayElements(xArray, x, JNI_ABORT);	  
+	env->ReleaseDoubleArrayElements(xArray, x, 0); // copy values back	  
 }
 
 extern "C"
