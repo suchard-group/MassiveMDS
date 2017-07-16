@@ -15,6 +15,8 @@ void generateLocation(T& locations, D& d, PRNG& prng) {
 	}
 }
 
+//double getGradient
+
 int main(int argc, char* argv[]) {
 
 	// Set-up CLI
@@ -126,12 +128,20 @@ int main(int argc, char* argv[]) {
 	}
 // 	std::cerr << "FIND: " << total << std::endl;
 
+    int gradientIndex = 1;
+
 	double precision = 1.0;
 	instance->setParameters(&precision, 1);
 
 	instance->makeDirty();
 	auto logLik = instance->getSumOfIncrements();
-	
+
+    std::vector<double> gradient(locationCount * embeddingDimension);
+
+    instance->getLogLikelihoodGradient(gradient.data(), locationCount * embeddingDimension);
+//    double sumGradient = std::accumulate(std::begin(gradient), std::end(gradient), 0.0);
+    double sumGradient = gradient[gradientIndex];
+
 // 	double logTrunc = 0.0;
 // 	if (truncation) {
 // 		logTrunc = instance->getSumOfLogTruncations();
@@ -143,6 +153,7 @@ int main(int argc, char* argv[]) {
 	int iterations = vm["iterations"].as<int>();
 	
 	double timer = 0;
+    double timer2 = 0;
 
 	for (auto itr = 0; itr < iterations; ++itr) {
 
@@ -192,8 +203,20 @@ int main(int argc, char* argv[]) {
 //
 // 		std::cerr << endDiagnostic << std::endl;
 // 		if (itr > 100) exit(-1);
+
+        auto startTime2 = std::chrono::steady_clock::now();
+
+        instance->getLogLikelihoodGradient(gradient.data(), locationCount * embeddingDimension);
+
+        auto duration2 = std::chrono::steady_clock::now() - startTime2;
+        timer2 += std::chrono::duration<double, std::milli>(duration2).count();
+
+//        sumGradient += std::accumulate(std::begin(gradient), std::end(gradient), 0.0) + 1;
+        sumGradient += gradient[gradientIndex];
+
 	}
 	logLik /= iterations + 1;
+    sumGradient /= iterations + 1;
 // 	logTrunc /= iterations + 1;
 
 	auto endTime = std::chrono::steady_clock::now();
@@ -201,12 +224,11 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "End MDS benchmark" << std::endl;
 	std::cout << "AvgLogLik = " << logLik << std::endl;
+    std::cout << "AvgSumGradient = " << sumGradient << std::endl;
 // 	std::cout << "AveLogTru = " << logTrunc << std::endl;
-	std::cout << timer << " ms" << std::endl;
+	std::cout << timer  << " ms" << std::endl;
+    std::cout << timer2 << " ms" << std::endl;
 	std::cout << std::chrono::duration<double, std::milli> (duration).count() << " ms "
 			  << std::endl;
-
-	std::vector<double> gradient(locationCount * embeddingDimension);
-	instance->getLogLikelihoodGradient(gradient.data(), locationCount * embeddingDimension);
 
 }

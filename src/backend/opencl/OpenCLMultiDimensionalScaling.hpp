@@ -15,6 +15,8 @@
 
 // #define DOUBLE_CHECK
 
+#define DOUBLE_CHECK_GRADIENT
+
 #define TILE_DIM 16
 
 #include "OpenCLMemoryManagement.hpp"
@@ -155,9 +157,49 @@ public:
 
     	sumOfIncrementsKnown = false;
     }
-    
-	void getLogLikelihoodGradient(double*, size_t) {
-	 // Do nothing
+
+	void getLogLikelihoodGradient(double* result, size_t length) {
+
+		assert(length == locationsPtr->size());
+		if (length != gradient.size()) {
+			gradient.resize(length);
+		}
+
+		std::fill(std::begin(gradient), std::end(gradient), static_cast<RealType>(0.0));
+
+		const RealType scale = precision;
+
+		std::cerr << "gpu scale = " << scale << std::endl;
+
+		for (int i = 0; i < locationCount; ++i) {
+			for (int j = 0; j < locationCount; ++j) {
+				if (i != j) {
+					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
+							begin(*locationsPtr) + i * embeddingDimension,
+							begin(*locationsPtr) + j * embeddingDimension,
+							embeddingDimension
+					);
+
+					const RealType dataContribution =
+							(observations[i * locationCount + j] - distance) * scale / distance;
+
+					const RealType update0 = dataContribution *
+											 ((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
+					const RealType update1 = dataContribution *
+											 ((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
+
+					gradient[i * embeddingDimension + 0] += update0;
+					gradient[i * embeddingDimension + 1] += update1;
+
+//					gradient[j * embeddingDimension + 0] -= update0;
+//					gradient[j * embeddingDimension + 1] -= update1;
+
+//					std::cerr << "gpu update0 = " << update0 << std::endl;
+				}
+			}
+		}
+
+		mm::bufferedCopy(std::begin(gradient), std::end(gradient), result, buffer);
 	}
 
     void computeResidualsAndTruncations() {
@@ -928,6 +970,8 @@ private:
 
     mm::MemoryManager<RealType> truncations;
     mm::MemoryManager<RealType> storedTruncations;
+
+	mm::MemoryManager<RealType> gradient;
 
     mm::GPUMemoryManager<RealType> dObservations;
 
