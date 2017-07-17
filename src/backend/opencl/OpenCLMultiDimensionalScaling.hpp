@@ -160,6 +160,7 @@ public:
 
 	void getLogLikelihoodGradient(double* result, size_t length) {
 
+#ifdef DOUBLE_CHECK_GRADIENT
 		assert(length == locationsPtr->size());
 		if (length != gradient.size()) {
 			gradient.resize(length);
@@ -169,7 +170,7 @@ public:
 
 		const RealType scale = precision;
 
-		std::cerr << "gpu scale = " << scale << std::endl;
+//		std::cerr << "gpu scale = " << scale << std::endl;
 
 		for (int i = 0; i < locationCount; ++i) {
 			for (int j = 0; j < locationCount; ++j) {
@@ -200,6 +201,26 @@ public:
 		}
 
 		mm::bufferedCopy(std::begin(gradient), std::end(gradient), result, buffer);
+#endif // DOUBLE_CHECK_GRADIENT
+
+		kernelSumOfSquaredResidualsVector.set_arg(0, *dLocationsPtr);
+
+		if (isLeftTruncated) {
+			kernelSumOfSquaredResidualsVector.set_arg(3, static_cast<RealType>(precision));
+			kernelSumOfSquaredResidualsVector.set_arg(4, static_cast<RealType>(oneOverSd));
+		}
+
+		const size_t local_work_size[2] = {TILE_DIM, TILE_DIM};
+		size_t work_groups = locationCount / TILE_DIM;
+		if (locationCount % TILE_DIM != 0) {
+			++work_groups;
+		}
+		const size_t global_work_size[2] = {work_groups * TILE_DIM, work_groups * TILE_DIM};
+
+
+		//queue.enqueue_1d_range_kernel(kernelSumOfSquaredResidualsVector, 0, locationCount * locationCount, 0);
+		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, 0, global_work_size, local_work_size);
+
 	}
 
     void computeResidualsAndTruncations() {
@@ -730,8 +751,7 @@ public:
 		return sum;
 	}
 
-
-	void createOpenCLKernels() {
+	void createOpenCLLikelihoodKernel() {
 
 		const char Test[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
 			// approximation of the cumulative normal distribution function
@@ -915,6 +935,57 @@ public:
 		}
 		kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(locationCount));
 
+	}
+
+	void createOpenCLGradientKernel() {
+
+		std::stringstream code;
+		std::stringstream options;
+
+		if (sizeof(RealType) == 8) { // 64-bit fp
+			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
+			options << " -DREAL=double -DREAL_VECTOR=double2 -DZERO=0.0 -DHALF=0.5";
+
+			if (isLeftTruncated) {
+				//code << cdfString1Double;
+			}
+
+		} else { // 32-bit fp
+			options << " -DREAL=float -DREAL_VECTOR=float2 -DZERO=0.0f -DHALF=0.5f";
+
+			if (isLeftTruncated) {
+//				code << cdfString1Float;
+			}
+		}
+
+
+		code <<
+			 " __kernel void computeGradient(__global const REAL_VECTOR *locations,  \n" <<
+			 "  						     __global const REAL *observations,      \n" <<
+			 "						         __global REAL *squaredResiduals,        \n";
+
+		if (isLeftTruncated) {
+			code <<
+				 "                          const REAL precision,                   \n" <<
+				 "                          const REAL oneOverSd,                   \n";
+		}
+		code <<
+			 "						   const uint locationCount) {            \n" <<
+			 " }; ";
+
+		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
+		kernelGradientVector = boost::compute::kernel(program, "computeGradient");
+
+#ifdef DOUBLE_CHECK_GRADIENT
+		std::cerr << kernelGradientVector.get_program().source() << std::endl;
+//		exit(-1);
+#endif
+	}
+
+	void createOpenCLKernels() {
+
+		createOpenCLLikelihoodKernel();
+		createOpenCLGradientKernel();
 
 #ifdef DOUBLE_CHECK
  		using namespace boost::compute;
@@ -981,6 +1052,8 @@ private:
 
     mm::GPUMemoryManager<VectorType>* dLocationsPtr;
     mm::GPUMemoryManager<VectorType>* dStoredLocationsPtr;
+
+	mm::GPUMemoryManager<VectorType> dGradient;
 #else
     mm::GPUMemoryManager<RealType> dLocations0;
     mm::GPUMemoryManager<RealType> dLocations1;
@@ -1005,6 +1078,7 @@ private:
 
 #ifdef USE_VECTORS
 	boost::compute::kernel kernelSumOfSquaredResidualsVector;
+	boost::compute::kernel kernelGradientVector;
 #else
     boost::compute::kernel kernelSumOfSquaredResiduals;
 #endif // USE_VECTORS
