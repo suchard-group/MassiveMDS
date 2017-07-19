@@ -22,6 +22,62 @@ namespace mm {
 template <typename T>
 using GPUMemoryManager = boost::compute::vector<T>;
 
+	template <typename RealVectorPtr, typename Buffer, typename Queue>
+	void bufferedCopyFromDevice(RealVectorPtr begin,
+								RealVectorPtr end,
+								double *destination,
+								Buffer& buffer, Queue& queue);
+
+	template <typename Buffer, typename Queue>
+	void bufferedCopyFromDevice(mm::GPUMemoryManager<double>::iterator begin,
+								mm::GPUMemoryManager<double>::iterator end,
+								double *destination,
+							    Buffer&, Queue& queue) {
+
+		boost::compute::copy(begin, end, destination, queue);
+	}
+
+	template <typename Buffer, typename Queue>
+	void bufferedCopyFromDevice(mm::GPUMemoryManager<boost::compute::double2_>::iterator begin,
+								mm::GPUMemoryManager<boost::compute::double2_>::iterator end,
+								double *destination,
+								Buffer&, Queue& queue) {
+		using namespace boost::compute;
+
+		copy(begin, end, reinterpret_cast<double2_ *>(destination), queue);
+	}
+
+	template <typename Buffer, typename Queue>
+	void bufferedCopyFromDevice(mm::GPUMemoryManager<float>::iterator begin,
+								mm::GPUMemoryManager<float>::iterator end,
+								double *destination,
+								Buffer& buffer, Queue& queue) {
+
+		const auto length = std::distance(begin, end);
+		if (buffer.size() < length) {
+			buffer.resize(length);
+		}
+
+		boost::compute::copy(begin, end, std::begin(buffer), queue);
+		std::copy(std::begin(buffer), std::begin(buffer) + length, destination);
+	}
+
+	template <typename Buffer, typename Queue>
+	void bufferedCopyFromDevice(mm::GPUMemoryManager<boost::compute::float2_>::iterator begin,
+								mm::GPUMemoryManager<boost::compute::float2_>::iterator end,
+								double* destination,
+								Buffer& buffer, Queue& queue) {
+		using namespace boost::compute;
+
+		const auto length = std::distance(begin, end) * 2;
+		if (buffer.size() < length) {
+			buffer.resize(length);
+		}
+
+		boost::compute::copy(begin, end, reinterpret_cast<float2_ *>(&buffer[0]), queue);
+		std::copy(std::begin(buffer), std::begin(buffer) + length, destination);
+	}
+
 template <typename RealVectorPtr, typename Buffer, typename Queue>
 void bufferedCopyToDevice(double *begin, double *end, RealVectorPtr destination,
 		Buffer& buffer, Queue& queue);

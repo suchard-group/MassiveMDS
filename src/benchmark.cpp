@@ -8,10 +8,15 @@
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
+
+int cnt = 0;
+
 template <typename T, typename PRNG, typename D>
 void generateLocation(T& locations, D& d, PRNG& prng) {
+    int i = cnt++;
 	for (auto& location : locations) {
 		location = d(prng);
+//        location = i++;
 	}
 }
 

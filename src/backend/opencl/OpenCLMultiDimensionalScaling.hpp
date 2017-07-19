@@ -19,7 +19,17 @@
 
 #define TILE_DIM 16
 
+#define TILE_DIM_I  128
+//#define TILE_DIM_J  128
+#define TPB 1
+#define DELTA 1;
+
+#define USE_VECTOR  // TODO
+
 #include "OpenCLMemoryManagement.hpp"
+#include "Reducer.hpp"
+
+#include <boost/compute/algorithm/accumulate.hpp>
 
 namespace mds {
 
@@ -78,6 +88,7 @@ public:
 #ifdef USE_VECTORS
 		dLocations0 = mm::GPUMemoryManager<VectorType>(locations0.size() / 2, ctx);
 		dLocations1 = mm::GPUMemoryManager<VectorType>(locations1.size() / 2, ctx);
+		dGradient = mm::GPUMemoryManager<VectorType>(locationCount, ctx);
 #else
 		dLocations0 = mm::GPUMemoryManager<RealType>(locations0.size(), ctx);
 		dLocations1 = mm::GPUMemoryManager<RealType>(locations1.size(), ctx);
@@ -170,8 +181,6 @@ public:
 
 		const RealType scale = precision;
 
-//		std::cerr << "gpu scale = " << scale << std::endl;
-
 		for (int i = 0; i < locationCount; ++i) {
 			for (int j = 0; j < locationCount; ++j) {
 				if (i != j) {
@@ -192,36 +201,143 @@ public:
 					gradient[i * embeddingDimension + 0] += update0;
 					gradient[i * embeddingDimension + 1] += update1;
 
-//					gradient[j * embeddingDimension + 0] -= update0;
-//					gradient[j * embeddingDimension + 1] -= update1;
-
-//					std::cerr << "gpu update0 = " << update0 << std::endl;
 				}
 			}
 		}
 
+//        int index = 0;
+//        for (int i = 0; i < locationCount; ++i) {
+//            auto x = gradient[index++];
+//            auto y = gradient[index++];
+//            std::cerr << x << ":" << y << std::endl;
+//        }
+
 		mm::bufferedCopy(std::begin(gradient), std::end(gradient), result, buffer);
+
+        std::vector<double> testGradient0;
+        testGradient0.push_back(result[0]);
+        testGradient0.push_back(result[1]);
+        testGradient0.push_back(result[2 * (locationCount - 1) + 0]);
+        testGradient0.push_back(result[2 * (locationCount - 1) + 1]);
+
+//		double total1 = std::accumulate(result, result + length, double(0));
 #endif // DOUBLE_CHECK_GRADIENT
 
-		kernelSumOfSquaredResidualsVector.set_arg(0, *dLocationsPtr);
+//		std::cerr << (*locationsPtr)[0 * embeddingDimension + 0] << " " << (*locationsPtr)[0 * embeddingDimension + 1] << std::endl;
+//		std::cerr << (*dLocationsPtr)[0] << std::endl;
 
-		if (isLeftTruncated) {
-			kernelSumOfSquaredResidualsVector.set_arg(3, static_cast<RealType>(precision));
-			kernelSumOfSquaredResidualsVector.set_arg(4, static_cast<RealType>(oneOverSd));
-		}
+		kernelGradientVector.set_arg(0, *dLocationsPtr);
+		kernelGradientVector.set_arg(3, static_cast<RealType>(precision));
 
-		const size_t local_work_size[2] = {TILE_DIM, TILE_DIM};
-		size_t work_groups = locationCount / TILE_DIM;
-		if (locationCount % TILE_DIM != 0) {
-			++work_groups;
-		}
-		const size_t global_work_size[2] = {work_groups * TILE_DIM, work_groups * TILE_DIM};
+//		const size_t local_work_size[2] = {TPB, TILE_DIM_I};
+//		size_t work_groups = locationCount / TILE_DIM_I;
+//		if (locationCount % TILE_DIM_I != 0) {
+//			++work_groups;
+//		}
+//		const size_t global_work_size[2] = {TPB, work_groups * TILE_DIM_I};
+//
+//		queue.enqueue_nd_range_kernel(kernelGradientVector, 2, 0, global_work_size, local_work_size);
+
+		queue.enqueue_1d_range_kernel(kernelGradientVector, 0, locationCount * TPB, TPB);
+		queue.finish();
+
+		//mm::buf
+//		mm::bufferedCopyToDevice(location, location + length,
+//								 dLocationsPtr->begin() + deviceOffset,
+//								 buffer, queue
+//		);
+
+//        auto dTest = dGradient[0];
+//        dTest = {0, 0};
+//        boost::compute::reduce(dGradient.begin(), dGradient.end(), &dTest, queue);
+//        auto acc = boost::compute::accumulate(dGradient.begin(), dGradient.end(), 0, queue);
+//
+//        std::cerr << "cpu = " << total1 << std::endl;
+//        std::cerr << "gradient = " << acc << std::endl;
+
+//        RealType t1 = 0;
+//        RealType t2 = 0;
+//
+//        std::cerr << "gradient = " << std::endl;
+//        for (int i = 0; i < dGradient.size(); ++i) {
+//            std::cerr << dGradient[i] << std::endl;
+////            t1 += dGradient[i].x;
+////            t2 += dGradient[i].y;
+//        }
+
+//        std::cerr << "total 1 = " << t1 << ":" << t2 << std::endl;
+
+//        exit(-1);
+//
+        mm::bufferedCopyFromDevice(dGradient.begin(), dGradient.end(),
+								   result, buffer, queue);
+        queue.finish();
+
+#ifdef DOUBLE_CHECK_GRADIENT
+
+        std::vector<double> testGradient1;
+        testGradient1.push_back(result[0]);
+        testGradient1.push_back(result[1]);
+        testGradient1.push_back(result[2 * (locationCount - 1) + 0]);
+        testGradient1.push_back(result[2 * (locationCount - 1) + 1]);
+
+        std::cerr << "cpu: ";
+        for (auto x : testGradient0) {
+            std::cerr << " " << x;
+        }
+        std::cerr << std::endl;
+
+        std::cerr << "gpu: ";
+        for (auto x : testGradient1) {
+            std::cerr << " " << x;
+        }
+        std::cerr << std::endl;
+
+//        double total3 = std::accumulate(result, result + length, double(0));
+//
+//        double tt = 0;
+//        int idx = 0;
+//        for (int i = 0; i < locationCount; ++i) {
+//            auto x = result[idx++];
+//            auto y = result[idx++];
+//            std::cerr << x << ":" << y << std::endl;
+//
+//            tt += x; tt += y;
+//        }
+
+//        std::cerr << "total_gpu = " << total3 << std::endl;
+//        std::cerr << "total_cpu = " << total1 << std::endl;
+//        std::cerr << "length = " << length << std::endl;
+//        std::cerr << "debug  = " << debug << std::endl;
+
+// 		exit(-1);
 
 
-		//queue.enqueue_1d_range_kernel(kernelSumOfSquaredResidualsVector, 0, locationCount * locationCount, 0);
-		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, 0, global_work_size, local_work_size);
 
-	}
+//		double total2 = std::accumulate(result, result + length, 0.0);
+//		std::cerr << total1 << " ?= " << total2 << std::endl;
+//
+//		RealType sumLoc = std::accumulate(std::begin(*locationsPtr), std::end(*locationsPtr), 0.0);
+//
+//
+//		auto dSumLoc = (*dLocationsPtr)[0];
+//		dSumLoc = {0.0, 0.0};
+//		boost::compute::reduce(dLocationsPtr->begin(), dLocationsPtr->end(), &dSumLoc, queue);
+//		queue.finish();
+//		std::cerr << sumLoc << " ?(sumLoc)= " << dSumLoc << std::endl;
+//
+//		dSumLoc = {0.0, 0.0};
+//		boost::compute::reduce(dGradient.begin(), dGradient.end(), &dSumLoc, queue);
+//		queue.finish();
+//		std::cerr << "dGrad: " << dSumLoc << std::endl;
+//
+//        std::cerr << dGradient[0] << std::endl;
+//        std::cerr << dGradient[1] << std::endl;
+//        exit(-1);
+
+#endif
+
+ 	}
 
     void computeResidualsAndTruncations() {
 
@@ -942,6 +1058,8 @@ public:
 		std::stringstream code;
 		std::stringstream options;
 
+		options << "-DTILE_DIM_I=" << TILE_DIM_I << " -DTPB=" << TPB << " -DDELTA=" << DELTA;
+
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
 			options << " -DREAL=double -DREAL_VECTOR=double2 -DZERO=0.0 -DHALF=0.5";
@@ -958,28 +1076,80 @@ public:
 			}
 		}
 
+		bool isNvidia = false; // TODO
 
 		code <<
 			 " __kernel void computeGradient(__global const REAL_VECTOR *locations,  \n" <<
-			 "  						     __global const REAL *observations,      \n" <<
-			 "						         __global REAL *squaredResiduals,        \n";
+			 "                               __global const REAL *observations,      \n" <<
+			 "                               __global REAL_VECTOR *output,           \n" <<
+		     "                               const REAL precision,                   \n" <<
+			 "                               const uint locationCount) {             \n" <<
+			 "                                                                       \n" <<
+//			 "   const uint i = get_local_id(1) + get_group_id(0) * TILE_DIM_I;      \n" <<
+			 "   const uint i = get_group_id(0);                                     \n" <<
+//			 "   const int inBounds = (i < locationCount);                           \n" <<
+			 "                                                                       \n" <<
+			 "   const uint lid = get_local_id(0);                                   \n" <<
+			 "   uint j = get_local_id(0);                                           \n" <<
+			 "                                                                       \n" <<
+			 "   __local REAL_VECTOR scratch[TPB];                                   \n" <<
+			 "                                                                       \n" <<
+			 "   const REAL_VECTOR vectorI = locations[i];                           \n" <<
+			 "   REAL_VECTOR sum = ZERO;                                             \n" <<
+			 "                                                                       \n" <<
+			 "   while (j < locationCount) {                                         \n" <<
+			 "                                                                       \n" <<
+			 "     const REAL_VECTOR vectorJ = locations[j];                         \n" <<
+			 "     const REAL distance = length(vectorI - vectorJ);                  \n" <<
+			 "     const REAL contrib = (observations[i * locationCount + j] -       \n" <<
+			 "                                 distance) * precision / distance;     \n" <<
+			 "                                                                       \n" <<
+//			 "     const int indy = (i != j);                                        \n" <<
+//			 "     if (i != j) { sum += (vectorI - vectorJ); }                       \n";
+             "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }                       \n";
 
-		if (isLeftTruncated) {
-			code <<
-				 "                          const REAL precision,                   \n" <<
-				 "                          const REAL oneOverSd,                   \n";
-		}
+             //			 "     sum += indy * (vectorI - vectorJ) * contrib;                      \n" <<
+
+//		const RealType dataContribution =
+//				(observations[i * locationCount + j] - distance) * scale / distance;
+//
+//		const RealType update0 = dataContribution *
+//								 ((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
+//		const RealType update1 = dataContribution *
+//								 ((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
+
+        code <<
+			 "                                                                       \n" <<
+			 "     j += TPB;                                                         \n" <<
+			 "                                                                       \n" <<
+			 "   }                                                                   \n" <<
+			 "                                                                       \n" <<
+			 "   scratch[lid] = sum;                                                 \n";
+#ifdef USE_VECTOR
+			 code << reduce::ReduceBody1<RealType,false>::body();
+#else
+		code << (isNvidia ? ReduceBody2<RealType,true>::body() : ReduceBody2<RealType,false>::body());
+#endif
 		code <<
-			 "						   const uint locationCount) {            \n" <<
-			 " }; ";
+			 "         barrier(CLK_LOCAL_MEM_FENCE);                                                              \n" <<
+			 "   if (lid == 0) {                                                     \n" <<
+			 "     output[i] = scratch[0];                                           \n" <<
+			 "   }                                                                   \n" <<
+			 " }                                                                     \n ";
+
+#ifdef DOUBLE_CHECK_GRADIENT
+		std::cerr << code.str() << std::endl;
+//        exit(-1);
+#endif
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
 		kernelGradientVector = boost::compute::kernel(program, "computeGradient");
 
-#ifdef DOUBLE_CHECK_GRADIENT
-		std::cerr << kernelGradientVector.get_program().source() << std::endl;
-//		exit(-1);
-#endif
+		kernelGradientVector.set_arg(0, dLocations0); // TODO Must update
+		kernelGradientVector.set_arg(1, dObservations);
+		kernelGradientVector.set_arg(2, dGradient);
+		kernelGradientVector.set_arg(3, static_cast<RealType>(precision)); // TODO Must update
+		kernelGradientVector.set_arg(4, boost::compute::uint_(locationCount));
 	}
 
 	void createOpenCLKernels() {
