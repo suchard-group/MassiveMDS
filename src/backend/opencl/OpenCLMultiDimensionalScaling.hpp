@@ -171,6 +171,8 @@ public:
 
 	void getLogLikelihoodGradient(double* result, size_t length) {
 
+        // TODO Buffer gradients
+
 #ifdef DOUBLE_CHECK_GRADIENT
 		assert(length == locationsPtr->size());
 		if (length != gradient.size()) {
@@ -205,13 +207,6 @@ public:
 			}
 		}
 
-//        int index = 0;
-//        for (int i = 0; i < locationCount; ++i) {
-//            auto x = gradient[index++];
-//            auto y = gradient[index++];
-//            std::cerr << x << ":" << y << std::endl;
-//        }
-
 		mm::bufferedCopy(std::begin(gradient), std::end(gradient), result, buffer);
 
         std::vector<double> testGradient0;
@@ -219,62 +214,19 @@ public:
         testGradient0.push_back(result[1]);
         testGradient0.push_back(result[2 * (locationCount - 1) + 0]);
         testGradient0.push_back(result[2 * (locationCount - 1) + 1]);
-
-//		double total1 = std::accumulate(result, result + length, double(0));
 #endif // DOUBLE_CHECK_GRADIENT
-
-//		std::cerr << (*locationsPtr)[0 * embeddingDimension + 0] << " " << (*locationsPtr)[0 * embeddingDimension + 1] << std::endl;
-//		std::cerr << (*dLocationsPtr)[0] << std::endl;
 
 		kernelGradientVector.set_arg(0, *dLocationsPtr);
 		kernelGradientVector.set_arg(3, static_cast<RealType>(precision));
 
-//		const size_t local_work_size[2] = {TPB, TILE_DIM_I};
-//		size_t work_groups = locationCount / TILE_DIM_I;
-//		if (locationCount % TILE_DIM_I != 0) {
-//			++work_groups;
-//		}
-//		const size_t global_work_size[2] = {TPB, work_groups * TILE_DIM_I};
-//
-//		queue.enqueue_nd_range_kernel(kernelGradientVector, 2, 0, global_work_size, local_work_size);
-
 		queue.enqueue_1d_range_kernel(kernelGradientVector, 0, locationCount * TPB, TPB);
 		queue.finish();
 
-		//mm::buf
-//		mm::bufferedCopyToDevice(location, location + length,
-//								 dLocationsPtr->begin() + deviceOffset,
-//								 buffer, queue
-//		);
-
-//        auto dTest = dGradient[0];
-//        dTest = {0, 0};
-//        boost::compute::reduce(dGradient.begin(), dGradient.end(), &dTest, queue);
-//        auto acc = boost::compute::accumulate(dGradient.begin(), dGradient.end(), 0, queue);
-//
-//        std::cerr << "cpu = " << total1 << std::endl;
-//        std::cerr << "gradient = " << acc << std::endl;
-
-//        RealType t1 = 0;
-//        RealType t2 = 0;
-//
-//        std::cerr << "gradient = " << std::endl;
-//        for (int i = 0; i < dGradient.size(); ++i) {
-//            std::cerr << dGradient[i] << std::endl;
-////            t1 += dGradient[i].x;
-////            t2 += dGradient[i].y;
-//        }
-
-//        std::cerr << "total 1 = " << t1 << ":" << t2 << std::endl;
-
-//        exit(-1);
-//
         mm::bufferedCopyFromDevice(dGradient.begin(), dGradient.end(),
 								   result, buffer, queue);
         queue.finish();
 
 #ifdef DOUBLE_CHECK_GRADIENT
-
         std::vector<double> testGradient1;
         testGradient1.push_back(result[0]);
         testGradient1.push_back(result[1]);
@@ -292,49 +244,6 @@ public:
             std::cerr << " " << x;
         }
         std::cerr << std::endl;
-
-//        double total3 = std::accumulate(result, result + length, double(0));
-//
-//        double tt = 0;
-//        int idx = 0;
-//        for (int i = 0; i < locationCount; ++i) {
-//            auto x = result[idx++];
-//            auto y = result[idx++];
-//            std::cerr << x << ":" << y << std::endl;
-//
-//            tt += x; tt += y;
-//        }
-
-//        std::cerr << "total_gpu = " << total3 << std::endl;
-//        std::cerr << "total_cpu = " << total1 << std::endl;
-//        std::cerr << "length = " << length << std::endl;
-//        std::cerr << "debug  = " << debug << std::endl;
-
-// 		exit(-1);
-
-
-
-//		double total2 = std::accumulate(result, result + length, 0.0);
-//		std::cerr << total1 << " ?= " << total2 << std::endl;
-//
-//		RealType sumLoc = std::accumulate(std::begin(*locationsPtr), std::end(*locationsPtr), 0.0);
-//
-//
-//		auto dSumLoc = (*dLocationsPtr)[0];
-//		dSumLoc = {0.0, 0.0};
-//		boost::compute::reduce(dLocationsPtr->begin(), dLocationsPtr->end(), &dSumLoc, queue);
-//		queue.finish();
-//		std::cerr << sumLoc << " ?(sumLoc)= " << dSumLoc << std::endl;
-//
-//		dSumLoc = {0.0, 0.0};
-//		boost::compute::reduce(dGradient.begin(), dGradient.end(), &dSumLoc, queue);
-//		queue.finish();
-//		std::cerr << "dGrad: " << dSumLoc << std::endl;
-//
-//        std::cerr << dGradient[0] << std::endl;
-//        std::cerr << dGradient[1] << std::endl;
-//        exit(-1);
-
 #endif
 
  	}
