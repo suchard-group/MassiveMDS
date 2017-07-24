@@ -15,13 +15,13 @@
 
 // #define DOUBLE_CHECK
 
-#define DOUBLE_CHECK_GRADIENT
+//#define DOUBLE_CHECK_GRADIENT
 
 #define TILE_DIM 16
 
 #define TILE_DIM_I  128
 //#define TILE_DIM_J  128
-#define TPB 1
+#define TPB 128
 #define DELTA 1;
 
 #define USE_VECTOR  // TODO
