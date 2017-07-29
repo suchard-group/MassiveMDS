@@ -107,7 +107,7 @@ public:
 			return 0.5 * precision * sumOfIncrements;
 		}
  	}
-	
+
     void storeState() {
     	storedSumOfIncrements = sumOfIncrements;
 
@@ -385,80 +385,10 @@ public:
 		sumOfIncrements += delta;
 	}
 
-#if 0
-	template <typename Iterator>
-	double calculateDistance(Iterator x, Iterator y, int length) const
-		//-> decltype(Iterator::value_type)
-		{
-
-		auto sum = //Iterator::value_type(0);
-					static_cast<double>(0);
-		for (int i = 0; i < length; ++i, ++x, ++y) {
-			const auto difference = *x - *y;
-			sum += difference * difference;
-		}
-		return std::sqrt(sum);
-	}
-#else
-
-//
-// //#define VECTOR
-// #ifdef VECTOR
-//     double calculateDistance(double* x, double* y, int length) const {
-// //     std::cerr << "A";
-//         using Vec2 = __m128d;
-//
-//         Vec2 vecX = _mm_load_pd(x);
-//         Vec2 vecY = _mm_load_pd(y);
-//         vecX = _mm_sub_pd(vecX, vecY);
-//         vecX = _mm_mul_pd(vecX, vecX);
-// #if 1
-//         double r[2];
-//         _mm_store_pd(r,vecX);
-//
-//         return std::sqrt(r[0] + r[1]);
-// #else
-//         double r;
-//         vecX =  _mm_hadd_pd(vecX, vecX);
-//         _mm_store_ps(r, vecX);
-//         return std::sqrt(r);
-// #endif
-//     }
-// #else
-//     double calculateDistance(double* x, double* y, int length) const {
-// //          std::cerr << "B";
-//         double r = 0.0;
-//         for (int i = 0; i < 2; ++i, ++x, ++y) {
-//             const auto difference = *x - *y;
-//             r += difference * difference;
-//         }
-//         return std::sqrt(r);
-//
-//     }
-// #endif // VECTOR
-
-//     double calculateDistance(double* iX, double* iY, int length) const {
-//         auto sum = static_cast<double>(0);
-//
-//         typedef double more_aligned_double __attribute__ ((aligned (16)));
-//
-//         double* x = iX;
-//         double* y = iY;
-//
-//         #pragma clang loop vectorize(enable) interleave(enable)
-//         for (int i = 0; i < 2; ++i, ++x, ++y) {
-//             const auto difference = *x - *y;
-//             sum += difference * difference;
-//         }
-//         return std::sqrt(sum);
-// //         const auto difference1 = *x - *y;
-// //         ++x; ++y;
-// //         const auto difference2 = *x - *y;
-// //         return std::sqrt(difference1 * difference1 + difference2 * difference2);
-//     }
-
 #ifdef SSE
-#ifdef __clang__
+
+	#ifdef __clang__
+
     template <typename VectorType, typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
     	return calculateDistance(iX, iY, length, RealType());
@@ -471,17 +401,7 @@ public:
 
         AlignedValueType* x = &*iX;
         AlignedValueType* y = &*iY;
-        
-// 		__m128 xv = _mm_load_ps(iX);
-// 		__m128 yv = _mm_load_ps(iY);
-//         
-//         
-//         const auto diff = _mm_sub_ps(xv, yv);
-//         
-// 	const int mask = 0x49;
-// 	const auto d = _mm_dp_ps(diff, diff, mask);
-// 	return  _mm_cvtss_f32(_mm_sqrt_ps(d));        
-       
+
         auto sum = static_cast<AlignedValueType>(0);
         for (int i = 0; i < 2; ++i, ++x, ++y) {
             const auto difference = *x - *y;
@@ -498,28 +418,18 @@ public:
 
         AlignedValueType* x = &*iX;
         AlignedValueType* y = &*iY;
-//         
-//         const auto diff = *x - *y;
         
         __m128d xv = _mm_load_pd(x);
         __m128d yv = _mm_load_pd(y);
         
        __m128d diff = _mm_sub_pd(xv, yv);
-        
-	const int mask = 0x31;
-	__m128d d = _mm_dp_pd(diff, diff, mask);
-	return  std::sqrt(_mm_cvtsd_f64(d));     
-       
-//         auto sum = static_cast<AlignedValueType>(0);
-//         for (int i = 0; i < 2; ++i, ++x, ++y) {
-//             const auto difference = *x - *y;
-//             sum += difference * difference;
-//         }
-        
-//         return std::sqrt(sum);
-    }    
-#else // __clang__
 
+	   const int mask = 0x31;
+	   __m128d d = _mm_dp_pd(diff, diff, mask);
+	   return  std::sqrt(_mm_cvtsd_f64(d));
+    }
+
+	#else // __clang__
 
   template <typename VectorType, typename Iterator>
   RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
@@ -561,8 +471,6 @@ public:
 	const auto a = _mm_load_pd(x);
 	const auto b = _mm_load_pd(y);
 	const auto c = a - b;
-// 	const auto c = _mm_sub_pd(_mm_load_pd(x), _mm_load_pd(y));
-// 	const auto c = _mm_sub_pd(x, y);
 
 	const int mask = 0x31;
 	__m128d d = _mm_dp_pd(c, c, mask);
@@ -570,10 +478,12 @@ public:
     }
 	//} // namespace detail
 
-#endif // __clang__
-
+    #endif // __clang__
 
 #else // SSE
+
+	// Non-SIMD implementations
+
     template <typename VectorType, typename Iterator>
     double calculateDistance(Iterator x, Iterator y, int length) const {
         auto sum = static_cast<double>(0);
@@ -586,40 +496,8 @@ public:
     }
 #endif // SSE
 
-#endif
+// Parallelization helper functions
 
-#if 0
-
-    template <size_t N> struct uint_{ };
-
-    template <size_t N, typename Lambda, typename IterT>
-    inline void unroller(const Lambda& f, const IterT& iter, uint_<N>) {
-        unroller(f, iter, uint_<N-1>());
-        f(iter + N);
-    }
-
-    template <typename Lambda, typename IterT>
-    inline void unroller(const Lambda& f, const IterT& iter, uint_<0>) {
-        f(iter);
-    }
-
-	template <typename Integer, typename Function>
-	inline void for_each(Integer begin, Integer end, Function function) {
-	    for (; begin != end; begin += 4) {
-	        function(begin + 0);
-	        function(begin + 1);
-	        function(begin + 2);
-	        function(begin + 3);
-	    }
-	}
-
-	template <size_t UnrollFact, typename Integer, typename Function>
-	inline void for_each_auto(Integer begin, Integer end, Function function) {
-	    for (; begin != end; begin += UnrollFact) {
-	        unroller(function, begin,  uint_<UnrollFact-1>());
-	    }
-	}
-#else
 	template <typename Integer, typename Function>
 	inline void for_each(Integer begin, Integer end, Function function) {
 	    for (; begin != end; ++begin) {
@@ -729,56 +607,6 @@ public:
 	}
 #endif
 
-
-// #include <numeric>
-// #include <functional>
-// #include "tbb/parallel_reduce.h"
-// #include "tbb/blocked_range.h"
-//
-// using namespace tbb;
-//
-// float ParallelSum( float array[], size_t n ) {
-//     return parallel_reduce(
-//         blocked_range<float*>( array, array+n ),
-//         0.f,
-//         [](const blocked_range<float*>& r, float value)->float {
-//             return std::accumulate(r.begin(),r.end(),value);
-//         },
-//         std::plus<float>()
-//     );
-// }
-
-
-// float ParallelSumFoo( const float a[], size_t n ) {
-//     SumFoo sf(a);
-//     parallel_reduce( blocked_range<size_t>(0,n), sf );
-//     return sf.my_sum;
-// }
-// class SumFoo {
-//     float* my_a;
-// public:
-//     float my_sum;
-//     void operator()( const blocked_range<size_t>& r ) {
-//         float *a = my_a;
-//         float sum = my_sum;
-//         size_t end = r.end();
-//         for( size_t i=r.begin(); i!=end; ++i )
-//             sum += Foo(a[i]);
-//         my_sum = sum;
-//     }
-//
-//     SumFoo( SumFoo& x, split ) : my_a(x.my_a), my_sum(0) {}
-//
-//     void join( const SumFoo& y ) {my_sum+=y.my_sum;}
-//
-//     SumFoo(float a[] ) :
-//         my_a(a), my_sum(0)
-//     {}
-// };
-
-
-#endif
-
 private:
 	double precision;
 	double storedPrecision;
@@ -811,7 +639,6 @@ private:
     bool isStoredIncrementsEmpty;
     
     int nThreads;
-
    
 };
 
