@@ -26,6 +26,8 @@ public:
 		  locationsPtr(&locations0),
 		  storedLocationsPtr(&locations1),
 
+		  gradientPtr(&gradient0),
+
           increments(locationCount * locationCount),
           storedIncrements(locationCount),
 
@@ -219,17 +221,40 @@ public:
 
 	void getLogLikelihoodGradient(double* result, size_t length) {
 
-		assert(length == locationsPtr->size());
-		if (length != gradient.size()) {
-			gradient.resize(length);
+		assert (length == locationCount * embeddingDimension);
+
+        // TODO Cache values
+
+//#define TEST_PARALLEL
+
+#ifdef TEST_PARALLEL
+		computeLogLikelihoodGradientNew();
+#else
+		computeLogLikelihoodGradientOld();
+#endif // TEST_PARALLEL
+
+		mm::bufferedCopy(std::begin(*gradientPtr), std::end(*gradientPtr), result, buffer);
+    }
+
+    void computeLogLikelihoodGradientNew() {
+
+		const auto length = locationCount * embeddingDimension;
+		if (length != gradientPtr->size()) {
+			gradientPtr->resize(length);
 		}
-		
-		std::fill(std::begin(gradient), std::end(gradient), static_cast<RealType>(0.0));
+
+		RealType* gradient = gradientPtr->data();
 
 		const RealType scale = precision;
-		
+
+		// TODO This is easy to parallelize, but runs a bit slower
 		for (int i = 0; i < locationCount; ++i) {
-			for (int j = i; j < locationCount; ++j) {
+
+			// TODO Use SIMD
+			RealType gradij0 = 0.0;
+			RealType gradij1 = 0.0;
+
+			for (int j = 0; j < locationCount; ++j) {
 				if (i != j) {
 					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
 						begin(*locationsPtr) + i * embeddingDimension,
@@ -245,19 +270,59 @@ public:
 					const RealType update1 = dataContribution *
 						((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
 
+					gradij0 += update0;
+					gradij1 += update1;
+				}
+			}
+
+			gradient[i * embeddingDimension + 0] = gradij0;
+			gradient[i * embeddingDimension + 1] = gradij1;
+
+		}
+	};
+
+	void computeLogLikelihoodGradientOld() {
+
+		const auto length = locationCount * embeddingDimension;
+		if (length != gradientPtr->size()) {
+			gradientPtr->resize(length);
+		}
+
+		std::fill(std::begin(*gradientPtr), std::end(*gradientPtr), static_cast<RealType>(0.0));
+
+		RealType* gradient = gradientPtr->data();
+
+		const RealType scale = precision;
+
+		for (int i = 0; i < locationCount; ++i) {
+
+			for (int j = i; j < locationCount; ++j) {
+				if (i != j) {
+					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
+							begin(*locationsPtr) + i * embeddingDimension,
+							begin(*locationsPtr) + j * embeddingDimension,
+							embeddingDimension
+					);
+
+					const RealType dataContribution =
+							(observations[i * locationCount + j] - distance) * scale / distance;
+
+					const RealType update0 = dataContribution *
+											 ((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
+					const RealType update1 = dataContribution *
+											 ((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
+
 					gradient[i * embeddingDimension + 0] += update0;
 					gradient[i * embeddingDimension + 1] += update1;
 
 					gradient[j * embeddingDimension + 0] -= update0;
 					gradient[j * embeddingDimension + 1] -= update1;
+
 				}
 			}
 		}
-		
-		mm::bufferedCopy(std::begin(gradient), std::end(gradient), result, buffer);
 	};
-
-
+	
 	int count = 0;
 
 	template <bool withTruncation>
@@ -792,7 +857,11 @@ private:
     mm::MemoryManager<RealType> increments;
     mm::MemoryManager<RealType> storedIncrements;
     
-    mm::MemoryManager<RealType> gradient;
+    mm::MemoryManager<RealType> gradient0;
+    mm::MemoryManager<RealType> gradient1;
+
+    mm::MemoryManager<RealType>* gradientPtr;
+    mm::MemoryManager<RealType>* storedGradientPtr;
     
     mm::MemoryManager<double> buffer;
 
