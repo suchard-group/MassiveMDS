@@ -17,6 +17,7 @@
 #ifdef USE_TBB
     #include "tbb/parallel_reduce.h"
     #include "tbb/blocked_range.h"
+    #include "tbb/parallel_for.h"
 #endif
 
 #include "MemoryManagement.hpp"

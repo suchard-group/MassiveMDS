@@ -190,7 +190,7 @@ public:
 
         // TODO Cache values
 
-//#define TEST_PARALLEL
+#define TEST_PARALLEL
 
 #ifdef TEST_PARALLEL
 		computeLogLikelihoodGradientNew();
@@ -207,13 +207,12 @@ public:
 		if (length != gradientPtr->size()) {
 			gradientPtr->resize(length);
 		}
-
+		
 		RealType* gradient = gradientPtr->data();
-
 		const RealType scale = precision;
 
-		// TODO This is easy to parallelize, but runs a bit slower
-		for (int i = 0; i < locationCount; ++i) {
+		// TODO This is easy to parallelize, but runs a bit slower than the old version
+		for_each(0, locationCount, [this, gradient, scale](const int i) {
 
 			// TODO Use SIMD
 			RealType gradij0 = 0.0;
@@ -243,7 +242,7 @@ public:
 			gradient[i * embeddingDimension + 0] = gradij0;
 			gradient[i * embeddingDimension + 1] = gradij1;
 
-		}
+		}, ParallelType());
 	};
 
 	void computeLogLikelihoodGradientOld() {
@@ -499,7 +498,7 @@ public:
 // Parallelization helper functions
 
 	template <typename Integer, typename Function>
-	inline void for_each(Integer begin, Integer end, Function function) {
+	inline void for_each(Integer begin, Integer end, Function function, CpuAccumulate) {
 	    for (; begin != end; ++begin) {
 	        function(begin);
 	    }
@@ -605,6 +604,22 @@ public:
  			std::plus<Real>()
 		);
 	}
+
+	template <typename Integer, typename Function>
+	inline void for_each(Integer begin, const Integer end, Function function, TbbAccumulate) {
+		tbb::parallel_for(
+				tbb::blocked_range<size_t>(begin, end
+				//, 200
+				),
+				[function](const tbb::blocked_range<size_t>& r) -> void {
+					const auto end = r.end();
+					for (auto i = r.begin(); i != end; ++i) {
+						function(i);
+					}
+				}
+		);
+	};
+
 #endif
 
 private:
