@@ -201,46 +201,181 @@ public:
 		mm::bufferedCopy(std::begin(*gradientPtr), std::end(*gradientPtr), result, buffer);
     }
 
+#ifdef SSE
+
+//    __m128d Zero() const {
+//        return _mm_set1_pd(0.0);
+//    }
+
+    typedef std::pair<RealType, RealType> SSEPair;
+
+     SSEPair Zero() const {
+        return SSEPair(0.0, 0.0);
+    };
+
+    template <typename Iterator>
+    inline SSEPair getLocation(Iterator location) {
+        return SSEPair(*(location  + 0), *(location + 1));
+    }
+
+    template <typename Iterator>
+    inline void storeGradientElement(Iterator gradient,
+                                     SSEPair x) {
+        *(gradient + 0) = x.first;
+        *(gradient + 1) = x.second;
+    }
+
+    template <typename Iterator>
+    void incrementGradient(SSEPair &sum, Iterator x, Iterator y,
+                           RealType observation, RealType scale,
+                           int length) {
+
+        auto sq = static_cast<RealType>(0);
+
+        const auto diff0 = *x - *y;
+        sq += diff0 * diff0;
+        ++x; ++y;
+
+        const auto diff1 = *x - *y;
+        sq += diff1 * diff1;
+
+        const auto distance = std::sqrt(sq);
+
+        const auto dataContribution = (observation - distance) * scale / distance;
+
+        const auto update0 = dataContribution * diff0;
+        sum.first += update0;
+
+        const auto update1 = dataContribution * diff1;
+        sum.second += update1;
+    };
+
+    template <typename Iterator>
+    void incrementGradient(SSEPair &sum, SSEPair x, Iterator y,
+                           RealType observation, RealType scale,
+                           int length) {
+
+        auto sq = static_cast<RealType>(0);
+
+        const auto diff0 = x.first - *y;
+        sq += diff0 * diff0;
+        ++y;
+
+        const auto diff1 = x.second - *y;
+        sq += diff1 * diff1;
+
+        const auto distance = std::sqrt(sq);
+
+        const auto dataContribution = (observation - distance) * scale / distance;
+
+        const auto update0 = dataContribution * diff0;
+        sum.first += update0;
+
+        const auto update1 = dataContribution * diff1;
+        sum.second += update1;
+    };
+
+#else // not SSE
+
+    typedef std::pair<RealType, RealType> NonSSEPair;
+
+    template <typename Iterator>
+    inline void storeGradientElement(Iterator gradient,
+                                     NonSSEPair x) {
+        *(gradient + 0) = x.first;
+        *(gradient + 1) = x.second;
+    }
+
+    NonSSEPair Zero() const {
+        return NonSSEPair(0.0, 0.0);
+    };
+
+//    template <typename Iterator>
+//    void incrementGradient(NonSSEPair &sum, Iterator x, Iterator y,
+//                           RealType observation, RealType scale,
+//                           int length) {
+//
+//        auto sq = static_cast<RealType>(0);
+//
+//        for (int i = 0; i < 2; ++i, ++x, ++y) {
+//            const auto difference = *x - *y;
+//            sq += difference * difference;
+//        }
+//        return std::sqrt(sum);
+//
+//        const auto diff0 = *x - *y;
+//        sq += diff0 * diff0;
+//        ++x; ++y;
+//
+//        const auto diff1 = *x - *y;
+//        sq += diff1 * diff1;
+//
+//        const auto distance = std::sqrt(sq);
+//
+//        const auto dataContribution = (observation - distance) * scale / distance;
+//
+//        const auto update0 = dataContribution * diff0;
+//        sum.first += update0;
+//
+//        const auto update1 = dataContribution * diff1;
+//        sum.second += update1;
+//    };
+
+//    template <typename Iterator>
+//    void incrementGradient(NonSSEPair &sum, Iterator x, Iterator y,
+//                           RealType observation, RealType scale,
+//                           int length) {
+//
+//        auto sq = static_cast<RealType>(0);
+//
+//        const auto diff0 = *x - *y;
+//        sq += diff0 * diff0;
+//        ++x; ++y;
+//
+//        const auto diff1 = *x - *y;
+//        sq += diff1 * diff1;
+//
+//        const auto distance = std::sqrt(sq);
+//
+//        const auto dataContribution = (observation - distance) * scale / distance;
+//
+//        const auto update0 = dataContribution * diff0;
+//        sum.first += update0;
+//
+//        const auto update1 = dataContribution * diff1;
+//        sum.second += update1;
+//    };
+
+#endif // SSE
+
     void computeLogLikelihoodGradientNew() {
 
 		const auto length = locationCount * embeddingDimension;
 		if (length != gradientPtr->size()) {
 			gradientPtr->resize(length);
 		}
-		
+
 		RealType* gradient = gradientPtr->data();
 		const RealType scale = precision;
 
 		// TODO This is easy to parallelize, but runs a bit slower than the old version
 		for_each(0, locationCount, [this, gradient, scale](const int i) {
 
-			// TODO Use SIMD
-			RealType gradij0 = 0.0;
-			RealType gradij1 = 0.0;
+            auto sum = Zero();
 
 			for (int j = 0; j < locationCount; ++j) {
 				if (i != j) {
-					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-						begin(*locationsPtr) + i * embeddingDimension,
-						begin(*locationsPtr) + j * embeddingDimension,
-						embeddingDimension
-					);
-
-					const RealType dataContribution =
-						(observations[i * locationCount + j] - distance) * scale / distance;
-
-					const RealType update0 = dataContribution *
-						((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
-					const RealType update1 = dataContribution *
-						((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
-
-					gradij0 += update0;
-					gradij1 += update1;
+                    incrementGradient(sum,
+                            begin(*locationsPtr) + i * embeddingDimension, // location i
+                            begin(*locationsPtr) + j * embeddingDimension, // location j
+                            observations[i * locationCount + j], // distance btw i and j
+                            scale,
+                            embeddingDimension
+                    );
 				}
 			}
 
-			gradient[i * embeddingDimension + 0] = gradij0;
-			gradient[i * embeddingDimension + 1] = gradij1;
+            storeGradientElement(begin(*gradientPtr) + i * embeddingDimension, sum);
 
 		}, ParallelType());
 	};
@@ -386,7 +521,7 @@ public:
 
 #ifdef SSE
 
-	#ifdef __clang__
+	#ifdef AA__clang__
 
     template <typename VectorType, typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
@@ -430,51 +565,105 @@ public:
 
 	#else // __clang__
 
-  template <typename VectorType, typename Iterator>
-  RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
- 	return calculateDistance(iX, iY, length, RealType());
-  }
+    template<typename VectorType, typename Iterator>
+    RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
+        return calculateDistance(iX, iY, length, RealType());
+    }
 
-  //namespace detail {
-   template <typename Iterator>
+    template <typename Iterator>
+    void storeGradientElement(Iterator gradient, __m128 value) {
+        assert (false);
+    }
+
+    template <typename Iterator>
+    void storeGradientElement(Iterator gradient, __m128d value) {
+
+        typedef double aligned_double __attribute__((aligned(16)));
+        typedef aligned_double *SSE_PTR;
+
+        SSE_PTR __restrict__ x = &*gradient;
+        _mm_store_pd(x, value);
+
+    };
+
+    //namespace detail {
+    template<typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
 
         //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
 
- 	typedef float aligned_float __attribute__((aligned(16)));
-  	typedef aligned_float* SSE_PTR;
+        typedef float aligned_float __attribute__((aligned(16)));
+        typedef aligned_float *SSE_PTR;
 
-	SSE_PTR __restrict__ x = &*iX;
-	SSE_PTR __restrict__ y = &*iY;
+        SSE_PTR __restrict__ x = &*iX;
+        SSE_PTR __restrict__ y = &*iY;
 
-	auto a = _mm_loadu_ps(x);
-	auto b = _mm_loadu_ps(y); // TODO second call is not aligned without padding
-	auto c = a - b;
+        auto a = _mm_loadu_ps(x);
+        auto b = _mm_loadu_ps(y); // TODO second call is not aligned without padding
+        auto c = a - b;
 
-	const int mask = 0x31;
-	__m128 d = _mm_dp_ps(c, c, mask);
-	return  _mm_cvtss_f32(_mm_sqrt_ps(d));
+        const int mask = 0x31;
+        __m128 d = _mm_dp_ps(c, c, mask);
+        return _mm_cvtss_f32(_mm_sqrt_ps(d));
     }
 
-   template <typename Iterator>
-   RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
+
+    template<typename Iterator>
+    RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
 
         //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
 
- 	typedef double aligned_double __attribute__((aligned(16)));
-  	typedef aligned_double* SSE_PTR;
+        typedef double aligned_double __attribute__((aligned(16)));
+        typedef aligned_double *SSE_PTR;
 
-	SSE_PTR __restrict__ x = &*iX;
-	SSE_PTR __restrict__ y = &*iY;
+        SSE_PTR __restrict__ x = &*iX;
+        SSE_PTR __restrict__ y = &*iY;
 
-	const auto a = _mm_load_pd(x);
-	const auto b = _mm_load_pd(y);
-	const auto c = a - b;
+        const auto a = _mm_load_pd(x);
+        const auto b = _mm_load_pd(y);
+        const auto c = a - b;
 
-	const int mask = 0x31;
-	__m128d d = _mm_dp_pd(c, c, mask);
-	return  _mm_cvtsd_f64(_mm_sqrt_pd(d));
+        const int mask = 0x31;
+        __m128d d = _mm_dp_pd(c, c, mask);
+        return _mm_cvtsd_f64(_mm_sqrt_pd(d));
     }
+
+    template<typename Iterator>
+    void incrementGradient(__m128 &sum, Iterator iX, Iterator iY,
+                           double observation,
+                           double scale,
+                           int length) const {
+        assert (false);
+    };
+
+    template<typename Iterator>
+    void incrementGradient(__m128d &sum, Iterator iX, Iterator iY,
+                           double observation,
+                           double scale,
+                           int length) const {
+
+        typedef double aligned_double __attribute__((aligned(16)));
+        typedef aligned_double *SSE_PTR;
+
+        SSE_PTR __restrict__ x = &*iX;
+        SSE_PTR __restrict__ y = &*iY;
+
+        const auto a = _mm_load_pd(x);
+        const auto b = _mm_load_pd(y);
+        const auto delta = a - b;
+
+        const int mask = 0x33;
+        const auto distance1 = _mm_sqrt_pd(_mm_dp_pd(delta, delta, mask));
+
+        const auto obs = _mm_set1_pd(observation);
+        const auto s = _mm_set1_pd(scale); // TODO Pass as __m128d
+
+        const auto dataContribution1 = (obs - distance1) * s / distance1;
+        const auto grad = dataContribution1 * delta;
+
+        sum += grad;
+    }
+
 	//} // namespace detail
 
     #endif // __clang__
@@ -485,7 +674,7 @@ public:
 
     template <typename VectorType, typename Iterator>
     double calculateDistance(Iterator x, Iterator y, int length) const {
-        auto sum = static_cast<double>(0);
+        auto sum = static_cast<RealType>(0);
 
         for (int i = 0; i < 2; ++i, ++x, ++y) {
             const auto difference = *x - *y;
