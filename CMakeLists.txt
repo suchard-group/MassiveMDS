@@ -118,6 +118,9 @@ include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE
 set(JNI_SOURCE_FILES
 	src/jni/dr_inference_multidimensionalscaling_NativeMDSSingleton.cpp
 	src/factory.cpp
+        src/MemoryManagement.hpp
+        src/AbstractMultiDimensionalScaling.hpp
+        src/NewMultiDimensionalScaling.hpp
 	)
 
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
@@ -144,7 +147,15 @@ target_link_libraries(benchmark mds_jni)
 target_link_libraries(benchmark ${TBB_LIBRARIES})
 target_link_libraries(benchmark boost_program_options)
 
-##
+   add_executable(benchmark-san src/benchmark.cpp)
+   set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "-fsanitize=address")
+   set_target_properties(benchmark-san PROPERTIES LINK_FLAGS "-fsanitize=address")
+   target_link_libraries(benchmark-san mds_jni)
+   target_link_libraries(benchmark-san ${TBB_LIBRARIES})
+   target_link_libraries(benchmark-san boost_program_options)
+
+
+   ##
 # Packaging
 ##
 include(${CMAKE_CURRENT_SOURCE_DIR}/CPack.txt)
