@@ -410,25 +410,47 @@ public:
     RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
     	return calculateDistance(iX, iY, length, RealType());
     }
-    
-   template <typename Iterator>
-    RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {    
 
-        using AlignedValueType = typename mm::MemoryManager<float>::allocator_type::aligned_value_type;
+    template <typename Iterator>
+    RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
 
-        AlignedValueType* x = &*iX;
-        AlignedValueType* y = &*iY;
+        assert(length == 2);
 
-       assert(length == 2);
+        //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
 
-        auto sum = static_cast<AlignedValueType>(0);
-        for (int i = 0; i < 2; ++i, ++x, ++y) {
-            const auto difference = *x - *y;
-            sum += difference * difference;
-        }
-        
-        return std::sqrt(sum);
+        typedef float aligned_float __attribute__((aligned(16)));
+        typedef aligned_float* SSE_PTR;
+
+        SSE_PTR __restrict__ x = &*iX;
+        SSE_PTR __restrict__ y = &*iY;
+
+        auto a = _mm_loadu_ps(x);
+        auto b = _mm_loadu_ps(y); // TODO second call is not aligned without padding
+        auto c = a - b;
+
+        const int mask = 0x31;
+        __m128 d = _mm_dp_ps(c, c, mask);
+        return  _mm_cvtss_f32(_mm_sqrt_ps(d));
     }
+
+//   template <typename Iterator>
+//    RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
+//
+//        using AlignedValueType = typename mm::MemoryManager<float>::allocator_type::aligned_value_type;
+//
+//        AlignedValueType* x = &*iX;
+//        AlignedValueType* y = &*iY;
+//
+//       assert(length == 2);
+//
+//        auto sum = static_cast<AlignedValueType>(0);
+//        for (int i = 0; i < 2; ++i, ++x, ++y) {
+//            const auto difference = *x - *y;
+//            sum += difference * difference;
+//        }
+//
+//        return std::sqrt(sum);
+//    }
     
    template <typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
@@ -512,7 +534,7 @@ public:
     template <typename VectorType, typename Iterator>
     double calculateDistance(Iterator x, Iterator y, int length) const {
         auto sum = static_cast<double>(0);
-                
+
         assert(length == 2);
 
         for (int i = 0; i < 2; ++i, ++x, ++y) {
