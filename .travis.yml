@@ -1,8 +1,8 @@
 # Enable C++ support
 language: cpp
 
-sudo: true
-dist: precise
+#sudo: true # Uncomment for core dumbs
+#dist: precise # Uncomment for core dumbs
 
 # Compiler selection
 matrix:
@@ -72,9 +72,6 @@ script:
   - ./benchmark --iterations 10
   - ./benchmark --iterations 10 --gpu
   - ./benchmark --iterations 10 --float
-  - ls
-  - COREFILE=$(find . -maxdepth 1 -name "core*" | head -n 1) # find core file
-  - if [[ -f "$COREFILE" ]]; then gdb -c "$COREFILE" ./benchmark -ex "thread apply all bt" -ex "set pagination 0" -batch; fi
   - ./benchmark --iterations 10 --float --gpu
   - ./benchmark --iterations 10 --truncation
   - ./benchmark --iterations 10 --truncation --gpu
