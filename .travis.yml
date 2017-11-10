@@ -1,6 +1,9 @@
 # Enable C++ support
 language: cpp
 
+sudo: true
+dist: precise
+
 # Compiler selection
 matrix:
   include:
