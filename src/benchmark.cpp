@@ -28,13 +28,14 @@ int main(int argc, char* argv[]) {
 	namespace po = boost::program_options;
 	po::options_description desc("Allowed options");
 	desc.add_options()
-		("help", "produce help message")
-		("gpu", "run on first GPU")
-		("tbb", po::value<int>()->default_value(0), "use TBB with specified number of threads")
-		("float", "run in single-precision")
-		("truncation", "enable truncation")
-		("iterations", po::value<int>()->default_value(10), "number of iterations")
-		("locations", po::value<int>()->default_value(6000), "number of locations")
+            ("help", "produce help message")
+            ("gpu", "run on first GPU")
+            ("tbb", po::value<int>()->default_value(0), "use TBB with specified number of threads")
+            ("float", "run in single-precision")
+            ("truncation", "enable truncation")
+            ("iterations", po::value<int>()->default_value(10), "number of iterations")
+            ("locations", po::value<int>()->default_value(6000), "number of locations")
+            ("dimension", po::value<int>()->default_value(2), "number of dimensions")
 	;
 	po::variables_map vm;
 
@@ -57,7 +58,7 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "Loading data" << std::endl;
 
-	int embeddingDimension = 2;
+	int embeddingDimension = vm["dimension"].as<int>();
 	int locationCount = vm["locations"].as<int>();
 	
 	bool updateAllLocations = true;
