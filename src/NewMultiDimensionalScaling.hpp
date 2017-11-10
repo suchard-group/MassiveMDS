@@ -82,9 +82,17 @@ public:
 
 		if (!incrementsKnown) {
 			if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-				computeSumOfIncrements<true>();
+                if (embeddingDimension == 2) {
+                    computeSumOfIncrements<true>();
+                } else {
+                    computeSumOfIncrementsGeneric<true>();
+                }
 			} else {
-				computeSumOfIncrements<false>();
+                if (embeddingDimension == 2) {
+                    computeSumOfIncrements<false>();
+                } else {
+                    computeSumOfIncrementsGeneric<false>();
+                }
 			}
 			incrementsKnown = true;
 		} else {
@@ -194,9 +202,17 @@ public:
 
 #ifdef TEST_PARALLEL
         if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-            computeLogLikelihoodGradientNew<true>();
+            if (embeddingDimension == 2) {
+                computeLogLikelihoodGradientNew<true>();
+            } else {
+                computeLogLikelihoodGradientGeneric<true>();
+            }
         } else {
-            computeLogLikelihoodGradientNew<false>();
+            if (embeddingDimension == 2) {
+                computeLogLikelihoodGradientNew<false>();
+            } else {
+                computeLogLikelihoodGradientGeneric<true>();
+            }
         }
 #else
         if (isLeftTruncated) { // run-time dispatch to compile-time optimization
@@ -210,7 +226,52 @@ public:
     }
 
     template <bool withTruncation>
+    void computeLogLikelihoodGradientGeneric() {
+
+        const auto length = locationCount * embeddingDimension;
+        if (length != gradientPtr->size()) {
+            gradientPtr->resize(length);
+        }
+
+        std::fill(std::begin(*gradientPtr), std::end(*gradientPtr),
+                  static_cast<RealType>(0.0));
+
+        const auto dim = embeddingDimension;
+        RealType* gradient = gradientPtr->data();
+        const RealType scale = precision;
+
+        for_each(0, locationCount, [this, gradient, scale, dim](const int i) {
+
+            for (int j = 0; j < locationCount; ++j) {
+                if (i != j) {
+                    const auto distance = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
+                            begin(*locationsPtr) + i * dim,
+                            begin(*locationsPtr) + j * dim,
+                            dim
+                    );
+
+                    const RealType dataContribution =
+                            (observations[i * locationCount + j] - distance) * scale / distance;
+
+                    for (int d = 0; d < dim; ++d) {
+                        const RealType update = dataContribution *
+                                ((*locationsPtr)[i * dim + d] - (*locationsPtr)[j * dim + d]);
+
+                        if (withTruncation) {
+                            // TODO
+                        }
+
+                        gradient[i * dim + d] += update;
+                    }
+                }
+            }
+        }, ParallelType());
+    };
+
+    template <bool withTruncation>
     void computeLogLikelihoodGradientNew() {
+
+        assert (embeddingDimension == 2);
 
 		const auto length = locationCount * embeddingDimension;
 		if (length != gradientPtr->size()) {
@@ -307,8 +368,53 @@ public:
 
 	int count = 0;
 
+    template <bool withTruncation>
+    void computeSumOfIncrementsGeneric() {
+
+        const RealType scale = 0.5 * precision;
+
+        RealType delta =
+                accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
+
+                    RealType lSumOfSquaredResiduals{0};
+
+                    for (int j = 0; j < locationCount; ++j) {
+
+                        const auto distance = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
+                                begin(*locationsPtr) + i * embeddingDimension,
+                                begin(*locationsPtr) + j * embeddingDimension,
+                                embeddingDimension
+                        );
+                        const auto residual = distance - observations[i * locationCount + j];
+                        auto squaredResidual = residual * residual;
+
+                        if (withTruncation) {
+                            squaredResidual = scale * squaredResidual;
+                            if (i != j) {
+                                squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+                            }
+                        }
+
+                        increments[i * locationCount + j] = squaredResidual;
+                        lSumOfSquaredResiduals += squaredResidual;
+
+                    }
+                    return lSumOfSquaredResiduals;
+                }, ParallelType());
+
+        double lSumOfSquaredResiduals = delta;
+
+        lSumOfSquaredResiduals /= 2.0;
+        sumOfIncrements = lSumOfSquaredResiduals;
+
+        incrementsKnown = true;
+        sumOfIncrementsKnown = true;
+    }
+
 	template <bool withTruncation>
 	void computeSumOfIncrements() {
+
+        assert (embeddingDimension == 2);
 
 		const RealType scale = 0.5 * precision;
 
@@ -403,6 +509,19 @@ public:
 	}
 
 #ifdef SSE
+
+    template <typename VectorType, typename Iterator>
+    RealType calculateDistanceGeneric(Iterator iX, Iterator iY, int length) const {
+
+        RealType sum = static_cast<RealType>(0.0);
+
+        for (int i = 0; i < length; ++i, ++iX, ++iY) {
+            const auto diff = *iX - *iY;
+            sum += diff * diff;
+        }
+
+        return std::sqrt(sum);
+    }
 
 	#ifdef __clang__
 
