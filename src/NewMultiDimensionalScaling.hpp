@@ -193,14 +193,23 @@ public:
 #define TEST_PARALLEL
 
 #ifdef TEST_PARALLEL
-		computeLogLikelihoodGradientNew();
+        if (isLeftTruncated) { // run-time dispatch to compile-time optimization
+            computeLogLikelihoodGradientNew<true>();
+        } else {
+            computeLogLikelihoodGradientNew<false>();
+        }
 #else
-		computeLogLikelihoodGradientOld();
+        if (isLeftTruncated) { // run-time dispatch to compile-time optimization
+            computeLogLikelihoodGradientOld<true>();
+        } else {
+            computeLogLikelihoodGradientOld<false>();
+        }
 #endif // TEST_PARALLEL
 
 		mm::bufferedCopy(std::begin(*gradientPtr), std::end(*gradientPtr), result, buffer);
     }
 
+    template <bool withTruncation>
     void computeLogLikelihoodGradientNew() {
 
 		const auto length = locationCount * embeddingDimension;
@@ -234,6 +243,10 @@ public:
 					const RealType update1 = dataContribution *
 						((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
 
+                    if (withTruncation) {
+                        // TODO
+                    }
+
 					gradij0 += update0;
 					gradij1 += update1;
 				}
@@ -245,6 +258,7 @@ public:
 		}, ParallelType());
 	};
 
+    template <bool withTruncation>
 	void computeLogLikelihoodGradientOld() {
 
 		const auto length = locationCount * embeddingDimension;
@@ -275,6 +289,10 @@ public:
 											 ((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
 					const RealType update1 = dataContribution *
 											 ((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
+
+                    if (withTruncation) {
+                        // TODO
+                    }
 
 					gradient[i * embeddingDimension + 0] += update0;
 					gradient[i * embeddingDimension + 1] += update1;
