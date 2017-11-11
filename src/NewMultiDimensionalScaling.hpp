@@ -317,6 +317,20 @@ public:
 			gradient[i * embeddingDimension + 1] = gradij1;
 
 		}, ParallelType());
+
+//#define TEST_GENERIC_GRADIENT
+
+#ifdef TEST_GENERIC_GRADIENT
+        auto twoSum = std::accumulate(std::begin(*gradientPtr), std::end(*gradientPtr), 0.0);
+
+        std::fill(std::begin(*gradientPtr), std::end(*gradientPtr), 1.0);
+
+        computeLogLikelihoodGradientGeneric<withTruncation>();
+        auto genericSum = std::accumulate(std::begin(*gradientPtr), std::end(*gradientPtr), 0.0);
+        std::cerr << genericSum << " " << twoSum << std::endl;
+        exit(0);
+#endif // TEST_GENERIC_GRADIENT
+
 	};
 
     template <bool withTruncation>
@@ -533,8 +547,6 @@ public:
     template <typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
 
-        assert(length == 2);
-
         //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
 
         typedef float aligned_float __attribute__((aligned(16)));
@@ -560,8 +572,6 @@ public:
 //        AlignedValueType* x = &*iX;
 //        AlignedValueType* y = &*iY;
 //
-//       assert(length == 2);
-//
 //        auto sum = static_cast<AlignedValueType>(0);
 //        for (int i = 0; i < 2; ++i, ++x, ++y) {
 //            const auto difference = *x - *y;
@@ -573,8 +583,6 @@ public:
     
    template <typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
-
-       assert(length == 2);
 
         using AlignedValueType = typename mm::MemoryManager<double>::allocator_type::aligned_value_type;
 
@@ -602,8 +610,6 @@ public:
    template <typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
 
-        assert(length == 2);
-
         //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
 
  	typedef float aligned_float __attribute__((aligned(16)));
@@ -623,8 +629,6 @@ public:
 
    template <typename Iterator>
    RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
-
-        assert(length == 2);
 
         //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
 
@@ -653,8 +657,6 @@ public:
     template <typename VectorType, typename Iterator>
     double calculateDistance(Iterator x, Iterator y, int length) const {
         auto sum = static_cast<double>(0);
-
-        assert(length == 2);
 
         for (int i = 0; i < 2; ++i, ++x, ++y) {
             const auto difference = *x - *y;
