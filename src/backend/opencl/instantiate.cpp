@@ -10,15 +10,37 @@ namespace mds {
 //
 
 // factory
-std::shared_ptr<AbstractMultiDimensionalScaling>
-constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, int locationCount, long flags) {
-	return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble>>(embeddingDimension, locationCount, flags);
-}
+    std::shared_ptr<AbstractMultiDimensionalScaling>
+    constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, int locationCount, long flags) {
+        if (embeddingDimension <= 2) {
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble, 2>>(embeddingDimension, locationCount,
+                                                                                    flags);
+        } else if (embeddingDimension <= 4) {
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble, 4>>(embeddingDimension, locationCount,
+                                                                                    flags);
+        } else if (embeddingDimension <= 8) {
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble, 8>>(embeddingDimension, locationCount,
+                                                                                    flags);
+        } else {
+            exit(-1);
+        }
+    }
 
-std::shared_ptr<AbstractMultiDimensionalScaling>
-constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, int locationCount, long flags) {
-	return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat>>(embeddingDimension, locationCount, flags);
-}
+    std::shared_ptr<AbstractMultiDimensionalScaling>
+    constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, int locationCount, long flags) {
+        if (embeddingDimension <= 2) {
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat, 2>>(embeddingDimension, locationCount,
+                                                                                   flags);
+        } else if (embeddingDimension <= 4) {
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat, 4>>(embeddingDimension, locationCount,
+                                                                                   flags);
+        } else if (embeddingDimension <= 8) {
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat, 8>>(embeddingDimension, locationCount,
+                                                                                   flags);
+        } else {
+            exit(-1);
+        }
+    }
 
 } // namespace mds
 
