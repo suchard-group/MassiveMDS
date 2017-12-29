@@ -14,11 +14,11 @@ NONCE2_STRING='name="amd_developer_central_nonce"'
 #AMD APP SDK v3.0:
 if [[ $1 == "300" ]]; then
   echo "AMD APP SDK v3.0"
-  FORM=`wget -qO - $URL | sed -n '/download-2/,/64-bit/p'`
+  FORM=`wget -qO --no-check-certificate - $URL | sed -n '/download-2/,/64-bit/p'`
 else
 #AMD APP SDK v2.9.1:
   echo "AMD APP SDK v2.9.1"
-  FORM=`wget -qO - $URL | sed -n '/download-5/,/64-bit/p'`
+  FORM=`wget -qO --no-check-certificate - $URL | sed -n '/download-5/,/64-bit/p'`
 fi
 
 # Get nonce from form
@@ -36,10 +36,10 @@ FILE=`echo $FORM | awk -F ${FILE_STRING} '{print $2}'`
 FILE=`echo $FILE | awk -F'"' '{print $2}'`
 echo $FILE
 
-FORM=`wget -qO - $URLDOWN --post-data "amd_developer_central_downloads_page_nonce=${NONCE1}&f=${FILE}&post_id=${POSTID}"`
+FORM=`wget -qO --no-check-certificate - $URLDOWN --post-data "amd_developer_central_downloads_page_nonce=${NONCE1}&f=${FILE}&post_id=${POSTID}"`
 
 NONCE2=`echo $FORM | awk -F ${NONCE2_STRING} '{print $2}'`
 NONCE2=`echo $NONCE2 | awk -F'"' '{print $2}'`
 echo $NONCE2
 
-wget --content-disposition --trust-server-names $URLDOWN --post-data "amd_developer_central_nonce=${NONCE2}&f=${FILE}" -O AMD-SDK.tar.bz2;
+wget --no-check-certificate --content-disposition --trust-server-names $URLDOWN --post-data "amd_developer_central_nonce=${NONCE2}&f=${FILE}" -O AMD-SDK.tar.bz2;
