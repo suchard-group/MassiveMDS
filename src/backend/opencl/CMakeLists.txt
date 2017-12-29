@@ -36,7 +36,12 @@ MESSAGE(STATUS "VecXL directory: ${VexCL_INCLUDE_DIRS}")
 
 INCLUDE_DIRECTORIES(. ${CMAKE_SOURCE_DIR}/src)
 
-SET(OPENCL_SOURCE_FILES instantiate.cpp)
+SET(OPENCL_SOURCE_FILES
+	instantiate.cpp
+	OpenCLMultiDimensionalScaling.hpp
+	OpenCLMemoryManagement.hpp
+	Reducer.hpp
+	)
 ADD_LIBRARY(mds_opencl ${OPENCL_SOURCE_FILES})
 TARGET_LINK_LIBRARIES(mds_opencl ${OpenCL_LIBRARIES})
 
