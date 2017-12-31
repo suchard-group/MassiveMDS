@@ -48,6 +48,7 @@ public:
     virtual void setPairwiseData(double*, size_t)  = 0;
     virtual void setParameters(double*, size_t) = 0;
     virtual void makeDirty() = 0;
+    virtual int getInternalDimension() = 0;
 
     virtual double getDiagnostic() { return 0.0; }
 

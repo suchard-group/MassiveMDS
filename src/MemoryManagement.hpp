@@ -64,8 +64,22 @@ void bufferedCopy(mm::MemoryManager<float>::iterator begin,
         double* destination, Buffer& buffer) {
 	std::copy(begin, end, destination);                  
 }
+        // Padded copy functionality
 
-} // namespace mm
+        template <typename SourceType, typename DestinationType, typename Buffer>
+        void paddedBufferedCopy(SourceType source, int sourceStride, int length,
+                                DestinationType destination, int destinationStride,
+                                int count,
+                                Buffer& buffer) {
+
+            for (int i = 0; i < count; ++i) {
+                mm::bufferedCopy(source, source + length, destination, buffer);
+                source += sourceStride;
+                destination += destinationStride;
+            }
+        }
+
+    } // namespace mm
 } // namespace mds
 
 #endif // _MEMORYMANAGEMENT_HPP

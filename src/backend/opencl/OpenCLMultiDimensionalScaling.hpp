@@ -15,7 +15,7 @@
 
 // #define DOUBLE_CHECK
 
-#define DOUBLE_CHECK_GRADIENT
+//#define DOUBLE_CHECK_GRADIENT
 
 #define TILE_DIM 16
 
@@ -33,7 +33,7 @@
 
 namespace mds {
 
-template <typename OpenCLRealType, int VectorDimension>
+template <typename OpenCLRealType>
 class OpenCLMultiDimensionalScaling : public AbstractMultiDimensionalScaling {
 public:
 
@@ -49,8 +49,8 @@ public:
 
           observations(locationCount * locationCount),
 
-          locations0(locationCount * VectorDimension),
-		  locations1(locationCount * VectorDimension),
+          locations0(locationCount * OpenCLRealType::dim),
+		  locations1(locationCount * OpenCLRealType::dim),
 		  locationsPtr(&locations0),
 		  storedLocationsPtr(&locations1),
 
@@ -73,24 +73,24 @@ public:
 		device = boost::compute::system::default_device();
 		std::cerr << "Using: " << device.name() << std::endl;
 
-		ctx = boost::compute::context{device};
+		ctx = boost::compute::context(device, 0);
 		queue = boost::compute::command_queue{ctx, device
 		    , boost::compute::command_queue::enable_profiling
 		    };
 
 		dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
 
-        std::cerr << "\twith vector-dim = " << VectorDimension << std::endl;
+        std::cerr << "\twith vector-dim = " << OpenCLRealType::dim << std::endl;
 
-//		if (embeddingDimension != VectorDimension) {
+//		if (embeddingDimension != OpenCLRealType::dim) {
 //			std::cerr << "Currently only implemented for embedding dimension == VectorDimension" << std::endl;
 //			exit(-1);
 //		}
 
 #ifdef USE_VECTORS
-		dLocations0 = mm::GPUMemoryManager<VectorType>(locations0.size() / VectorDimension, ctx);
-		dLocations1 = mm::GPUMemoryManager<VectorType>(locations1.size() / VectorDimension, ctx);
-		dGradient = mm::GPUMemoryManager<VectorType>(locationCount, ctx);
+		dLocations0 = mm::GPUMemoryManager<VectorType>(locationCount, ctx);
+		dLocations1 = mm::GPUMemoryManager<VectorType>(locationCount, ctx);
+		dGradient   = mm::GPUMemoryManager<VectorType>(locationCount, ctx);
 #else
 		dLocations0 = mm::GPUMemoryManager<RealType>(locations0.size(), ctx);
 		dLocations1 = mm::GPUMemoryManager<RealType>(locations1.size(), ctx);
@@ -116,20 +116,21 @@ public:
 		createOpenCLKernels();    	
     }
 
-    virtual ~OpenCLMultiDimensionalScaling() {
+    virtual ~OpenCLMultiDimensionalScaling() override {
     	std::cout << "timer1 = " << timer1 << std::endl;
     	std::cout << "timer2 = " << timer2 << std::endl;
     	std::cout << "timer3 = " << timer3 << std::endl;
     }
 
-    void updateLocations(int locationIndex, double* location, size_t length) {
+    void updateLocations(int locationIndex, double* location, size_t length) override {
 
 		size_t offset{0};
 		size_t deviceOffset{0};
 
 		if (locationIndex == -1) {
 			// Update all locations
-			assert(length == VectorDimension * locationCount);
+			assert(length == OpenCLRealType::dim * locationCount ||
+                    length == embeddingDimension * locationCount);
 
 			incrementsKnown = false;
 			isStoredSquaredResidualsEmpty = true;
@@ -137,7 +138,8 @@ public:
 
 		} else {
 			// Update a single location
-    		assert(length == VectorDimension);
+    		assert(length == OpenCLRealType::dim ||
+                    length == embeddingDimension);
 
 	    	if (updatedLocation != - 1) {
     			// more than one location updated -- do a full recomputation
@@ -148,36 +150,62 @@ public:
 
 	    	updatedLocation = locationIndex;
 
-			offset = locationIndex * VectorDimension;
+			offset = locationIndex * OpenCLRealType::dim;
 #ifdef USE_VECTORS
-	    	deviceOffset = locationIndex;
+	    	deviceOffset = static_cast<size_t>(locationIndex);
 #else
 	    	deviceOffset = locationIndex * embeddingDimension;
 #endif
 	    }
 
-		mm::bufferedCopy(location, location + length,
-			begin(*locationsPtr) + offset,
-			buffer
-		);
+        // If requires padding
+        if (embeddingDimension != OpenCLRealType::dim) {
+            if (locationIndex == -1) {
+
+                mm::paddedBufferedCopy(location, embeddingDimension, embeddingDimension,
+                                       begin(*locationsPtr) + offset, OpenCLRealType::dim,
+                                       locationCount, buffer);
+
+                length = OpenCLRealType::dim * locationCount; // New padded length
+
+            } else {
+
+                mm::bufferedCopy(location, location + length,
+                                 begin(*locationsPtr) + offset,
+                                 buffer);
+
+                length = OpenCLRealType::dim;
+            }
+        } else {
+            // Without padding
+            mm::bufferedCopy(location, location + length,
+                             begin(*locationsPtr) + offset,
+                             buffer
+            );
+        }
 
     	// COMPUTE
-    	mm::bufferedCopyToDevice(location, location + length,
-    		dLocationsPtr->begin() + deviceOffset,
-    		buffer, queue
-    	);
+        mm::copyToDevice(begin(*locationsPtr) + offset,
+                         begin(*locationsPtr) + offset + length,
+                         dLocationsPtr->begin() + deviceOffset,
+                         queue
+        );
 
     	sumOfIncrementsKnown = false;
     }
 
-	void getLogLikelihoodGradient(double* result, size_t length) {
+    int getInternalDimension() override { return OpenCLRealType::dim; }
+
+	void getLogLikelihoodGradient(double* result, size_t length) override {
 
         // TODO Buffer gradients
 
 #ifdef DOUBLE_CHECK_GRADIENT
-		assert(length == locationsPtr->size());
-		if (length != gradient.size()) {
-			gradient.resize(length);
+		assert(length == locationCount * embeddingDimension ||
+                       length == locationCount * OpenCLRealType::dim);
+
+		if (gradient.size() != locationCount * OpenCLRealType::dim) {
+			gradient.resize(locationCount * OpenCLRealType::dim);
 		}
 
 		std::fill(std::begin(gradient), std::end(gradient), static_cast<RealType>(0.0));
@@ -188,60 +216,112 @@ public:
 			for (int j = 0; j < locationCount; ++j) {
 				if (i != j) {
 					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-							begin(*locationsPtr) + i * VectorDimension,
-							begin(*locationsPtr) + j * VectorDimension,
-							embeddingDimension
+							begin(*locationsPtr) + i * OpenCLRealType::dim,
+							begin(*locationsPtr) + j * OpenCLRealType::dim
 					);
 
 					const RealType dataContribution =
 							(observations[i * locationCount + j] - distance) * scale / distance;
 
-					const RealType update0 = dataContribution *
-											 ((*locationsPtr)[i * VectorDimension + 0] - (*locationsPtr)[j * VectorDimension + 0]);
-					const RealType update1 = dataContribution *
-											 ((*locationsPtr)[i * VectorDimension + 1] - (*locationsPtr)[j * VectorDimension + 1]);
-
-					gradient[i * VectorDimension + 0] += update0;
-					gradient[i * VectorDimension + 1] += update1;
-
+                    for (int d = 0; d < embeddingDimension; ++d) {
+                        const RealType update = dataContribution *
+                                                 ((*locationsPtr)[i * OpenCLRealType::dim + d] - (*locationsPtr)[j * OpenCLRealType::dim + d]);
+                        gradient[i * OpenCLRealType::dim + d] += update;
+                    }
 				}
 			}
 		}
 
-		mm::bufferedCopy(std::begin(gradient), std::end(gradient), result, buffer);
+		if (doubleBuffer.size() != locationCount * OpenCLRealType::dim) {
+			doubleBuffer.resize(locationCount * OpenCLRealType::dim);
+		}
+
+		mm::bufferedCopy(std::begin(gradient), std::end(gradient), doubleBuffer.data(), buffer);
 
         std::vector<double> testGradient0;
-        testGradient0.push_back(result[0]);
-        testGradient0.push_back(result[1]);
-        testGradient0.push_back(result[2 * (locationCount - 1) + 0]);
-        testGradient0.push_back(result[2 * (locationCount - 1) + 1]);
+        for (int d = 0; d < embeddingDimension; ++d) {
+            testGradient0.push_back(doubleBuffer[d]);
+        }
+        for (int d = 0; d < embeddingDimension; ++d) {
+            testGradient0.push_back(doubleBuffer[OpenCLRealType::dim * (locationCount - 1) + d]);
+        }
+
+        std::vector<double> testGradient00;
+        for (int d = 0; d < OpenCLRealType::dim; ++d) {
+            testGradient00.push_back(doubleBuffer[d]);
+        }
+        for (int d = 0; d < OpenCLRealType::dim; ++d) {
+            testGradient00.push_back(doubleBuffer[OpenCLRealType::dim * (locationCount - 1) + d]);
+        }
+
 #endif // DOUBLE_CHECK_GRADIENT
 
 		kernelGradientVector.set_arg(0, *dLocationsPtr);
 		kernelGradientVector.set_arg(3, static_cast<RealType>(precision));
 
-		queue.enqueue_1d_range_kernel(kernelGradientVector, 0, locationCount * TPB, TPB);
+		queue.enqueue_1d_range_kernel(kernelGradientVector, 0,
+                                      static_cast<unsigned int>(locationCount) * TPB, TPB);
 		queue.finish();
 
-        mm::bufferedCopyFromDevice(dGradient.begin(), dGradient.end(),
-								   result, buffer, queue);
-        queue.finish();
+        if (length == locationCount * OpenCLRealType::dim) {
+
+            mm::bufferedCopyFromDevice(dGradient.begin(), dGradient.end(),
+                                       result, buffer, queue);
+            queue.finish();
+
+        } else {
+
+            if (doubleBuffer.size() != locationCount * OpenCLRealType::dim) {
+                doubleBuffer.resize(locationCount * OpenCLRealType::dim);
+            }
+
+            mm::bufferedCopyFromDevice(dGradient.begin(), dGradient.end(),
+                                       doubleBuffer.data(), buffer, queue);
+            queue.finish();
+
+            mm::paddedBufferedCopy(begin(doubleBuffer), OpenCLRealType::dim, embeddingDimension,
+                                   result, embeddingDimension,
+                                   locationCount, buffer);
+        }
 
 #ifdef DOUBLE_CHECK_GRADIENT
         std::vector<double> testGradient1;
-        testGradient1.push_back(result[0]);
-        testGradient1.push_back(result[1]);
-        testGradient1.push_back(result[2 * (locationCount - 1) + 0]);
-        testGradient1.push_back(result[2 * (locationCount - 1) + 1]);
+        for (int i = 0; i < embeddingDimension; ++i) {
+            testGradient1.push_back(result[i]);
+        }
 
-        std::cerr << "cpu: ";
+		int stride = (length == locationCount * OpenCLRealType::dim) ?
+					 OpenCLRealType::dim : embeddingDimension;
+
+        for (int i = 0; i < embeddingDimension; ++i) {
+            testGradient1.push_back(result[stride * (locationCount - 1) + i]);
+        }
+
+        std::vector<double> testGradient11;
+        for (int i = 0; i < OpenCLRealType::dim; ++i) {
+            testGradient11.push_back(doubleBuffer[i]);
+        }
+
+        std::cerr << "cpu0: ";
         for (auto x : testGradient0) {
             std::cerr << " " << x;
         }
         std::cerr << std::endl;
 
-        std::cerr << "gpu: ";
+        std::cerr << "cpu1: ";
+        for (auto x : testGradient00) {
+            std::cerr << " " << x;
+        }
+        std::cerr << std::endl;
+
+        std::cerr << "gpu0: ";
         for (auto x : testGradient1) {
+            std::cerr << " " << x;
+        }
+        std::cerr << std::endl;
+
+        std::cerr << "gpu1: ";
+        for (auto x : testGradient11) {
             std::cerr << " " << x;
         }
         std::cerr << std::endl;
@@ -268,7 +348,7 @@ public:
 		}
     }
     
-    double getSumOfIncrements() {
+    double getSumOfIncrements() override {
     	if (!sumOfIncrementsKnown) {
 			computeResidualsAndTruncations();
 			sumOfIncrementsKnown = true;
@@ -288,7 +368,7 @@ public:
  		return sumOfTruncations;
  	}
 
-    void storeState() {
+    void storeState() override {
     	storedSumOfSquaredResiduals = sumOfSquaredResiduals;
 
     	std::copy(begin(*locationsPtr), end(*locationsPtr),
@@ -319,7 +399,7 @@ public:
 //             RealType(0));
 //     }
 
-    void acceptState() {
+    void acceptState() override {
         if (!isStoredSquaredResidualsEmpty) {
     		for (int j = 0; j < locationCount; ++j) {
     			squaredResiduals[j * locationCount + updatedLocation] = squaredResiduals[updatedLocation * locationCount + j];
@@ -337,7 +417,7 @@ public:
     	}
     }
 
-    void restoreState() {
+    void restoreState() override {
     	sumOfSquaredResiduals = storedSumOfSquaredResiduals;
     	sumOfIncrementsKnown = true;
 
@@ -394,7 +474,7 @@ public:
     	
     }
 
-    void setPairwiseData(double* data, size_t length) {
+    void setPairwiseData(double* data, size_t length) override {
 		assert(length == observations.size());
 		mm::bufferedCopy(data, data + length, begin(observations), buffer);
 
@@ -411,7 +491,7 @@ public:
 
     }
 
-    void setParameters(double* data, size_t length) {
+    void setParameters(double* data, size_t length) override {
 		assert(length == 1); // Call only with precision
 		precision = data[0]; // TODO Remove
 		oneOverSd = std::sqrt(data[0]);
@@ -427,7 +507,7 @@ public:
 		}
     }
 
-    void makeDirty() {
+    void makeDirty() override {
     	sumOfIncrementsKnown = false;
     	incrementsKnown = false;
     }
@@ -447,9 +527,8 @@ public:
 			for (int j = 0; j < locationCount; ++j) {
 
 				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-					begin(*locationsPtr) + i * VectorDimension,
-					begin(*locationsPtr) + j * VectorDimension,
-					embeddingDimension
+					begin(*locationsPtr) + i * OpenCLRealType::dim,
+					begin(*locationsPtr) + j * OpenCLRealType::dim
 				);
 				const auto residual = distance - observations[i * locationCount + j];
 				const auto squaredResidual = residual * residual;
@@ -550,9 +629,8 @@ public:
 //  		std::cerr << tmp << std::endl << std::endl;
 //
 // 		auto d = calculateDistance<mm::MemoryManager<RealType>>(
-// 					begin(*locationsPtr) + 0 * VectorDimension,
-// 					begin(*locationsPtr) + 10 * VectorDimension,
-// 					embeddingDimension
+// 					begin(*locationsPtr) + 0 * OpenCLRealType::dim,
+// 					begin(*locationsPtr) + 10 * OpenCLRealType::dim
 // 				);
 //
 // 		std::cerr << d << std::endl;
@@ -605,7 +683,7 @@ public:
 		const int i = updatedLocation;
 		isStoredSquaredResidualsEmpty = false;
 
-		auto start  = begin(*locationsPtr) + i * VectorDimension;
+		auto start  = begin(*locationsPtr) + i * OpenCLRealType::dim;
 		auto offset = begin(*locationsPtr);
 
 		RealType delta =
@@ -618,8 +696,7 @@ public:
 			&start](const int j) {
                 const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
                     start,
-                    offset + VectorDimension * j,
-                    embeddingDimension
+                    offset + OpenCLRealType::dim * j
                 );
 
                 const auto residual = distance - observations[i * locationCount + j];
@@ -652,7 +729,7 @@ public:
 		isStoredSquaredResidualsEmpty = false;
 		isStoredTruncationsEmpty = false;
 
-		auto start  = begin(*locationsPtr) + i * VectorDimension;
+		auto start  = begin(*locationsPtr) + i * OpenCLRealType::dim;
 		auto offset = begin(*locationsPtr);
 
 		std::complex<RealType> delta =
@@ -663,8 +740,7 @@ public:
 			&start](const int j) {
                 const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
                     start,
-                    offset + VectorDimension * j,
-                    embeddingDimension
+                    offset + OpenCLRealType::dim * j
                 );
 
                 const auto residual = distance - observations[i * locationCount + j];
@@ -701,7 +777,7 @@ public:
 
 #ifdef SSE
     template <typename HostVectorType, typename Iterator>
-    double calculateDistance(Iterator iX, Iterator iY, int length) const {
+    double calculateDistance(Iterator iX, Iterator iY) const {
 
         using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
 
@@ -709,15 +785,36 @@ public:
         AlignedValueType* x = &*iX;
         AlignedValueType* y = &*iY;
 
-        for (int i = 0; i < 2; ++i, ++x, ++y) {
+        for (int i = 0; i < OpenCLRealType::dim; ++i, ++x, ++y) {
             const auto difference = *x - *y; // TODO Why does this seg-fault?
             sum += difference * difference;
         }
         return std::sqrt(sum);
     }
+
+//    template <typename HostVectorType, typename Iterator>
+//    double calculateDistance<HostVectorType, Iterator, 2>(Iterator iX, Iterator iY, int length) const {
+//
+//        using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
+//
+//        auto sum = static_cast<AlignedValueType>(0);
+//        AlignedValueType* x = &*iX;
+//        AlignedValueType* y = &*iY;
+//
+//        for (int i = 0; i < 2; ++i, ++x, ++y) {
+//            const auto difference = *x - *y; // TODO Why does this seg-fault?
+//            sum += difference * difference;
+//        }
+//        return std::sqrt(sum);
+//    }
+
+
 #else // SSE
     template <typename HostVectorType, typename Iterator>
     double calculateDistance(Iterator x, Iterator y, int length) const {
+
+        assert (false);
+
         auto sum = static_cast<RealType>(0);
 
         for (int i = 0; i < 2; ++i, ++x, ++y) {
@@ -827,7 +924,7 @@ public:
 
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-			options << " -DREAL=double -DREAL_VECTOR=double" << VectorDimension
+			options << " -DREAL=double -DREAL_VECTOR=double" << OpenCLRealType::dim
                     << " -DZERO=0.0 -DHALF=0.5";
 			
 			if (isLeftTruncated) {
@@ -835,7 +932,7 @@ public:
 			}
 			
 		} else { // 32-bit fp
-			options << " -DREAL=float -DREAL_VECTOR=float" << VectorDimension
+			options << " -DREAL=float -DREAL_VECTOR=float" << OpenCLRealType::dim
                     << " -DZERO=0.0f -DHALF=0.5f";
 			
 			if (isLeftTruncated) {
@@ -911,7 +1008,7 @@ public:
 		//exit(-1);
 #endif // DOUBLE_CHECK
 
-		int index = 0;
+		size_t index = 0;
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dLocations0); // Must update
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dObservations);
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dSquaredResiduals);
@@ -933,14 +1030,16 @@ public:
 
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-			options << " -DREAL=double -DREAL_VECTOR=double2 -DZERO=0.0 -DONE=1.0 -DHALF=0.5";
+			options << " -DREAL=double -DREAL_VECTOR=double" << OpenCLRealType::dim
+                    << " -DZERO=0.0 -DONE=1.0 -DHALF=0.5";
 
 			if (isLeftTruncated) {
 				//code << cdfString1Double;
 			}
 
 		} else { // 32-bit fp
-			options << " -DREAL=float -DREAL_VECTOR=float2 -DZERO=0.0f -DONE=1.0f -DHALF=0.5f";
+			options << " -DREAL=float -DREAL_VECTOR=float" << OpenCLRealType::dim
+                    << " -DZERO=0.0f -DONE=1.0f -DHALF=0.5f";
 
 			if (isLeftTruncated) {
 //				code << cdfString1Float;
@@ -975,21 +1074,7 @@ public:
 			 "     const REAL contrib = (observations[i * locationCount + j] -       \n" <<
 			 "                                 distance) * precision / distance;     \n" <<
 			 "                                                                       \n" <<
-//			 "     const int indy = (i != j);                                        \n" <<
-//			 "     if (i != j) { sum += (vectorI - vectorJ); }                       \n";
-             "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }                       \n";
-
-             //			 "     sum += indy * (vectorI - vectorJ) * contrib;                      \n" <<
-
-//		const RealType dataContribution =
-//				(observations[i * locationCount + j] - distance) * scale / distance;
-//
-//		const RealType update0 = dataContribution *
-//								 ((*locationsPtr)[i * VectorDimension + 0] - (*locationsPtr)[j * VectorDimension + 0]);
-//		const RealType update1 = dataContribution *
-//								 ((*locationsPtr)[i * VectorDimension + 1] - (*locationsPtr)[j * VectorDimension + 1]);
-
-        code <<
+             "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }    \n" <<
 			 "                                                                       \n" <<
 			 "     j += TPB;                                                         \n" <<
 			 "                                                                       \n" <<
@@ -1010,13 +1095,13 @@ public:
 
         for (int i = 0; i < embeddingDimension; ++i) {
             code << " ONE";
-            if (i < (VectorDimension - 1)) {
+            if (i < (OpenCLRealType::dim - 1)) {
                 code << ",";
             }
         }
-        for (int i = embeddingDimension; i < VectorDimension; ++i) {
+        for (int i = embeddingDimension; i < OpenCLRealType::dim; ++i) {
             code << " ZERO";
-            if (i < (VectorDimension - 1)) {
+            if (i < (OpenCLRealType::dim - 1)) {
                 code << ",";
             }
         }
@@ -1133,6 +1218,7 @@ private:
     bool isStoredTruncationsEmpty;
 
     mm::MemoryManager<RealType> buffer;
+    mm::MemoryManager<double> doubleBuffer;
 
     boost::compute::program program;
 
@@ -1155,7 +1241,6 @@ private:
 
 
 };
-#pragma clang diagnostic pop
 
 } // namespace mds
 

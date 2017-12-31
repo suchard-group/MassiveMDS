@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
             ("iterations", po::value<int>()->default_value(10), "number of iterations")
             ("locations", po::value<int>()->default_value(6000), "number of locations")
             ("dimension", po::value<int>()->default_value(2), "number of dimensions")
+			("internal", "use internal dimension")
 	;
 	po::variables_map vm;
 
@@ -102,6 +103,8 @@ int main(int argc, char* argv[]) {
 		truncation = true;
 	}
 
+	bool internalDimension = vm.count("internal");
+
 	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
 
 	auto elementCount = locationCount * locationCount;
@@ -118,16 +121,18 @@ int main(int argc, char* argv[]) {
 
 	instance->setPairwiseData(&data[0], elementCount);
 
-	std::vector<double> location(embeddingDimension);
+	int dataDimension = internalDimension ? instance->getInternalDimension() : embeddingDimension;
+
+	std::vector<double> location(dataDimension);
 	std::vector<double> allLocations;
 	if (updateAllLocations) {
-		allLocations.resize(embeddingDimension * locationCount);
+		allLocations.resize(dataDimension * locationCount);
 	}
 
 	double total = 0.0;
 	for (int i = 0; i < locationCount; ++i) {
 		generateLocation(location, normal, prng);
-		instance->updateLocations(i, &location[0], embeddingDimension);
+		instance->updateLocations(i, &location[0], dataDimension);
 // 		for (int j = 0; j < embeddingDimension; ++j) {
 // 			total += location[j];
 // 		}
@@ -142,9 +147,9 @@ int main(int argc, char* argv[]) {
 	instance->makeDirty();
 	auto logLik = instance->getSumOfIncrements();
 
-    std::vector<double> gradient(locationCount * embeddingDimension);
+    std::vector<double> gradient(locationCount * dataDimension);
 
-    instance->getLogLikelihoodGradient(gradient.data(), locationCount * embeddingDimension);
+    instance->getLogLikelihoodGradient(gradient.data(), locationCount * dataDimension);
 //    double sumGradient = std::accumulate(std::begin(gradient), std::end(gradient), 0.0);
     double sumGradient = gradient[gradientIndex];
 
@@ -169,11 +174,11 @@ int main(int argc, char* argv[]) {
 
 		if (updateAllLocations) {
 			generateLocation(allLocations, normal, prng);
-			instance->updateLocations(-1, &allLocations[0], embeddingDimension * locationCount);
+			instance->updateLocations(-1, &allLocations[0], dataDimension * locationCount);
 		} else {
 			int dimension = uniform(prng);
 			generateLocation(location, normal, prng);
-			instance->updateLocations(dimension, &location[0], embeddingDimension);
+			instance->updateLocations(dimension, &location[0], dataDimension);
 		}
 		
 		auto startTime1 = std::chrono::steady_clock::now();
@@ -212,7 +217,7 @@ int main(int argc, char* argv[]) {
 
         auto startTime2 = std::chrono::steady_clock::now();
 
-        instance->getLogLikelihoodGradient(gradient.data(), locationCount * embeddingDimension);
+        instance->getLogLikelihoodGradient(gradient.data(), locationCount * dataDimension);
 
         auto duration2 = std::chrono::steady_clock::now() - startTime2;
         timer2 += std::chrono::duration<double, std::milli>(duration2).count();

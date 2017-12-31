@@ -44,6 +44,8 @@ public:
 
     virtual ~NewMultiDimensionalScaling() { }
 
+	int getInternalDimension() { return embeddingDimension; }
+
     void updateLocations(int locationIndex, double* location, size_t length) {
 
 		size_t offset{0};
