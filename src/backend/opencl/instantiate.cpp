@@ -18,9 +18,9 @@ namespace mds {
         } else if (embeddingDimension <= 4) {
             return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<4>>>(embeddingDimension, locationCount,
                                                                                     flags);
-//        } else if (embeddingDimension <= 8) {
-//            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<8>>>(embeddingDimension, locationCount,
-//                                                                                    flags);
+        } else if (embeddingDimension <= 8) {
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<8>>>(embeddingDimension, locationCount,
+                                                                                    flags);
         } else {
             exit(-1);
         }
@@ -34,9 +34,9 @@ namespace mds {
         } else if (embeddingDimension <= 4) {
             return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<4>>>(embeddingDimension, locationCount,
                                                                                    flags);
-//        } else if (embeddingDimension <= 8) {
-//            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<8>>>(embeddingDimension, locationCount,
-//                                                                                   flags);
+        } else if (embeddingDimension <= 8) {
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<8>>>(embeddingDimension, locationCount,
+                                                                                   flags);
         } else {
             exit(-1);
         }

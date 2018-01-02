@@ -21,6 +21,12 @@ namespace mds {
         static const int dim = 4;
     };
 
+    template <>
+    struct OpenCLFloat<8> {
+        typedef float BaseType;
+        typedef boost::compute::float8_ VectorType;
+        static const int dim = 8;
+    };
 
     template <int VectorDimension>
     struct OpenCLDouble {
@@ -36,6 +42,12 @@ namespace mds {
         static const int dim = 4;
     };
 
+    template <>
+    struct OpenCLDouble<8> {
+        typedef double BaseType;
+        typedef boost::compute::double8_ VectorType;
+        static const int dim = 8;
+    };
 
 namespace mm {
 
@@ -75,6 +87,16 @@ using GPUMemoryManager = boost::compute::vector<T>;
         using namespace boost::compute;
 
         copy(begin, end, reinterpret_cast<double4_ *>(destination), queue);
+    }
+
+    template <typename Buffer, typename Queue>
+    void bufferedCopyFromDevice(mm::GPUMemoryManager<boost::compute::double8_>::iterator begin,
+                                mm::GPUMemoryManager<boost::compute::double8_>::iterator end,
+                                double *destination,
+                                Buffer&, Queue& queue) {
+        using namespace boost::compute;
+
+        copy(begin, end, reinterpret_cast<double8_ *>(destination), queue);
     }
 
 	template <typename Buffer, typename Queue>
@@ -121,6 +143,22 @@ using GPUMemoryManager = boost::compute::vector<T>;
         }
 
         boost::compute::copy(begin, end, reinterpret_cast<float4_ *>(&buffer[0]), queue);
+        std::copy(std::begin(buffer), std::begin(buffer) + length, destination);
+    }
+
+    template <typename Buffer, typename Queue>
+    void bufferedCopyFromDevice(mm::GPUMemoryManager<boost::compute::float8_>::iterator begin,
+                                mm::GPUMemoryManager<boost::compute::float8_>::iterator end,
+                                double* destination,
+                                Buffer& buffer, Queue& queue) {
+        using namespace boost::compute;
+
+        const auto length = std::distance(begin, end) * 8;
+        if (buffer.size() < length) {
+            buffer.resize(length);
+        }
+
+        boost::compute::copy(begin, end, reinterpret_cast<float8_ *>(&buffer[0]), queue);
         std::copy(std::begin(buffer), std::begin(buffer) + length, destination);
     }
 
@@ -228,6 +266,17 @@ void bufferedCopyToDevice(double *begin, double *end,
 
     template <typename BufferPtr, typename Queue>
     void copyToDevice(BufferPtr begin, BufferPtr end,
+                      mm::GPUMemoryManager<boost::compute::float8_>::iterator destination, Queue& queue) {
+        using namespace boost::compute;
+
+        const auto length = std::distance(begin, end);
+        copy(reinterpret_cast<float8_ *>(&(*begin)),
+             reinterpret_cast<float8_ *>(&(*begin)) + length / 8,
+             destination, queue);
+    };
+
+    template <typename BufferPtr, typename Queue>
+    void copyToDevice(BufferPtr begin, BufferPtr end,
                       mm::GPUMemoryManager<boost::compute::double2_>::iterator destination, Queue& queue) {
         using namespace boost::compute;
 
@@ -245,6 +294,17 @@ void bufferedCopyToDevice(double *begin, double *end,
         const auto length = std::distance(begin, end);
         copy(reinterpret_cast<double4_ *>(&*begin),
              reinterpret_cast<double4_ *>(&*begin) + length / 4,
+             destination, queue);
+    };
+
+    template <typename BufferPtr, typename Queue>
+    void copyToDevice(BufferPtr begin, BufferPtr end,
+                      mm::GPUMemoryManager<boost::compute::double8_>::iterator destination, Queue& queue) {
+        using namespace boost::compute;
+
+        const auto length = std::distance(begin, end);
+        copy(reinterpret_cast<double8_ *>(&*begin),
+             reinterpret_cast<double8_ *>(&*begin) + length / 8,
              destination, queue);
     };
 

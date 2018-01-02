@@ -13,7 +13,7 @@
 
 #define USE_VECTORS
 
-// #define DOUBLE_CHECK
+//#define DOUBLE_CHECK
 
 //#define DOUBLE_CHECK_GRADIENT
 
@@ -939,21 +939,24 @@ public:
 				code << cdfString1Float;
 			}
 		}
-				
-		code << 
+
+		code <<
 			" __kernel void computeSSR(__global const REAL_VECTOR *locations,  \n" <<
 			"  						   __global const REAL *observations,      \n" <<
-			"						   __global REAL *squaredResiduals,        \n"; 
-		
+			"						   __global REAL *squaredResiduals,        \n";
+
 		if (isLeftTruncated) {
-			code << 
-// 			"						   __global REAL *truncations,             \n"	<<
+			code <<
             "                          const REAL precision,                   \n" <<
-			"                          const REAL oneOverSd,                   \n";				
+			"                          const REAL oneOverSd,                   \n";
 		}
-		code << 
+
+		code <<
 			"						   const uint locationCount) {            \n";
-									
+
+
+//        code << "}\n";
+
 		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 				const uint offsetJ = get_group_id(0) * TILE_DIM;
 				const uint offsetI = get_group_id(1) * TILE_DIM;
@@ -974,38 +977,48 @@ public:
 
 				if (i < locationCount && j < locationCount) {
 
-					const REAL distance = length(
-						tile[1][get_local_id(1)] - tile[0][get_local_id(0)]
-// 						locations[i] - locations[j]
-					);
+                    const REAL_VECTOR difference = tile[1][get_local_id(1)] - tile[0][get_local_id(0)];
+                    // 						locations[i] - locations[j]
+        );
 
+        if (OpenCLRealType::dim == 8) {
+            code << BOOST_COMPUTE_STRINGIZE_SOURCE(
+                    const REAL distance = sqrt(
+                            dot(difference.lo, difference.lo) +
+                            dot(difference.hi, difference.hi)
+                    );
+            );
+        } else {
+            code << BOOST_COMPUTE_STRINGIZE_SOURCE(
+					const REAL distance = length(difference);
+            );
+        }
+
+        code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 					const REAL residual = distance - observations[i * locationCount + j];
 					REAL squaredResidual = residual * residual;
+        );
 
-					
-		);
-		
 		if (isLeftTruncated) {
 			code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 					squaredResidual *= HALF * precision;
 					const REAL truncation = (i == j) ? ZERO : log(cdf(fabs(distance) * oneOverSd));
 					squaredResidual += truncation;
-// 					truncations[i * locationCount + j] = truncation; // * ZERO;
 			);
 		}
-		
+
 		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 			 		squaredResiduals[i * locationCount + j] = squaredResidual;
 				}
 			}
-		);				
+		);
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
 	    	kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
 
 #ifdef DOUBLE_CHECK
 		std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
-		//exit(-1);
+//        exit(-1);
 #endif // DOUBLE_CHECK
 
 		size_t index = 0;
@@ -1070,7 +1083,20 @@ public:
 			 "   while (j < locationCount) {                                         \n" <<
 			 "                                                                       \n" <<
 			 "     const REAL_VECTOR vectorJ = locations[j];                         \n" <<
-			 "     const REAL distance = length(vectorI - vectorJ);                  \n" <<
+             "     const REAL_VECTOR difference = vectorI - vectorJ;                 \n";
+
+        if (OpenCLRealType::dim == 8) {
+            code << "     const REAL distance = sqrt(                                \n" <<
+                    "              dot(difference.lo, difference.lo) +               \n" <<
+                    "              dot(difference.hi, difference.hi)                 \n" <<
+                    "      );                                                        \n";
+
+        } else {
+            code << "     const REAL distance = length(difference);                  \n";
+        }
+
+        code <<
+
 			 "     const REAL contrib = (observations[i * locationCount + j] -       \n" <<
 			 "                                 distance) * precision / distance;     \n" <<
 			 "                                                                       \n" <<
