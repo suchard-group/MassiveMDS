@@ -185,10 +185,10 @@ public:
         }
 
     	// COMPUTE
-        mm::copyToDevice(begin(*locationsPtr) + offset,
-                         begin(*locationsPtr) + offset + length,
-                         dLocationsPtr->begin() + deviceOffset,
-                         queue
+        mm::copyToDevice<OpenCLRealType>(begin(*locationsPtr) + offset,
+                                         begin(*locationsPtr) + offset + length,
+                                         dLocationsPtr->begin() + deviceOffset,
+                                         queue
         );
 
     	sumOfIncrementsKnown = false;
@@ -265,7 +265,7 @@ public:
 
         if (length == locationCount * OpenCLRealType::dim) {
 
-            mm::bufferedCopyFromDevice(dGradient.begin(), dGradient.end(),
+            mm::bufferedCopyFromDevice<OpenCLRealType>(dGradient.begin(), dGradient.end(),
                                        result, buffer, queue);
             queue.finish();
 
@@ -275,7 +275,7 @@ public:
                 doubleBuffer.resize(locationCount * OpenCLRealType::dim);
             }
 
-            mm::bufferedCopyFromDevice(dGradient.begin(), dGradient.end(),
+            mm::bufferedCopyFromDevice<OpenCLRealType>(dGradient.begin(), dGradient.end(),
                                        doubleBuffer.data(), buffer, queue);
             queue.finish();
 
