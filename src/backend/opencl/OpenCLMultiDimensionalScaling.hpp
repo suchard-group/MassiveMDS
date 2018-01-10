@@ -721,7 +721,7 @@ public:
 	}
 
 // 	int count = 0
-	int count2 = 0;
+//	int count2 = 0;
 
 	void updateSumOfSquaredResidualsAndTruncations() {
 

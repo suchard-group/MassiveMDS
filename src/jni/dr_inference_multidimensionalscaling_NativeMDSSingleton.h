@@ -95,6 +95,8 @@ JNIEXPORT jdoubleArray JNICALL Java_dr_inference_multidimensionalscaling_NativeM
 JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_getLocationGradient
   (JNIEnv *, jobject, jint, jdoubleArray);
 
+JNIEXPORT jint JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_getInternalDimension
+        (JNIEnv *, jobject, jint);
 #ifdef __cplusplus
 }
 #endif

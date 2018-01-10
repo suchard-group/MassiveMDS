@@ -1,9 +1,9 @@
-#ifndef _MEMORYMANAGEMENT_HPP
-#define _MEMORYMANAGEMENT_HPP
+#ifndef _MEMORY_MANAGEMENT_HPP
+#define _MEMORY_MANAGEMENT_HPP
 
 #include <vector>
 #include <algorithm>
-#include <iostream> // TODO Remove
+
 #include "aligned_allocator.hpp"
 
 namespace mds {
@@ -82,4 +82,4 @@ void bufferedCopy(mm::MemoryManager<float>::iterator begin,
     } // namespace mm
 } // namespace mds
 
-#endif // _MEMORYMANAGEMENT_HPP
+#endif // _MEMORY_MANAGEMENT_HPP

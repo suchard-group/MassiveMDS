@@ -1,5 +1,5 @@
-#ifndef _ABSTRACTMULTIDIMENSIONALSCALING_HPP
-#define _ABSTRACTMULTIDIMENSIONALSCALING_HPP
+#ifndef _ABSTRACT_MULTIDIMENSIONAL_SCALING_HPP
+#define _ABSTRACT_MULTIDIMENSIONAL_SCALING_HPP
 
 #include <iostream>
 #include <iomanip>
@@ -34,7 +34,7 @@ public:
           observationCount(locationCount * (locationCount - 1) / 2),
           flags(flags) { }
 
-    virtual ~AbstractMultiDimensionalScaling() { }
+    virtual ~AbstractMultiDimensionalScaling() = default;
 
     // Interface
     virtual void updateLocations(int, double*, size_t) = 0;
@@ -50,7 +50,7 @@ public:
     virtual void makeDirty() = 0;
     virtual int getInternalDimension() = 0;
 
-    virtual double getDiagnostic() { return 0.0; }
+//    virtual double getDiagnostic() { return 0.0; }
 
 protected:
     int embeddingDimension;
@@ -68,8 +68,8 @@ typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> SharedPtr;
 
 SharedPtr factory(int dim1, int dim2, long flags);
 
-template <typename T>
-struct DetermineType;
+//template <typename T>
+//struct DetermineType;
 
 struct CpuAccumulate { };
 
@@ -80,4 +80,4 @@ struct TbbAccumulate{ };
 
 } // namespace mds
 
-#endif // _ABSTRACTMULTIDIMENSIONALSCALING_HPP
+#endif // _ABSTRACT_MULTIDIMENSIONAL_SCALING_HPP

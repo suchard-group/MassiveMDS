@@ -94,6 +94,12 @@ JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingle
     instances[instance]->makeDirty();
 }
 
+extern "C"
+JNIEXPORT jint JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_getInternalDimension
+        (JNIEnv *, jobject, jint instance) {
+    return instances[instance]->getInternalDimension();
+}
+
 
 // jsize len = (*env)->GetArrayLength(env, arr);
 //     jdouble *partials = env->GetDoubleArrayElements(inPartials, NULL);
