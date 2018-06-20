@@ -213,7 +213,7 @@ public:
             if (embeddingDimension == 2) {
                 computeLogLikelihoodGradientNew<false>();
             } else {
-                computeLogLikelihoodGradientGeneric<true>();
+                computeLogLikelihoodGradientGeneric<false>();
             }
         }
 #else
@@ -446,6 +446,10 @@ public:
 					begin(*locationsPtr) + j * embeddingDimension,
 					embeddingDimension
 				);
+
+				// auto observation = observations[i * locationCount + j];
+				// check is.na(observation) -> residual = 0.0
+
 				const auto residual = distance - observations[i * locationCount + j];
 				auto squaredResidual = residual * residual;
 				
