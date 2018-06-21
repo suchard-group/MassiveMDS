@@ -252,8 +252,10 @@ public:
                             dim
                     );
 
-                    const RealType dataContribution =
-                            (observations[i * locationCount + j] - distance) * scale / distance;
+                    const RealType observation = observations[i * locationCount + j];
+                    const RealType dataContribution = std::isnan(observation) ?
+                                                      RealType(0) :
+                                                      (observation - distance) * scale / distance;
 
                     for (int d = 0; d < dim; ++d) {
                         const RealType update = dataContribution *
@@ -298,8 +300,10 @@ public:
 						embeddingDimension
 					);
 
-					const RealType dataContribution =
-						(observations[i * locationCount + j] - distance) * scale / distance;
+                    const RealType observation = observations[i * locationCount + j];
+					const RealType dataContribution = std::isnan(observation) ?
+                                                      RealType(0) :
+                                                      (observation - distance) * scale / distance;
 
 					const RealType update0 = dataContribution *
 						((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
@@ -359,8 +363,10 @@ public:
 							embeddingDimension
 					);
 
-					const RealType dataContribution =
-							(observations[i * locationCount + j] - distance) * scale / distance;
+                    const RealType observation = observations[i * locationCount + j];
+					const RealType dataContribution = std::isnan(observation) ?
+                                                      RealType(0) :
+                                                      (observation - distance) * scale / distance;
 
 					const RealType update0 = dataContribution *
 											 ((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
@@ -401,13 +407,19 @@ public:
                                 begin(*locationsPtr) + j * embeddingDimension,
                                 embeddingDimension
                         );
-                        const auto residual = distance - observations[i * locationCount + j];
-                        auto squaredResidual = residual * residual;
 
-                        if (withTruncation) {
-                            squaredResidual = scale * squaredResidual;
-                            if (i != j) {
-                                squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+                        const auto observation = observations[i * locationCount + j];
+                        auto squaredResidual = RealType(0);
+
+                        if (!std::isnan(observation)) {
+                            const auto residual = distance - observation;
+                            squaredResidual = residual * residual;
+
+                            if (withTruncation) {
+                                squaredResidual = scale * squaredResidual;
+                                if (i != j) {
+                                    squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+                                }
                             }
                         }
 
@@ -447,18 +459,22 @@ public:
 					embeddingDimension
 				);
 
-				// auto observation = observations[i * locationCount + j];
-				// check is.na(observation) -> residual = 0.0
+				const auto observation = observations[i * locationCount + j];
+                auto squaredResidual = RealType(0);
 
-				const auto residual = distance - observations[i * locationCount + j];
-				auto squaredResidual = residual * residual;
-				
-				if (withTruncation) {
-					squaredResidual = scale * squaredResidual;
-					if (i != j) {					
-						squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
-					}
-				}
+                if (!std::isnan(observation)) {
+
+                    const auto residual = distance - observation;
+
+                    squaredResidual = residual * residual;
+
+                    if (withTruncation) {
+                        squaredResidual = scale * squaredResidual;
+                        if (i != j) {
+                            squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+                        }
+                    }
+                }
 				
 				increments[i * locationCount + j] = squaredResidual;
 				lSumOfSquaredResiduals += squaredResidual;
@@ -502,14 +518,19 @@ public:
                     embeddingDimension
                 );
 
-                const auto residual = distance - observations[i * locationCount + j];
-                auto squaredResidual = residual * residual;
-                
-                if (withTruncation) { // Compile-time
-                	squaredResidual = scale * squaredResidual;
-                	if (i != j) {
-                		squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
-                	}                                
+                const auto observation = observations[i * locationCount + j];
+                auto squaredResidual = RealType(0);
+
+                if (!std::isnan(observation)) {
+                    const auto residual = distance - observation;
+                    squaredResidual = residual * residual;
+
+                    if (withTruncation) { // Compile-time
+                        squaredResidual = scale * squaredResidual;
+                        if (i != j) {
+                            squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+                        }
+                    }
                 }
 
             	// store old value
