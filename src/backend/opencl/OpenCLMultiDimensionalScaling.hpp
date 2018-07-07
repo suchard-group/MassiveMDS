@@ -40,7 +40,7 @@ public:
 	typedef typename OpenCLRealType::BaseType RealType;
 	typedef typename OpenCLRealType::VectorType VectorType;
 
-    OpenCLMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags)
+    OpenCLMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int deviceNumber)
         : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
           precision(0.0), storedPrecision(0.0),
           oneOverSd(0.0), storedOneOverSd(0.0),
@@ -66,11 +66,19 @@ public:
 		std::cerr << "ctor OpenCLMultiDimensionalScaling" << std::endl;
 
 		std::cerr << "All devices:" << std::endl;
-		for(const auto &device : boost::compute::system::devices()){
+
+        const auto devices = boost::compute::system::devices();
+
+		for(const auto &device : devices){
 		    std::cerr << "\t" << device.name() << std::endl;
 		}
 
-		device = boost::compute::system::default_device();
+		if (deviceNumber < 0 || deviceNumber >= devices.size()) {
+			device = boost::compute::system::default_device();
+		} else {
+			device = devices[deviceNumber];
+		}
+
 		std::cerr << "Using: " << device.name() << std::endl;
 
 		ctx = boost::compute::context(device, 0);

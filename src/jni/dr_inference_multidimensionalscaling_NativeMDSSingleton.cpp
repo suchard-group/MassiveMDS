@@ -11,11 +11,11 @@ std::vector<InstancePtr> instances;
 
 extern "C"
 JNIEXPORT jint JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_initialize
-  (JNIEnv *, jobject, jint embeddingDimension, jint elementCount, jlong flags) {
+  (JNIEnv *, jobject, jint embeddingDimension, jint elementCount, jlong flags, jint device) {
     instances.emplace_back(
 //         std::make_shared<mds::MultiDimensionalScaling<double>>(embeddingDimension, elementCount, flags));
 //         std::make_shared<mds::NewMultiDimensionalScaling<double,mds::CpuAccumulate>>(embeddingDimension, elementCount, flags)
-		mds::factory(embeddingDimension, elementCount, flags)
+		mds::factory(embeddingDimension, elementCount, flags, device)
     );
     return instances.size() - 1;
   }

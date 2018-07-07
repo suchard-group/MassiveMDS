@@ -66,7 +66,7 @@ protected:
 
 typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> SharedPtr;
 
-SharedPtr factory(int dim1, int dim2, long flags);
+SharedPtr factory(int dim1, int dim2, long flags, int device);
 
 //template <typename T>
 //struct DetermineType;

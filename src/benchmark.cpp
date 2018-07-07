@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
 
 	bool internalDimension = vm.count("internal");
 
-	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags);
+	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags, -1);
 
 	auto elementCount = locationCount * locationCount;
 	std::vector<double> data(elementCount);
