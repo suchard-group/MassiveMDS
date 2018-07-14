@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 	po::options_description desc("Allowed options");
 	desc.add_options()
             ("help", "produce help message")
-            ("gpu", "run on first GPU")
+            ("gpu", "run on first GPU") // TODO Allow specification of other devices
             ("tbb", po::value<int>()->default_value(0), "use TBB with specified number of threads")
             ("float", "run in single-precision")
             ("truncation", "enable truncation")
@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
             ("locations", po::value<int>()->default_value(6000), "number of locations")
             ("dimension", po::value<int>()->default_value(2), "number of dimensions")
 			("internal", "use internal dimension")
+        // TODO Add option for missing data here
 	;
 	po::variables_map vm;
 
@@ -112,6 +113,7 @@ int main(int argc, char* argv[]) {
 	for (int i = 0; i < locationCount; ++i) {
 	    data[i * locationCount + i] = 0.0;
 	    for (int j = i + 1; j < locationCount; ++j) {
+            // TODO Add missingness
 	        const double draw = normalData(prng);
 	        const double distance = draw * draw;
 	        data[i * locationCount + j] = distance;

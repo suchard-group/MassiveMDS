@@ -1002,6 +1002,8 @@ public:
             );
         }
 
+                    // TODO Handle missing values by  `!isnan(observation) * `
+
         code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 					const REAL residual = distance - observations[i * locationCount + j];
 					REAL squaredResidual = residual * residual;
@@ -1102,6 +1104,8 @@ public:
         } else {
             code << "     const REAL distance = length(difference);                  \n";
         }
+
+        // TODO Handle missing values by  `!isnan(observation) * `
 
         code <<
 
