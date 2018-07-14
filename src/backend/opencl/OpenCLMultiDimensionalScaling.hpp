@@ -843,29 +843,29 @@ public:
 
 	void createOpenCLLikelihoodKernel() {
 
-		const char Test[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			// approximation of the cumulative normal distribution function
-			static float cnd(float d)
-			{
-				const float A1 =  0.319381530f;
-				const float A2 = -0.356563782f;
-				const float A3 =  1.781477937f;
-				const float A4 = -1.821255978f;
-				const float A5 =  1.330274429f;
-				const float R_SQRT_2PI = 0.39894228040143267793994605993438f;
-
-				float K = 1.0f / (1.0f + 0.2316419f * fabs(d));
-				float cnd =
-                        R_SQRT_2PI * exp(-0.5f * d * d) *
-					(K * (A1 + K * (A2 + K * (A3 + K * (A4 + K * A5)))));
-
-				if(d > 0){
-					cnd = 1.0f - cnd;
-				}
-
-				return cnd;
-			}
-		);
+//		const char Test[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+//			// approximation of the cumulative normal distribution function
+//			static float cnd(float d)
+//			{
+//				const float A1 =  0.319381530f;
+//				const float A2 = -0.356563782f;
+//				const float A3 =  1.781477937f;
+//				const float A4 = -1.821255978f;
+//				const float A5 =  1.330274429f;
+//				const float R_SQRT_2PI = 0.39894228040143267793994605993438f;
+//
+//				float K = 1.0f / (1.0f + 0.2316419f * fabs(d));
+//				float cnd =
+//                        R_SQRT_2PI * exp(-0.5f * d * d) *
+//					(K * (A1 + K * (A2 + K * (A3 + K * (A4 + K * A5)))));
+//
+//				if(d > 0){
+//					cnd = 1.0f - cnd;
+//				}
+//
+//				return cnd;
+//			}
+//		);
 
 		const char cdfString1Double[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
 			static double cdf(double);
@@ -880,7 +880,7 @@ public:
 
 			static float cdf(float value) {	   
 			
-				const float rSqrt2f =  0.70710678118655f;
+				const float rSqrt2f = 0.70710678118655f;
 	    		return 0.5f * erfc(-value * rSqrt2f);
 	    	}
 		);
@@ -1069,7 +1069,7 @@ public:
 			}
 		}
 
-		bool isNvidia = false; // TODO
+		bool isNvidia = false; // TODO Check device name
 
 		code <<
 			 " __kernel void computeGradient(__global const REAL_VECTOR *locations,  \n" <<
@@ -1120,7 +1120,7 @@ public:
 			 "                                                                       \n" <<
 			 "   scratch[lid] = sum;                                                 \n";
 #ifdef USE_VECTOR
-			 code << reduce::ReduceBody1<RealType,false>::body();
+			 code << reduce::ReduceBody1<RealType,false>::body(); // TODO Try NVIDIA version at some point
 #else
 		code << (isNvidia ? ReduceBody2<RealType,true>::body() : ReduceBody2<RealType,false>::body());
 #endif
