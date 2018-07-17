@@ -1005,8 +1005,12 @@ public:
                     // TODO Handle missing values by  `!isnan(observation) * `
 
         code << BOOST_COMPUTE_STRINGIZE_SOURCE(
-					const REAL residual = distance - observations[i * locationCount + j];
-					REAL squaredResidual = residual * residual;
+                    if (!isnan(observations[i * locationCount + j])) {
+                        const REAL residual = distance - observations[i * locationCount + j];
+                        REAL squaredResidual = residual * residual;
+                    } else {
+                        REAL squaredResidual = 0;
+                    }
         );
 
 		if (isLeftTruncated) {
@@ -1109,13 +1113,14 @@ public:
 
         code <<
 
-			 "     const REAL contrib = (observations[i * locationCount + j] -       \n" <<
+			 "     if (!isnan(observations[i * locationCount + j])) {                \n" <<
+             "       const REAL contrib = (observations[i * locationCount + j] -     \n" <<
 			 "                                 distance) * precision / distance;     \n" <<
 			 "                                                                       \n" <<
-             "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }    \n" <<
+             "         if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }\n" <<
 			 "                                                                       \n" <<
-			 "     j += TPB;                                                         \n" <<
-			 "                                                                       \n" <<
+			 "       j += TPB;                                                       \n" <<
+			 "     }                                                                 \n" <<
 			 "   }                                                                   \n" <<
 			 "                                                                       \n" <<
 			 "   scratch[lid] = sum;                                                 \n";
