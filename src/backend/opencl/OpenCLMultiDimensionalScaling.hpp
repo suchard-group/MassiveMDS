@@ -1005,12 +1005,9 @@ public:
                     // TODO Handle missing values by  `!isnan(observation) * `
 
         code << BOOST_COMPUTE_STRINGIZE_SOURCE(
-                    if (!isnan(observations[i * locationCount + j])) {
-                        const REAL residual = distance - observations[i * locationCount + j];
-                        REAL squaredResidual = residual * residual;
-                    } else {
-                        REAL squaredResidual = 0;
-                    }
+                    const REAL residual = !isnan(observations[i * locationCount + j])*
+                            (distance - observations[i * locationCount + j]);
+                    REAL squaredResidual = residual * residual;
         );
 
 		if (isLeftTruncated) {
@@ -1112,15 +1109,13 @@ public:
         // TODO Handle missing values by  `!isnan(observation) * `
 
         code <<
-
-			 "     if (!isnan(observations[i * locationCount + j])) {                \n" <<
-             "       const REAL contrib = (observations[i * locationCount + j] -     \n" <<
-			 "                                 distance) * precision / distance;     \n" <<
+             "     const REAL contrib = !isnan(observations[i * locationCount + j])* \n" <<
+			 "              (observations[i * locationCount + j]-distance) *         \n" <<
+             "               precision / distance;                                   \n" <<
 			 "                                                                       \n" <<
-             "         if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }\n" <<
+             "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }    \n" <<
 			 "                                                                       \n" <<
-			 "       j += TPB;                                                       \n" <<
-			 "     }                                                                 \n" <<
+			 "     j += TPB;                                                         \n" <<
 			 "   }                                                                   \n" <<
 			 "                                                                       \n" <<
 			 "   scratch[lid] = sum;                                                 \n";
