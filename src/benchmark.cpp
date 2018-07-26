@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
             ("locations", po::value<int>()->default_value(6000), "number of locations")
             ("dimension", po::value<int>()->default_value(2), "number of dimensions")
 			("internal", "use internal dimension")
-        // TODO Add option for missing data here
+			("missing", "allow for missing entries")
 	;
 	po::variables_map vm;
 
@@ -57,6 +57,7 @@ int main(int argc, char* argv[]) {
 	long seed = 666L;
 
 	auto prng = std::mt19937(seed);
+	auto prng2 = std::mt19937(seed);
 
 	std::cout << "Loading data" << std::endl;
 
@@ -71,6 +72,7 @@ int main(int argc, char* argv[]) {
 	auto uniform = std::uniform_int_distribution<int>(0, locationCount - 1);
 	auto binomial = std::bernoulli_distribution(0.75);
 	auto normalData = std::normal_distribution<double>(0.0, 1.0);
+	auto toss = std::bernoulli_distribution(0.25);
 	
 	std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
 
@@ -108,18 +110,39 @@ int main(int argc, char* argv[]) {
 
 	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags, -1);
 
+	bool missing = vm.count("missing");
+	if (missing) {
+        std::cout << "Allowing for missingness" << std::endl;
+	}
+
 	auto elementCount = locationCount * locationCount;
 	std::vector<double> data(elementCount);
 	for (int i = 0; i < locationCount; ++i) {
 	    data[i * locationCount + i] = 0.0;
 	    for (int j = i + 1; j < locationCount; ++j) {
-            // TODO Add missingness
+
 	        const double draw = normalData(prng);
-	        const double distance = draw * draw;
+	        double distance = draw * draw;
+
+	        if (missing && toss(prng2)) {
+	            distance = NAN;
+	        }
 	        data[i * locationCount + j] = distance;
 	        data[j * locationCount + i] = distance;
 	    }
 	}
+
+//	if (vm.count("missing")) {
+//
+//        data[2*locationCount + 3] = NAN;
+//		data[3*locationCount + 2] = NAN;
+//
+//		for (int m = 3; m < 100; ++m) {
+//		    for (int n = 5; n < 8; ++n) {
+//		        data[m * locationCount + n] = data[n * locationCount + m] = NAN;
+//		    }
+//		}
+//	}
 
 	instance->setPairwiseData(&data[0], elementCount);
 

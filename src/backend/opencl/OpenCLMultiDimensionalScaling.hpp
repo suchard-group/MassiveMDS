@@ -538,7 +538,8 @@ public:
 					begin(*locationsPtr) + i * OpenCLRealType::dim,
 					begin(*locationsPtr) + j * OpenCLRealType::dim
 				);
-				const auto residual = distance - observations[i * locationCount + j];
+				const auto residual = !isnan(observations[i * locationCount + j]) *
+				        (distance - observations[i * locationCount + j]);
 				const auto squaredResidual = residual * residual;
 				squaredResiduals[i * locationCount + j] = squaredResidual;
 				lSumOfSquaredResiduals += squaredResidual;
@@ -707,7 +708,8 @@ public:
                     offset + OpenCLRealType::dim * j
                 );
 
-                const auto residual = distance - observations[i * locationCount + j];
+                const auto residual = !isnan(observations[i * locationCount + j]) * // Andrew's not sure...
+                        (distance - observations[i * locationCount + j]);
                 const auto squaredResidual = residual * residual;
 
             	// store old value
@@ -751,7 +753,8 @@ public:
                     offset + OpenCLRealType::dim * j
                 );
 
-                const auto residual = distance - observations[i * locationCount + j];
+                const auto residual = !isnan(observations[i * locationCount + j]) * // Andrew's not sure...
+                                      (distance - observations[i * locationCount + j]);
                 const auto squaredResidual = residual * residual;
 
             	// store old value
@@ -885,38 +888,39 @@ public:
 	    	}
 		);
 
-		const char SumOfSquaredResidualsKernelVectorBody[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-				const uint offsetJ = get_group_id(0) * TILE_DIM;
-				const uint offsetI = get_group_id(1) * TILE_DIM;
-
-				const uint j = offsetJ + get_local_id(0);
-				const uint i = offsetI + get_local_id(1);
-
-				__local REAL_VECTOR tile[2][TILE_DIM + 1]; // tile[0] == locations_j, tile[1] == locations_i
-
-				if (get_local_id(1) < 2) { // load just 2 rows
-					tile[get_local_id(1)][get_local_id(0)] = locations[
-						(get_local_id(1) - 0) * (offsetI + get_local_id(0)) + // tile[1] = locations_i
-						(1 - get_local_id(1)) * (offsetJ + get_local_id(0))   // tile[0] = locations_j
-					];
-				}
-
-				barrier(CLK_LOCAL_MEM_FENCE);
-
-				if (i < locationCount && j < locationCount) {
-
-					const REAL distance = length(
-						tile[1][get_local_id(1)] - tile[0][get_local_id(0)]
-// 						locations[i] - locations[j]
-					);
-
-					const REAL residual = distance - observations[i * locationCount + j];
-					const REAL squaredResidual = residual * residual;
-
-					squaredResiduals[i * locationCount + j] = squaredResidual;
-				}
-			}
-		);
+//		const char SumOfSquaredResidualsKernelVectorBody[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+//				const uint offsetJ = get_group_id(0) * TILE_DIM;
+//				const uint offsetI = get_group_id(1) * TILE_DIM;
+//
+//				const uint j = offsetJ + get_local_id(0);
+//				const uint i = offsetI + get_local_id(1);
+//
+//				__local REAL_VECTOR tile[2][TILE_DIM + 1]; // tile[0] == locations_j, tile[1] == locations_i
+//
+//				if (get_local_id(1) < 2) { // load just 2 rows
+//					tile[get_local_id(1)][get_local_id(0)] = locations[
+//						(get_local_id(1) - 0) * (offsetI + get_local_id(0)) + // tile[1] = locations_i
+//						(1 - get_local_id(1)) * (offsetJ + get_local_id(0))   // tile[0] = locations_j
+//					];
+//				}
+//
+//				barrier(CLK_LOCAL_MEM_FENCE);
+//
+//				if (i < locationCount && j < locationCount) {
+//
+//					const REAL distance = length(
+//						tile[1][get_local_id(1)] - tile[0][get_local_id(0)]
+//// 						locations[i] - locations[j]
+//					);
+//
+//					const REAL residual =  !isnan(observations[i * locationCount + j]) *
+//					        (distance - observations[i * locationCount + j]); //Andrew's not sure
+//					const REAL squaredResidual = residual * residual;
+//
+//					squaredResiduals[i * locationCount + j] = squaredResidual;
+//				}
+//			}
+//		);
 
 //		bool useLocalMemory = false;
 
@@ -932,7 +936,7 @@ public:
 
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-			options << " -DREAL=double -DREAL_VECTOR=double" << OpenCLRealType::dim
+			options << " -DREAL=double -DREAL_VECTOR=double -DBOOLEAN=long" << OpenCLRealType::dim
                     << " -DZERO=0.0 -DHALF=0.5";
 			
 			if (isLeftTruncated) {
@@ -940,7 +944,7 @@ public:
 			}
 			
 		} else { // 32-bit fp
-			options << " -DREAL=float -DREAL_VECTOR=float" << OpenCLRealType::dim
+			options << " -DREAL=float -DREAL_VECTOR=float -DBOOLEAN=int" << OpenCLRealType::dim
                     << " -DZERO=0.0f -DHALF=0.5f";
 			
 			if (isLeftTruncated) {
@@ -1005,9 +1009,16 @@ public:
                     // TODO Handle missing values by  `!isnan(observation) * `
 
         code << BOOST_COMPUTE_STRINGIZE_SOURCE(
-                    const REAL residual = !isnan(observations[i * locationCount + j])*
-                            (distance - observations[i * locationCount + j]);
-                    REAL squaredResidual = residual * residual;
+                    const REAL observation = observations[i * locationCount + j];
+
+                    REAL squaredResidual = 0;
+                    const REAL residual = select(distance - observation, 0.0, isnan(observation));
+                    squaredResidual = residual * residual;
+
+//                    if (!isnan(observation)) {
+//                        const REAL residual = (distance - observation);
+//                        squaredResidual = residual * residual;
+//                    }
         );
 
 		if (isLeftTruncated) {
@@ -1109,9 +1120,11 @@ public:
         // TODO Handle missing values by  `!isnan(observation) * `
 
         code <<
-             "     const REAL contrib = !isnan(observations[i * locationCount + j])* \n" <<
-			 "              (observations[i * locationCount + j]-distance) *         \n" <<
-             "               precision / distance;                                   \n" <<
+             "     const REAL observation = observations[i * locationCount + j];     \n" <<
+             "     const REAL residual = select(distance - observation, 0.0,         \n" <<
+             "              isnan(observation));                                     \n" <<
+             "     REAL contrib = 0;                                                 \n" <<
+             "     contrib = - residual * precision / distance;                      \n" <<
 			 "                                                                       \n" <<
              "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }    \n" <<
 			 "                                                                       \n" <<
