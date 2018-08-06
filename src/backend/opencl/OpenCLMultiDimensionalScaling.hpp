@@ -1011,7 +1011,7 @@ public:
         code << BOOST_COMPUTE_STRINGIZE_SOURCE(
                     const REAL observation = observations[i * locationCount + j];
 
-                    REAL squaredResidual = 0;
+                    REAL squaredResidual = ZERO;
                     const REAL residual = select(distance - observation, ZERO, isnan(observation));
                     squaredResidual = residual * residual;
 
