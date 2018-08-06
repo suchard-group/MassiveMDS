@@ -122,8 +122,8 @@ public:
     		dTruncations = mm::GPUMemoryManager<RealType>(truncations.size(), ctx);
     		dStoredTruncations = mm::GPUMemoryManager<RealType>(storedTruncations.size(), ctx);
     	}
-    	
-		createOpenCLKernels();    	
+
+		createOpenCLKernels();
     }
 
     virtual ~OpenCLMultiDimensionalScaling() override {
@@ -357,15 +357,15 @@ public:
 			}
 		}
     }
-    
+
     double getSumOfIncrements() override {
     	if (!sumOfIncrementsKnown) {
 			computeResidualsAndTruncations();
 			sumOfIncrementsKnown = true;
 		}
-		if (isLeftTruncated) {			
+		if (isLeftTruncated) {
 			return sumOfSquaredResiduals;
-		} else {		
+		} else {
 			return 0.5 * precision * sumOfSquaredResiduals;
 		}
  	}    // TODO Duplicated code with CPU version; there is a problem here?
@@ -476,12 +476,12 @@ public:
     	auto tmp1 = storedLocationsPtr;
     	storedLocationsPtr = locationsPtr;
     	locationsPtr = tmp1;
-    	
+
     	// COMPUTE
     	auto tmp2 = dStoredLocationsPtr;
     	dStoredLocationsPtr = dLocationsPtr;
     	dLocationsPtr = tmp2;
-    	
+
     }
 
     void setPairwiseData(double* data, size_t length) override {
@@ -876,15 +876,15 @@ public:
 			static double cdf(double);
 
 			static double cdf(double value) {
-	    		return 0.5 * erfc(-value * M_SQRT1_2); 
+	    		return 0.5 * erfc(-value * M_SQRT1_2);
 	    	}
 		);
 
 		const char cdfString1Float[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
 			static float cdf(float);
 
-			static float cdf(float value) {	   
-			
+			static float cdf(float value) {
+
 				const float rSqrt2f = 0.70710678118655f;
 	    		return 0.5f * erfc(-value * rSqrt2f);
 	    	}
@@ -940,15 +940,15 @@ public:
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
 			options << " -DREAL=double -DREAL_VECTOR=double -DBOOLEAN=long" << OpenCLRealType::dim
                     << " -DZERO=0.0 -DHALF=0.5";
-			
+
 			if (isLeftTruncated) {
 				code << cdfString1Double;
 			}
-			
+
 		} else { // 32-bit fp
 			options << " -DREAL=float -DREAL_VECTOR=float -DBOOLEAN=int" << OpenCLRealType::dim
                     << " -DZERO=0.0f -DHALF=0.5f";
-			
+
 			if (isLeftTruncated) {
 				code << cdfString1Float;
 			}
@@ -1014,8 +1014,8 @@ public:
         code << BOOST_COMPUTE_STRINGIZE_SOURCE(
                     const REAL observation = observations[i * locationCount + j];
 
-                    REAL squaredResidual = 0;
-                    const REAL residual = select(distance - observation, 0.0, isnan(observation));
+                    REAL squaredResidual = ZERO;
+                    const REAL residual = select(distance - observation, ZERO, isnan(observation));
                     squaredResidual = residual * residual;
 
 //                    if (!isnan(observation)) {
