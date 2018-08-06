@@ -79,7 +79,9 @@ public:
 			device = devices[deviceNumber];
 		}
 
-		std::cerr << "Using: " << device.name() << std::endl;
+        device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
+
+        std::cerr << "Using: " << device.name() << std::endl;
 
 		ctx = boost::compute::context(device, 0);
 		queue = boost::compute::command_queue{ctx, device
@@ -366,7 +368,7 @@ public:
 		} else {		
 			return 0.5 * precision * sumOfSquaredResiduals;
 		}
- 	}    // TODO Duplicated code with CPU version
+ 	}    // TODO Duplicated code with CPU version; there is a problem here?
 
  	double getSumOfLogTruncations() {
     	if (!sumOfIncrementsKnown) {
@@ -568,7 +570,7 @@ public:
 		kernelSumOfSquaredResidualsVector.set_arg(0, *dLocationsPtr);
 
 		if (isLeftTruncated) {
-			kernelSumOfSquaredResidualsVector.set_arg(3, static_cast<RealType>(precision));		
+			kernelSumOfSquaredResidualsVector.set_arg(3, static_cast<RealType>(precision));
 			kernelSumOfSquaredResidualsVector.set_arg(4, static_cast<RealType>(oneOverSd));
 		}
 
@@ -957,6 +959,7 @@ public:
 			"  						   __global const REAL *observations,      \n" <<
 			"						   __global REAL *squaredResiduals,        \n";
 
+
 		if (isLeftTruncated) {
 			code <<
             "                          const REAL precision,                   \n" <<
@@ -1047,6 +1050,7 @@ public:
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dLocations0); // Must update
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dObservations);
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dSquaredResiduals);
+
 		if (isLeftTruncated) {
 // 			kernelSumOfSquaredResidualsVector.set_arg(index++, dTruncations);
 			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(precision)); // Must update
@@ -1135,7 +1139,7 @@ public:
 #ifdef USE_VECTOR
 			 code << reduce::ReduceBody1<RealType,false>::body(); // TODO Try NVIDIA version at some point
 #else
-		code << (isNvidia ? ReduceBody2<RealType,true>::body() : ReduceBody2<RealType,false>::body());
+		code << (isNvidia ? reduce::ReduceBody2<RealType,true>::body() : reduce::ReduceBody2<RealType,false>::body());
 #endif
 		code <<
 			 "   barrier(CLK_LOCAL_MEM_FENCE);                                       \n" <<
