@@ -671,7 +671,7 @@ public:
 
 		//
 
-    	lSumOfSquaredResiduals /= 2.0;
+    	//lSumOfSquaredResiduals /= 2.0;
     	sumOfSquaredResiduals = lSumOfSquaredResiduals;
 
 //     	if (withTruncation) {
@@ -939,7 +939,7 @@ public:
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
 			options << " -DREAL=double -DREAL_VECTOR=double -DBOOLEAN=long" << OpenCLRealType::dim
-                    << " -DZERO=0.0 -DHALF=0.5";
+                    << " -DZERO=0.0 -DONE=1.0 -DTWO=2.0 -DHALF=0.5 -DPI=M_PI";
 
 			if (isLeftTruncated) {
 				code << cdfString1Double;
@@ -947,7 +947,7 @@ public:
 
 		} else { // 32-bit fp
 			options << " -DREAL=float -DREAL_VECTOR=float -DBOOLEAN=int" << OpenCLRealType::dim
-                    << " -DZERO=0.0f -DHALF=0.5f";
+                    << " -DZERO=0.0f -DONE=1.0f -DTWO=2.0f -DHALF=0.5f -DPI=3.1415926535897f";
 
 			if (isLeftTruncated) {
 				code << cdfString1Float;
@@ -990,7 +990,7 @@ public:
 
 				barrier(CLK_LOCAL_MEM_FENCE);
 
-				if (i < locationCount && j < locationCount) {
+				if (j < locationCount && i < locationCount && i < j) { //AH added i<j
 
                     const REAL_VECTOR difference = tile[1][get_local_id(1)] - tile[0][get_local_id(0)];
                     // 						locations[i] - locations[j]
@@ -1016,7 +1016,8 @@ public:
 
                     REAL squaredResidual = ZERO;
                     const REAL residual = select(distance - observation, ZERO, isnan(observation));
-                    squaredResidual = residual * residual;
+//                    const REAL integrationConst = log(TWO * PI);
+                    squaredResidual = residual * residual;// + integrationConst;
 
 //                    if (!isnan(observation)) {
 //                        const REAL residual = (distance - observation);
@@ -1035,7 +1036,7 @@ public:
 		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 			 		squaredResiduals[i * locationCount + j] = squaredResidual;
 				}
-			}
+            }
 		);
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
