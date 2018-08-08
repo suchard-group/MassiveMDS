@@ -451,7 +451,7 @@ public:
 		
 			RealType lSumOfSquaredResiduals{0};
 
-			for (int j = i+1; j < locationCount; ++j) { // was j=0, changed by AH
+			for (int j = 0; j < locationCount; ++j) {
 
 				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
 					begin(*locationsPtr) + i * embeddingDimension,
@@ -485,7 +485,7 @@ public:
 		
 		double lSumOfSquaredResiduals = delta;
 
-    	//lSumOfSquaredResiduals /= 2.0;
+    	lSumOfSquaredResiduals /= 2.0;
     	sumOfIncrements = lSumOfSquaredResiduals;
 
 	    incrementsKnown = true;

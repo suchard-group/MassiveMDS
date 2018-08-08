@@ -671,7 +671,7 @@ public:
 
 		//
 
-    	//lSumOfSquaredResiduals /= 2.0;
+    	lSumOfSquaredResiduals /= 2.0;
     	sumOfSquaredResiduals = lSumOfSquaredResiduals;
 
 //     	if (withTruncation) {
@@ -990,7 +990,7 @@ public:
 
 				barrier(CLK_LOCAL_MEM_FENCE);
 
-				if (j < locationCount && i < locationCount && i < j) { //AH added i<j
+				if (j < locationCount && i < locationCount) {
 
                     const REAL_VECTOR difference = tile[1][get_local_id(1)] - tile[0][get_local_id(0)];
                     // 						locations[i] - locations[j]
