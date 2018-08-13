@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 	po::options_description desc("Allowed options");
 	desc.add_options()
             ("help", "produce help message")
-            ("gpu", "run on first GPU") // TODO Allow specification of other devices
+            ("gpu", po::value<int>()->default_value(0), "number of GPU on which to run")
             ("tbb", po::value<int>()->default_value(0), "use TBB with specified number of threads")
             ("float", "run in single-precision")
             ("truncation", "enable truncation")
@@ -76,9 +76,11 @@ int main(int argc, char* argv[]) {
 	
 	std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
 
-	if (vm.count("gpu")) {
+    int deviceNumber = -1;
+	if (vm["gpu"].as<int>() > 0) {
 		std::cout << "Running on GPU" << std::endl;
 		flags |= mds::Flags::OPENCL;
+        deviceNumber = vm["gpu"].as<int>() - 1;
 	} else {
 		std::cout << "Running on CPU" << std::endl;
 		
@@ -108,7 +110,7 @@ int main(int argc, char* argv[]) {
 
 	bool internalDimension = vm.count("internal");
 
-	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags, -1);
+	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags, deviceNumber);
 
 	bool missing = vm.count("missing");
 	if (missing) {
