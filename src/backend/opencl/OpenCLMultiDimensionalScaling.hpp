@@ -2,6 +2,7 @@
 #define _OPENCL_MULTIDIMENSIONAL_SCALING_HPP
 
 #include <iostream>
+#include <cmath>
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
@@ -25,6 +26,8 @@
 #define DELTA 1;
 
 #define USE_VECTOR
+
+//#define DEBUG_KERNELS
 
 #include "OpenCLMemoryManagement.hpp"
 #include "Reducer.hpp"
@@ -79,7 +82,7 @@ public:
 			device = devices[deviceNumber];
 		}
 
-        device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
+        //device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
 
         std::cerr << "Using: " << device.name() << std::endl;
 
@@ -540,7 +543,7 @@ public:
 					begin(*locationsPtr) + i * OpenCLRealType::dim,
 					begin(*locationsPtr) + j * OpenCLRealType::dim
 				);
-				const auto residual = !isnan(observations[i * locationCount + j]) *
+				const auto residual = !std::isnan(observations[i * locationCount + j]) *
 				        (distance - observations[i * locationCount + j]);
 				const auto squaredResidual = residual * residual;
 				squaredResiduals[i * locationCount + j] = squaredResidual;
@@ -710,7 +713,7 @@ public:
                     offset + OpenCLRealType::dim * j
                 );
 
-                const auto residual = !isnan(observations[i * locationCount + j]) * // Andrew's not sure...
+                const auto residual = !std::isnan(observations[i * locationCount + j]) * // Andrew's not sure...
                         (distance - observations[i * locationCount + j]);
                 const auto squaredResidual = residual * residual;
 
@@ -755,7 +758,7 @@ public:
                     offset + OpenCLRealType::dim * j
                 );
 
-                const auto residual = !isnan(observations[i * locationCount + j]) * // Andrew's not sure...
+                const auto residual = !std::isnan(observations[i * locationCount + j]) * // Andrew's not sure...
                                       (distance - observations[i * locationCount + j]);
                 const auto squaredResidual = residual * residual;
 
@@ -938,16 +941,16 @@ public:
 
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-			options << " -DREAL=double -DREAL_VECTOR=double -DBOOLEAN=long" << OpenCLRealType::dim
-                    << " -DZERO=0.0 -DONE=1.0 -DTWO=2.0 -DHALF=0.5 -DPI=M_PI";
+			options << " -DREAL=double -DREAL_VECTOR=double" << OpenCLRealType::dim << " -DCAST=long"
+                    << " -DZERO=0.0 -DHALF=0.5";
 
 			if (isLeftTruncated) {
 				code << cdfString1Double;
 			}
 
 		} else { // 32-bit fp
-			options << " -DREAL=float -DREAL_VECTOR=float -DBOOLEAN=int" << OpenCLRealType::dim
-                    << " -DZERO=0.0f -DONE=1.0f -DTWO=2.0f -DHALF=0.5f -DPI=3.1415926535897f";
+			options << " -DREAL=float -DREAL_VECTOR=float" << OpenCLRealType::dim << " -DCAST=int"
+                    << " -DZERO=0.0f -DHALF=0.5f";
 
 			if (isLeftTruncated) {
 				code << cdfString1Float;
@@ -990,7 +993,7 @@ public:
 
 				barrier(CLK_LOCAL_MEM_FENCE);
 
-				if (j < locationCount && i < locationCount) {
+				if (i < locationCount && j < locationCount) {
 
                     const REAL_VECTOR difference = tile[1][get_local_id(1)] - tile[0][get_local_id(0)];
                     // 						locations[i] - locations[j]
@@ -1009,15 +1012,12 @@ public:
             );
         }
 
-                    // TODO Handle missing values by  `!isnan(observation) * `
-
         code << BOOST_COMPUTE_STRINGIZE_SOURCE(
                     const REAL observation = observations[i * locationCount + j];
 
-                    REAL squaredResidual = ZERO;
-                    const REAL residual = select(distance - observation, ZERO, isnan(observation));
-//                    const REAL integrationConst = log(TWO * PI);
-                    squaredResidual = residual * residual;// + integrationConst;
+                    const REAL residual = select(distance - observation, ZERO, (CAST)isnan(observation));
+                    //const REAL residual = distance - observation;
+                    REAL squaredResidual = residual * residual;
 
 //                    if (!isnan(observation)) {
 //                        const REAL residual = (distance - observation);
@@ -1039,8 +1039,16 @@ public:
             }
 		);
 
+#ifdef DEBUG_KERNELS
+        std::cerr << "Likelihood kernel\n" << code.str() << std::endl;
+#endif
+
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
 	    	kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
+
+#ifdef DEBUG_KERNELS
+        std::cerr << "Successful build." << std::endl;
+#endif
 
 #ifdef DOUBLE_CHECK
 		std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
@@ -1070,7 +1078,7 @@ public:
 
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-			options << " -DREAL=double -DREAL_VECTOR=double" << OpenCLRealType::dim
+			options << " -DREAL=double -DREAL_VECTOR=double" << OpenCLRealType::dim  << " -DCAST=long"
                     << " -DZERO=0.0 -DONE=1.0 -DHALF=0.5";
 
 			if (isLeftTruncated) {
@@ -1078,7 +1086,7 @@ public:
 			}
 
 		} else { // 32-bit fp
-			options << " -DREAL=float -DREAL_VECTOR=float" << OpenCLRealType::dim
+			options << " -DREAL=float -DREAL_VECTOR=float" << OpenCLRealType::dim << " -DCAST=int"
                     << " -DZERO=0.0f -DONE=1.0f -DHALF=0.5f";
 
 			if (isLeftTruncated) {
@@ -1126,10 +1134,9 @@ public:
 
         code <<
              "     const REAL observation = observations[i * locationCount + j];     \n" <<
-             "     const REAL residual = select(distance - observation, 0.0,         \n" <<
-             "              isnan(observation));                                     \n" <<
-             "     REAL contrib = 0;                                                 \n" <<
-             "     contrib = - residual * precision / distance;                      \n" <<
+             "     const REAL residual = select(observation - distance, ZERO,        \n" <<
+             "                                  (CAST)isnan(observation));           \n" <<
+             "     REAL contrib = residual * precision / distance;                   \n" <<
 			 "                                                                       \n" <<
              "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }    \n" <<
 			 "                                                                       \n" <<
@@ -1173,8 +1180,16 @@ public:
 //        exit(-1);
 #endif
 
+#ifdef DEBUG_KERNELS
+        std::cerr << "Build gradient\n" << code.str() << std::endl;
+#endif
+
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
 		kernelGradientVector = boost::compute::kernel(program, "computeGradient");
+
+#ifdef DEBUG_KERNELS
+        std::cerr << "Success" << std::endl;
+#endif
 
 		kernelGradientVector.set_arg(0, dLocations0); // Must update
 		kernelGradientVector.set_arg(1, dObservations);
