@@ -1028,7 +1028,8 @@ public:
 		if (isLeftTruncated) {
 			code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 					squaredResidual *= HALF * precision;
-					const REAL truncation = (i == j) ? ZERO : log(cdf(fabs(distance) * oneOverSd));
+					const REAL truncation = (i == j) ? ZERO :
+					        select(log(cdf(fabs(distance) * oneOverSd)), ZERO, (CAST)isnan(observation));
 					squaredResidual += truncation;
 			);
 		}
