@@ -189,6 +189,10 @@ public:
 		}
     }
 
+	double pdf(double value) { // standard normal density
+		return 0.398942280401432677939946059934 * std::exp( - value * value * 0.5);
+	}
+
     void makeDirty() {
     	sumOfIncrementsKnown = false;
     	incrementsKnown = false;
@@ -253,16 +257,28 @@ public:
                     );
 
                     const RealType observation = observations[i * locationCount + j];
-                    const RealType dataContribution = std::isnan(observation) ?
+                    RealType residual = std::isnan(observation) ?
+                                        RealType(0) :
+                                        observation - distance;
+
+                    if (withTruncation) {
+						const RealType trncDrv = std::isnan(observation) ?
+												 RealType(0) :
+												 pdf(distance * sqrt(scale)) /
+												 (std::exp(math::phi2<NewMultiDimensionalScaling>(distance * sqrt(scale))) * sqrt(scale));
+						residual = residual + trncDrv;
+                    }
+
+                    RealType dataContribution = std::isnan(observation) ?
                                                       RealType(0) :
-                                                      (observation - distance) * scale / distance;
+                                                      residual * scale / distance;
 
                     for (int d = 0; d < dim; ++d) {
                         const RealType update = dataContribution *
                                 ((*locationsPtr)[i * dim + d] - (*locationsPtr)[j * dim + d]);
 
                         if (withTruncation) {
-                            // TODO
+                            // TODO probably nothing right here
                         }
 
                         gradient[i * dim + d] += update;
@@ -301,9 +317,19 @@ public:
 					);
 
                     const RealType observation = observations[i * locationCount + j];
-					const RealType dataContribution = std::isnan(observation) ?
-                                                      RealType(0) :
-                                                      (observation - distance) * scale / distance;
+					RealType residual = std::isnan(observation) ?
+										RealType(0) :
+										observation - distance;
+
+					if (withTruncation) {
+						const RealType trncDrv = std::isnan(observation) ?
+												 RealType(0) :
+												 pdf(distance * sqrt(scale)) /
+												 (std::exp(math::phi2<NewMultiDimensionalScaling>(distance * sqrt(scale))) * sqrt(scale));
+						residual = residual + trncDrv;
+					}
+
+					const RealType dataContribution = residual * scale / distance;
 
 					const RealType update0 = dataContribution *
 						((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
