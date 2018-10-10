@@ -1072,6 +1072,43 @@ public:
 
 	void createOpenCLGradientKernel() {
 
+        const char cdfString1Double[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+                static double cdf(double);
+
+                static double cdf(double value) {
+                    return 0.5 * erfc(-value * M_SQRT1_2);
+                }
+        );
+
+        const char pdfString1Double[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+                static double pdf(double);
+
+                static double pdf(double value) {
+                    return 0.5 * M_SQRT1_2 * M_2_SQRTPI * exp( - pow(value,2.0) * 0.5);
+                }
+        );
+
+        const char cdfString1Float[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+                static float cdf(float);
+
+                static float cdf(float value) {
+
+                    const float rSqrt2f = 0.70710678118655f;
+                    return 0.5f * erfc(-value * rSqrt2f);
+                }
+        );
+
+        const char pdfString1Float[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
+                static float pdf(float);
+
+                static float pdf(float value) {
+
+                    const float rSqrt2f = 0.70710678118655f;
+                    const float rSqrtPif = 0.56418958354775f;
+                    return rSqrt2f * rSqrtPif * exp( - pow(value,2.0f) * 0.5f);
+                }
+        );
+
 		std::stringstream code;
 		std::stringstream options;
 
@@ -1083,7 +1120,8 @@ public:
                     << " -DZERO=0.0 -DONE=1.0 -DHALF=0.5";
 
 			if (isLeftTruncated) {
-				//code << cdfString1Double;
+				code << cdfString1Double;
+                code << pdfString1Double;
 			}
 
 		} else { // 32-bit fp
@@ -1091,7 +1129,8 @@ public:
                     << " -DZERO=0.0f -DONE=1.0f -DHALF=0.5f";
 
 			if (isLeftTruncated) {
-//				code << cdfString1Float;
+				code << cdfString1Float;
+				code << pdfString1Float;
 			}
 		}
 
@@ -1135,8 +1174,19 @@ public:
 
         code <<
              "     const REAL observation = observations[i * locationCount + j];     \n" <<
-             "     const REAL residual = select(observation - distance, ZERO,        \n" <<
-             "                                  (CAST)isnan(observation));           \n" <<
+             "     REAL residual = select(observation - distance, ZERO,              \n" <<
+             "                                  (CAST)isnan(observation));           \n";
+
+        if (isLeftTruncated) {
+            code << "     const REAL trncDrv = select(ONE / sqrt(precision) *        \n" <<
+                    "                              pdf(distance * sqrt(precision)) / \n" <<
+                    "                              cdf(distance * sqrt(precision)),  \n" <<
+                    "                                 ZERO,                          \n" <<
+                    "                                 (CAST)isnan(observation));     \n" <<
+                    "     residual += trncDrv;                                       \n";
+        }
+
+        code <<
              "     REAL contrib = residual * precision / distance;                   \n" <<
 			 "                                                                       \n" <<
              "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }    \n" <<
