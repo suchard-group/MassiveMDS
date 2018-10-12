@@ -76,6 +76,10 @@ public:
 		    std::cerr << "\t" << device.name() << std::endl;
 		}
 
+		if(flags & Flags::EGPU){
+			deviceNumber = 2;
+		}
+
 		if (deviceNumber < 0 || deviceNumber >= devices.size()) {
 			device = boost::compute::system::default_device();
 		} else {
@@ -1178,7 +1182,7 @@ public:
              "                                  (CAST)isnan(observation));           \n";
 
         if (isLeftTruncated) {
-            code << "     const REAL trncDrv = select(ONE / sqrt(precision) *        \n" <<
+            code << "     const REAL trncDrv = select(ONE / sqrt(precision) *        \n" << // TODO speed up this part
                     "                              pdf(distance * sqrt(precision)) / \n" <<
                     "                              cdf(distance * sqrt(precision)),  \n" <<
                     "                                 ZERO,                          \n" <<
