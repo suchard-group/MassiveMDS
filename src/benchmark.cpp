@@ -2,6 +2,7 @@
 #include <chrono>
 #include <random>
 #include <iostream>
+#include <fstream>
 
 #include <boost/program_options.hpp>
 #include <tbb/task_scheduler_init.h>
@@ -13,7 +14,7 @@ int cnt = 0;
 
 template <typename T, typename PRNG, typename D>
 void generateLocation(T& locations, D& d, PRNG& prng) {
-    int i = cnt++;
+    //int i = cnt++;
 	for (auto& location : locations) {
 		location = d(prng);
 //        location = i++;
@@ -33,8 +34,8 @@ int main(int argc, char* argv[]) {
             ("tbb", po::value<int>()->default_value(0), "use TBB with specified number of threads")
             ("float", "run in single-precision")
             ("truncation", "enable truncation")
-            ("iterations", po::value<int>()->default_value(10), "number of iterations")
-            ("locations", po::value<int>()->default_value(6000), "number of locations")
+            ("iterations", po::value<int>()->default_value(1), "number of iterations")
+            ("locations", po::value<int>()->default_value(3), "number of locations")
             ("dimension", po::value<int>()->default_value(2), "number of dimensions")
 			("internal", "use internal dimension")
 			("missing", "allow for missing entries")
@@ -266,7 +267,13 @@ int main(int argc, char* argv[]) {
 // 	std::cout << "AveLogTru = " << logTrunc << std::endl;
 	std::cout << timer  << " ms" << std::endl;
     std::cout << timer2 << " ms" << std::endl;
+
 	std::cout << std::chrono::duration<double, std::milli> (duration).count() << " ms "
 			  << std::endl;
+
+	std::ofstream outfile;
+	outfile.open("time_by_dim.txt",std::ios_base::app);
+    outfile << deviceNumber << " " << dataDimension << " " << iterations << " " << timer << " " << timer2 << "\n" ;
+	outfile.close();
 
 }
