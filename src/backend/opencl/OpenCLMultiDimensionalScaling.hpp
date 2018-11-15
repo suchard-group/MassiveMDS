@@ -1182,7 +1182,7 @@ public:
              "                                  (CAST)isnan(observation));           \n";
 
         if (isLeftTruncated) {
-            code << "     const REAL trncDrv = select(ONE / sqrt(precision) *        \n" << // TODO speed up this part
+            code << "     const REAL trncDrv = select(-ONE / sqrt(precision) *        \n" << // TODO speed up this part
                     "                              pdf(distance * sqrt(precision)) / \n" <<
                     "                              cdf(distance * sqrt(precision)),  \n" <<
                     "                                 ZERO,                          \n" <<

@@ -324,7 +324,7 @@ public:
 					if (withTruncation) {
 						const RealType trncDrv = std::isnan(observation) ?
 												 RealType(0) :
-												 pdf(distance * sqrt(scale)) /
+												 -pdf(distance * sqrt(scale)) /
 												 (std::exp(math::phi2<NewMultiDimensionalScaling>(distance * sqrt(scale))) * sqrt(scale));
 						residual = residual + trncDrv;
 					}
