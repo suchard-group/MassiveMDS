@@ -78,6 +78,7 @@ int main(int argc, char* argv[]) {
 	std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
 
     int deviceNumber = -1;
+    int threads = 0;
 	if (vm["gpu"].as<int>() > 0) {
 		std::cout << "Running on GPU" << std::endl;
 		flags |= mds::Flags::OPENCL;
@@ -85,7 +86,7 @@ int main(int argc, char* argv[]) {
 	} else {
 		std::cout << "Running on CPU" << std::endl;
 		
-		int threads = vm["tbb"].as<int>();
+		threads = vm["tbb"].as<int>();
 		if (threads != 0) {
 			std::cout << "Using TBB with " << threads << " out of " 
 			          << tbb::task_scheduler_init::default_num_threads()
@@ -272,8 +273,8 @@ int main(int argc, char* argv[]) {
 			  << std::endl;
 
 	std::ofstream outfile;
-	outfile.open("time_by_dim.txt",std::ios_base::app);
-    outfile << deviceNumber << " " << dataDimension << " " << iterations << " " << timer << " " << timer2 << "\n" ;
+	outfile.open("report.txt",std::ios_base::app);
+    outfile << deviceNumber << " " << threads << " " << locationCount << " " << embeddingDimension << " " << iterations << " " << timer << " " << timer2 << "\n" ;
 	outfile.close();
 
 }
