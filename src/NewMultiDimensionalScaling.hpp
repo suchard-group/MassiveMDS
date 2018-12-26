@@ -40,7 +40,54 @@ public:
     		isLeftTruncated = true;
     		std::cout << "Using left truncation" << std::endl;
     	}
+
+        if (flags & mds::Flags::TBB2) {
+            std::cout << "Using 2 threads" << std::endl;
+			std::make_shared<tbb::task_scheduler_init>(2);
+    	}
+
+        if (flags & mds::Flags::TBB3) {
+            std::cout << "Using 3 threads" << std::endl;
+            std::make_shared<tbb::task_scheduler_init>(3);
+        }
+
+        if (flags & mds::Flags::TBB4) {
+            std::cout << "Using 4 threads" << std::endl;
+            std::make_shared<tbb::task_scheduler_init>(4);
+        }
+
+        if (flags & mds::Flags::TBB5) {
+            std::cout << "Using 5 threads" << std::endl;
+            std::make_shared<tbb::task_scheduler_init>(5);
+        }
+
+        if (flags & mds::Flags::TBB6) {
+            std::cout << "Using 6 threads" << std::endl;
+            std::make_shared<tbb::task_scheduler_init>(6);
+        }
+
+        if (flags & mds::Flags::TBB7) {
+            std::cout << "Using 7 threads" << std::endl;
+            std::make_shared<tbb::task_scheduler_init>(7);
+        }
+
+        if (flags & mds::Flags::TBB8) {
+            std::cout << "Using 8 threads" << std::endl;
+            std::make_shared<tbb::task_scheduler_init>(8);
+        }
+
+        if (flags & mds::Flags::TBB9) {
+            std::cout << "Using 9 threads" << std::endl;
+            std::make_shared<tbb::task_scheduler_init>(9);
+        }
+
+        if (flags & mds::Flags::TBB10) {
+            std::cout << "Using 10 threads" << std::endl;
+            std::make_shared<tbb::task_scheduler_init>(10);
+        }
     }
+
+
 
     virtual ~NewMultiDimensionalScaling() { }
 
