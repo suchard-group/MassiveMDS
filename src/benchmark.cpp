@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
 
 	bool internalDimension = vm.count("internal");
 
-	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags, deviceNumber);
+	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags, deviceNumber, threads);
 
 	bool missing = vm.count("missing");
 	if (missing) {

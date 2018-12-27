@@ -13,7 +13,7 @@ namespace mds {
 template <typename RealType, typename ParallelType>
 class NewMultiDimensionalScaling : public AbstractMultiDimensionalScaling {
 public:
-    NewMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags)
+    NewMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int threads)
         : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
           precision(0.0), storedPrecision(0.0),
           oneOverSd(0.0), storedOneOverSd(0.0),
@@ -41,50 +41,13 @@ public:
     		std::cout << "Using left truncation" << std::endl;
     	}
 
-        if (flags & mds::Flags::TBB2) {
-            std::cout << "Using 2 threads" << std::endl;
-			std::make_shared<tbb::task_scheduler_init>(2);
+        if (flags & mds::Flags::TBB) {
+    		if (threads==0) {
+    			threads = tbb::task_scheduler_init::default_num_threads();
+    		}
+            std::cout << "Using " << threads << " threads" << std::endl;
+			std::make_shared<tbb::task_scheduler_init>(threads);
     	}
-
-        if (flags & mds::Flags::TBB3) {
-            std::cout << "Using 3 threads" << std::endl;
-            std::make_shared<tbb::task_scheduler_init>(3);
-        }
-
-        if (flags & mds::Flags::TBB4) {
-            std::cout << "Using 4 threads" << std::endl;
-            std::make_shared<tbb::task_scheduler_init>(4);
-        }
-
-        if (flags & mds::Flags::TBB5) {
-            std::cout << "Using 5 threads" << std::endl;
-            std::make_shared<tbb::task_scheduler_init>(5);
-        }
-
-        if (flags & mds::Flags::TBB6) {
-            std::cout << "Using 6 threads" << std::endl;
-            std::make_shared<tbb::task_scheduler_init>(6);
-        }
-
-        if (flags & mds::Flags::TBB7) {
-            std::cout << "Using 7 threads" << std::endl;
-            std::make_shared<tbb::task_scheduler_init>(7);
-        }
-
-        if (flags & mds::Flags::TBB8) {
-            std::cout << "Using 8 threads" << std::endl;
-            std::make_shared<tbb::task_scheduler_init>(8);
-        }
-
-        if (flags & mds::Flags::TBB9) {
-            std::cout << "Using 9 threads" << std::endl;
-            std::make_shared<tbb::task_scheduler_init>(9);
-        }
-
-        if (flags & mds::Flags::TBB10) {
-            std::cout << "Using 10 threads" << std::endl;
-            std::make_shared<tbb::task_scheduler_init>(10);
-        }
     }
 
 
@@ -930,27 +893,27 @@ private:
 
 // factory
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDoubleNoParallel(int embeddingDimension, int locationCount, long flags) {
+constructNewMultiDimensionalScalingDoubleNoParallel(int embeddingDimension, int locationCount, long flags, int threads) {
 	std::cerr << "DOUBLE, NO PARALLEL" << std::endl;
-	return std::make_shared<NewMultiDimensionalScaling<double, CpuAccumulate>>(embeddingDimension, locationCount, flags);
+	return std::make_shared<NewMultiDimensionalScaling<double, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDoubleTbb(int embeddingDimension, int locationCount, long flags) {
+constructNewMultiDimensionalScalingDoubleTbb(int embeddingDimension, int locationCount, long flags, int threads) {
 	std::cerr << "DOUBLE, TBB PARALLEL" << std::endl;
-	return std::make_shared<NewMultiDimensionalScaling<double, TbbAccumulate>>(embeddingDimension, locationCount, flags);
+	return std::make_shared<NewMultiDimensionalScaling<double, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloatNoParallel(int embeddingDimension, int locationCount, long flags) {
+constructNewMultiDimensionalScalingFloatNoParallel(int embeddingDimension, int locationCount, long flags, int threads) {
 	std::cerr << "SINGLE, NO PARALLEL" << std::endl;
-	return std::make_shared<NewMultiDimensionalScaling<float, CpuAccumulate>>(embeddingDimension, locationCount, flags);
+	return std::make_shared<NewMultiDimensionalScaling<float, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloatTbb(int embeddingDimension, int locationCount, long flags) {
+constructNewMultiDimensionalScalingFloatTbb(int embeddingDimension, int locationCount, long flags, int threads) {
 	std::cerr << "SINGLE, TBB PARALLEL" << std::endl;
-	return std::make_shared<NewMultiDimensionalScaling<float, TbbAccumulate>>(embeddingDimension, locationCount, flags);
+	return std::make_shared<NewMultiDimensionalScaling<float, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 } // namespace mds

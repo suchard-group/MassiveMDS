@@ -45,7 +45,14 @@ void bufferedCopy(double *begin, double *end,
 template <typename Buffer>
 void bufferedCopy(double *begin, double *end,
 		mm::MemoryManager<float>::iterator destination, Buffer& buffer) {
-	std::copy(begin, end, destination);
+    for (; begin != end; ++begin, ++destination) {
+        if (isnan(*begin)) {
+            *destination = NAN;
+        } else {
+            *destination = *begin;
+        }
+    }
+//	std::copy(begin, end, destination);
 }
 
 template <typename RealVectorPtr, typename Buffer>
