@@ -46,7 +46,7 @@ template <typename Buffer>
 void bufferedCopy(double *begin, double *end,
 		mm::MemoryManager<float>::iterator destination, Buffer& buffer) {
     for (; begin != end; ++begin, ++destination) {
-        if (isnan(*begin)) {
+        if (std::isnan(*begin)) {
             *destination = NAN;
         } else {
             *destination = *begin;
