@@ -471,14 +471,14 @@ public:
 									std::vector<RealType> distance(2);
 									std::vector<RealType> squaredResiduals(2);
 
-									distance[1] = distance1*oneOverSd;
-									distance[2] = distance2*oneOverSd;
-									squaredResiduals[1] = squaredResidual1;
-									squaredResiduals[2] = squaredResidual2;
+									distance[0] = distance1*oneOverSd;
+									distance[1] = distance2*oneOverSd;
+									squaredResiduals[0] = squaredResidual1;
+									squaredResiduals[1] = squaredResidual2;
+									squaredResiduals[0] += math::phi2<NewMultiDimensionalScaling>(distance[0]);
 									squaredResiduals[1] += math::phi2<NewMultiDimensionalScaling>(distance[1]);
-									squaredResiduals[2] += math::phi2<NewMultiDimensionalScaling>(distance[2]);
-									increments[i * locationCount + j] = squaredResiduals[1];
-									increments[i * locationCount + j+1] = squaredResiduals[2];
+									increments[i * locationCount + j] = squaredResiduals[0];
+									increments[i * locationCount + j+1] = squaredResiduals[1];
 
 									lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
 
