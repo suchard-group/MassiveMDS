@@ -2,6 +2,7 @@
 #define _NEWMULTIDIMENSIONALSCALING_HPP
 
 #include <numeric>
+#include <simd/math.h>
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
@@ -436,31 +437,130 @@ public:
 
                     RealType lSumOfSquaredResiduals{0};
 
-                    for (int j = 0; j < locationCount; ++j) {
+                    for (int j = 0; j < locationCount-1; j+=2) {
 
-                        const auto distance = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
+                        const auto distance1 = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
                                 begin(*locationsPtr) + i * embeddingDimension,
                                 begin(*locationsPtr) + j * embeddingDimension,
                                 embeddingDimension
                         );
+						const auto distance2 = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
+								begin(*locationsPtr) + i * embeddingDimension,
+								begin(*locationsPtr) + (j+1) * embeddingDimension,
+								embeddingDimension
+						);
 
-                        const auto observation = observations[i * locationCount + j];
-                        auto squaredResidual = RealType(0);
+                        const auto observation1 = observations[i * locationCount + j];
+						const auto observation2 = observations[i * locationCount + (j+1)];
 
-                        if (!std::isnan(observation)) {
-                            const auto residual = distance - observation;
-                            squaredResidual = residual * residual;
+						auto squaredResidual1 = RealType(0);
+						auto squaredResidual2 = RealType(0);
 
-                            if (withTruncation) {
-                                squaredResidual = scale * squaredResidual;
-                                if (i != j) {
-                                    squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
-                                }
-                            }
-                        }
+						if (!std::isnan(observation1) & !std::isnan(observation2)) {
+                            const auto residual1 = distance1 - observation1;
+							const auto residual2 = distance2 - observation2;
+							squaredResidual1 = residual1 * residual1;
+							squaredResidual2 = residual2 * residual2;
 
-                        increments[i * locationCount + j] = squaredResidual;
-                        lSumOfSquaredResiduals += squaredResidual;
+							if (withTruncation) {
+                                squaredResidual1 = scale * squaredResidual1;
+								squaredResidual2 = scale * squaredResidual2;
+								if (i != j & i != j+1 ) {
+
+									std::vector<RealType> distance(2);
+									std::vector<RealType> squaredResiduals(2);
+
+									distance[1] = distance1*oneOverSd;
+									distance[2] = distance2*oneOverSd;
+									squaredResiduals[1] = squaredResidual1;
+									squaredResiduals[2] = squaredResidual2;
+									squaredResiduals[1] += math::phi2<NewMultiDimensionalScaling>(distance[1]);
+									squaredResiduals[2] += math::phi2<NewMultiDimensionalScaling>(distance[2]);
+									increments[i * locationCount + j] = squaredResiduals[1];
+									increments[i * locationCount + j+1] = squaredResiduals[2];
+									for (auto& n : squaredResiduals)
+										lSumOfSquaredResiduals += n;
+
+								} else { // else i != j & i != j+1
+
+									if (i == j) { // find which one = i and only increment the other one
+										squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2 * oneOverSd);
+									} else {
+										squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd);
+									}
+									increments[i * locationCount + j] = squaredResidual1;
+									increments[i * locationCount + j+1] = squaredResidual2;
+									lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
+
+								}
+                            } else { // with truncation
+
+								increments[i * locationCount + j] = squaredResidual1;
+								increments[i * locationCount + j+1] = squaredResidual2;
+								lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
+
+							}
+                        } else { // else !std::isnan(observation1) & !std::isnan(observation2)
+
+							if (!std::isnan(observation1)) {
+								const auto residual = distance1 - observation1;
+								auto squaredResidual = RealType(0);
+
+								squaredResidual = residual * residual;
+								if (withTruncation) {
+									squaredResidual = scale * squaredResidual;
+									if (i != j) {
+										squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd);
+									}
+								}
+
+								increments[i * locationCount + j] = squaredResidual;
+								lSumOfSquaredResiduals += squaredResidual;
+							}
+							if (!std::isnan(observation2)) {
+								const auto residual = distance2 - observation2;
+								auto squaredResidual = RealType(0);
+
+								squaredResidual = residual * residual;
+								if (withTruncation) {
+									squaredResidual = scale * squaredResidual;
+									if (i != j) {
+										squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd);
+									}
+								}
+
+								increments[i * locationCount + j+1] = squaredResidual;
+								lSumOfSquaredResiduals += squaredResidual;
+							}
+
+						}
+                    } // end for
+                    if (locationCount % 2 != 0) { // one more time for individual j = location count - 1
+
+                    	int j = locationCount - 1;
+						const auto distance = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
+								begin(*locationsPtr) + i * embeddingDimension,
+								begin(*locationsPtr) + j * embeddingDimension,
+								embeddingDimension
+						);
+
+						const auto observation = observations[i * locationCount + j];
+						auto squaredResidual = RealType(0);
+
+						if (!std::isnan(observation)) {
+							const auto residual = distance - observation;
+							squaredResidual = residual * residual;
+
+							if (withTruncation) {
+								squaredResidual = scale * squaredResidual;
+								if (i != j) {
+									squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+								}
+							}
+						}
+
+						increments[i * locationCount + j] = squaredResidual;
+						lSumOfSquaredResiduals += squaredResidual;
 
                     }
                     return lSumOfSquaredResiduals;
@@ -584,6 +684,23 @@ public:
 
 		sumOfIncrements += delta;
 	}
+
+//	double phi2(double value) const {
+//		return log(0.5 * erfc(-value * M_SQRT1_2));
+//	}
+//
+//	__m128 phi2(__m128 value) const {
+//		const __m128 scalar = _mm_set1_ps(-M_SQRT1_2);
+//		value = _mm_mul_ps(value, scalar);
+//		return simd::log(0.5 * simd::erfc(value));
+//	}
+//
+//	__m128d phi2(__m128d value) const {
+//		const __m128d scalar = _mm_set1_ps(-M_SQRT1_2);
+//		value = _mm_mul_ps(value, scalar);
+//		return simd::log(0.5 * simd::erfc(value));
+//	}
+
 
 #ifdef SSE
 
@@ -727,6 +844,17 @@ public:
         }
         return std::sqrt(sum);
     }
+
+	template <typename VectorType, typename Iterator>
+	double calculateDistanceGeneric(Iterator x, Iterator y, int length) const {
+		auto sum = static_cast<double>(0);
+
+		for (int i = 0; i < length; ++i, ++x, ++y) {
+			const auto difference = *x - *y;
+			sum += difference * difference;
+		}
+		return std::sqrt(sum);
+	}
 #endif // SSE
 
 // Parallelization helper functions
