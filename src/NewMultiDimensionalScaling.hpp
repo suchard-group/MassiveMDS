@@ -465,6 +465,7 @@ public:
 							if (withTruncation) {
                                 squaredResidual1 = scale * squaredResidual1;
 								squaredResidual2 = scale * squaredResidual2;
+
 								if (i != j & i != j+1 ) {
 
 									std::vector<RealType> distance(2);
@@ -478,8 +479,8 @@ public:
 									squaredResiduals[2] += math::phi2<NewMultiDimensionalScaling>(distance[2]);
 									increments[i * locationCount + j] = squaredResiduals[1];
 									increments[i * locationCount + j+1] = squaredResiduals[2];
-									for (auto& n : squaredResiduals)
-										lSumOfSquaredResiduals += n;
+
+									lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
 
 								} else { // else i != j & i != j+1
 
