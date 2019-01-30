@@ -94,17 +94,9 @@ public:
 
 		if (!incrementsKnown) {
 			if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-                if (embeddingDimension == 2) {
-                    computeSumOfIncrements<true>();
-                } else {
-                    computeSumOfIncrementsGeneric<true>();
-                }
+				computeSumOfIncrementsGeneric<true>();
 			} else {
-                if (embeddingDimension == 2) {
-                    computeSumOfIncrements<false>();
-                } else {
-                    computeSumOfIncrementsGeneric<false>();
-                }
+				computeSumOfIncrementsGeneric<false>();
 			}
 			incrementsKnown = true;
 		} else {
@@ -511,6 +503,7 @@ public:
 	template <bool withTruncation>
 	void computeSumOfIncrements() {
 
+    	assert(false);
         assert (embeddingDimension == 2);
 
 		const RealType scale = 0.5 * precision;
