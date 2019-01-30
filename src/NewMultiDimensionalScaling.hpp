@@ -448,71 +448,29 @@ public:
 								begin(*locationsPtr) + (j+1) * embeddingDimension,
 								embeddingDimension
 						);
-
                         const auto observation1 = observations[i * locationCount + j];
 						const auto observation2 = observations[i * locationCount + (j+1)];
+						const auto residual1    = (std::isnan(observation1) ? RealType(0) : observation1 - distance1) *
+								(i!=j);
+						const auto residual2    = (std::isnan(observation2) ? RealType(0) : observation2 - distance2) *
+								(i!=(j+1));
+						auto squaredResidual1   = residual1 * residual1;
+						auto squaredResidual2   = residual2 * residual2;
 
-						auto squaredResidual1 = RealType(0);
-						auto squaredResidual2 = RealType(0);
+						if (withTruncation) {
+							squaredResidual1 *= scale;
+							squaredResidual2 *= scale;
 
-						if (!std::isnan(observation1) && !std::isnan(observation2)) {
-                            const auto residual1 = distance1 - observation1;
-							const auto residual2 = distance2 - observation2;
-							squaredResidual1 = residual1 * residual1;
-							squaredResidual2 = residual2 * residual2;
-
-							if (withTruncation) {
-                                squaredResidual1 = scale * squaredResidual1;
-								squaredResidual2 = scale * squaredResidual2;
-
-								squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1*oneOverSd) *
-								        (i != j);
-								squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2*oneOverSd) *
-								        (i != (j+1));
-								increments[i * locationCount + j] = squaredResidual1 * (i!=j);
-								increments[i * locationCount + j+1] = squaredResidual2 * (i!=(j+1));
-
-								lSumOfSquaredResiduals += squaredResidual1 * (i != j) + squaredResidual2 * (i!=(j+1));
-
-                            } else { // with truncation
-
-								increments[i * locationCount + j] = squaredResidual1;
-								increments[i * locationCount + j+1] = squaredResidual2;
-								lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
-
-							}
-                        } else { // else !std::isnan(observation1) & !std::isnan(observation2)
-
-							if (!std::isnan(observation1)) {
-								const auto residual = distance1 - observation1;
-								auto squaredResidual = RealType(0);
-
-								squaredResidual = residual * residual;
-								if (withTruncation) {
-									squaredResidual = scale * squaredResidual;
-									squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd) *
-											(i != j);
-								}
-
-								increments[i * locationCount + j] = squaredResidual;
-								lSumOfSquaredResiduals += squaredResidual;
-							}
-							if (!std::isnan(observation2)) {
-								const auto residual = distance2 - observation2;
-								auto squaredResidual = RealType(0);
-
-								squaredResidual = residual * residual;
-								if (withTruncation) {
-									squaredResidual = scale * squaredResidual;
-									squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd) *
-											(i != (j+1));
-								}
-
-								increments[i * locationCount + j+1] = squaredResidual;
-								lSumOfSquaredResiduals += squaredResidual;
-							}
-
+							squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd) *
+												(i != j) * (!std::isnan(observation1));
+							squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2 * oneOverSd) *
+												(i != (j + 1)) * (!std::isnan(observation2));
 						}
+
+						increments[i * locationCount + j] = squaredResidual1;
+						increments[i * locationCount + j+1] = squaredResidual2;
+						lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
+
                     } // end for
                     if (locationCount % 2 != 0) { // one more time for individual j = location count - 1
 
@@ -524,17 +482,14 @@ public:
 						);
 
 						const auto observation = observations[i * locationCount + j];
-						auto squaredResidual = RealType(0);
+						const auto residual    = (std::isnan(observation) ? RealType(0) : observation - distance) *
+												  (i!=j);
+						auto squaredResidual = residual * residual;
 
-						if (!std::isnan(observation)) {
-							const auto residual = distance - observation;
-							squaredResidual = residual * residual;
-
-							if (withTruncation) {
-								squaredResidual = scale * squaredResidual;
-								squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd) *
-								        (i != j);
-							}
+						if (withTruncation) {
+							squaredResidual = scale * squaredResidual;
+							squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd) *
+							        (i != j) * (!std::isnan(observation));
 						}
 
 						increments[i * locationCount + j] = squaredResidual;
