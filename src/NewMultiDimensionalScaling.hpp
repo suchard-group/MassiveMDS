@@ -465,30 +465,15 @@ public:
                                 squaredResidual1 = scale * squaredResidual1;
 								squaredResidual2 = scale * squaredResidual2;
 
-								if (i != j && i != (j+1) ) {
+								squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1*oneOverSd) *
+								        (i != j);
+								squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2*oneOverSd) *
+								        (i != (j+1));
+								increments[i * locationCount + j] = squaredResidual1 * (i!=j);
+								increments[i * locationCount + j+1] = squaredResidual2 * (i!=(j+1));
 
-                                    squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1*oneOverSd);
-                                    squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2*oneOverSd);
-									increments[i * locationCount + j] = squaredResidual1;
-									increments[i * locationCount + j+1] = squaredResidual2;
+								lSumOfSquaredResiduals += squaredResidual1 * (i != j) + squaredResidual2 * (i!=(j+1));
 
-									lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
-
-								} else { // else i != j & i != j+1
-
-									if (i == j) { // find which one = i and only increment the other one
-										squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2 * oneOverSd);
-										increments[i * locationCount + j] = RealType(0);
-										increments[i * locationCount + j+1] = squaredResidual2;
-										lSumOfSquaredResiduals += squaredResidual2;
-									} else {
-										squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd);
-										increments[i * locationCount + j] = squaredResidual1;
-										increments[i * locationCount + j+1] = RealType(0);
-										lSumOfSquaredResiduals += squaredResidual1;
-									}
-
-								}
                             } else { // with truncation
 
 								increments[i * locationCount + j] = squaredResidual1;
@@ -505,9 +490,8 @@ public:
 								squaredResidual = residual * residual;
 								if (withTruncation) {
 									squaredResidual = scale * squaredResidual;
-									if (i != j) {
-										squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd);
-									}
+									squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd) *
+											(i != j);
 								}
 
 								increments[i * locationCount + j] = squaredResidual;
@@ -520,9 +504,8 @@ public:
 								squaredResidual = residual * residual;
 								if (withTruncation) {
 									squaredResidual = scale * squaredResidual;
-									if (i != j) {
-										squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd);
-									}
+									squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd) *
+											(i != (j+1));
 								}
 
 								increments[i * locationCount + j+1] = squaredResidual;
@@ -549,9 +532,8 @@ public:
 
 							if (withTruncation) {
 								squaredResidual = scale * squaredResidual;
-								if (i != j) {
-									squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
-								}
+								squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd) *
+								        (i != j);
 							}
 						}
 
