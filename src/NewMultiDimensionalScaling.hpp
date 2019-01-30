@@ -465,19 +465,12 @@ public:
                                 squaredResidual1 = scale * squaredResidual1;
 								squaredResidual2 = scale * squaredResidual2;
 
-								if (i != j && i != j+1 ) {
+								if (i != j && i != (j+1) ) {
 
-									std::vector<RealType> distance(2);
-									std::vector<RealType> squaredResiduals(2);
-
-									distance[0] = distance1*oneOverSd;
-									distance[1] = distance2*oneOverSd;
-									squaredResiduals[0] = squaredResidual1;
-									squaredResiduals[1] = squaredResidual2;
-									squaredResiduals[0] += math::phi2<NewMultiDimensionalScaling>(distance[0]);
-									squaredResiduals[1] += math::phi2<NewMultiDimensionalScaling>(distance[1]);
-									increments[i * locationCount + j] = squaredResiduals[0];
-									increments[i * locationCount + j+1] = squaredResiduals[1];
+                                    squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1*oneOverSd);
+                                    squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2*oneOverSd);
+									increments[i * locationCount + j] = squaredResidual1;
+									increments[i * locationCount + j+1] = squaredResidual2;
 
 									lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
 
