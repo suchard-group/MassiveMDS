@@ -2,7 +2,6 @@
 #define _NEWMULTIDIMENSIONALSCALING_HPP
 
 #include <numeric>
-#include <simd/math.h>
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
@@ -437,7 +436,7 @@ public:
 
                     RealType lSumOfSquaredResiduals{0};
 
-                    for (int j = 0; j < locationCount-1; j+=2) {
+                    for (int j = 0; j < locationCount-2; j+=2) {
 
                         const auto distance1 = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
                                 begin(*locationsPtr) + i * embeddingDimension,
@@ -456,7 +455,7 @@ public:
 						auto squaredResidual1 = RealType(0);
 						auto squaredResidual2 = RealType(0);
 
-						if (!std::isnan(observation1) & !std::isnan(observation2)) {
+						if (!std::isnan(observation1) && !std::isnan(observation2)) {
                             const auto residual1 = distance1 - observation1;
 							const auto residual2 = distance2 - observation2;
 							squaredResidual1 = residual1 * residual1;
@@ -466,7 +465,7 @@ public:
                                 squaredResidual1 = scale * squaredResidual1;
 								squaredResidual2 = scale * squaredResidual2;
 
-								if (i != j & i != j+1 ) {
+								if (i != j && i != j+1 ) {
 
 									std::vector<RealType> distance(2);
 									std::vector<RealType> squaredResiduals(2);
@@ -486,12 +485,15 @@ public:
 
 									if (i == j) { // find which one = i and only increment the other one
 										squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2 * oneOverSd);
+										increments[i * locationCount + j] = RealType(0);
+										increments[i * locationCount + j+1] = squaredResidual2;
+										lSumOfSquaredResiduals += squaredResidual2;
 									} else {
 										squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd);
+										increments[i * locationCount + j] = squaredResidual1;
+										increments[i * locationCount + j+1] = RealType(0);
+										lSumOfSquaredResiduals += squaredResidual1;
 									}
-									increments[i * locationCount + j] = squaredResidual1;
-									increments[i * locationCount + j+1] = squaredResidual2;
-									lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
 
 								}
                             } else { // with truncation
