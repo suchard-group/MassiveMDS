@@ -436,7 +436,7 @@ public:
 
                     RealType lSumOfSquaredResiduals{0};
 
-                    for (int j = 0; j < locationCount-2; j+=2) {
+                    for (int j = 0; j < locationCount-1; j+=2) {
 
                         const auto distance1 = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
                                 begin(*locationsPtr) + i * embeddingDimension,
