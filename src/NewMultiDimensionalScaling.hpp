@@ -264,18 +264,18 @@ public:
 
 				const auto observation1 = observations[i * locationCount + j];
 				const auto observation2 = observations[i * locationCount + (j + 1)];
-				const auto residual1 = (std::isnan(observation1) ? RealType(0) : observation1 - distance1) *
+				RealType residual1 = (std::isnan(observation1) ? RealType(0) : observation1 - distance1) *
 									   (i != j);
-				const auto residual2 = (std::isnan(observation2) ? RealType(0) : observation2 - distance2) *
+				RealType residual2 = (std::isnan(observation2) ? RealType(0) : observation2 - distance2) *
 									   (i != (j + 1));
 
 				if (withTruncation) {
-					const RealType trncDrv1 = std::isnan(observation1) ?
+					const RealType trncDrv1 = std::isnan(observation1) || i == j?
 											 RealType(0) :
 											 pdf(distance1 * sqrt(scale)) /
 											 (std::exp(math::phi2<NewMultiDimensionalScaling>(distance1 * sqrt(scale))) *
 											  sqrt(scale));
-					const RealType trncDrv2 = std::isnan(observation2) ?
+					const RealType trncDrv2 = std::isnan(observation2) || i == (j+1)?
 											 RealType(0) :
 											 pdf(distance2 * sqrt(scale)) /
 											 (std::exp(math::phi2<NewMultiDimensionalScaling>(distance2 * sqrt(scale))) *
@@ -284,10 +284,10 @@ public:
 					residual2 = residual2 + trncDrv2;
 				}
 
-				RealType dataContribution1 = std::isnan(observation1) ?
+				RealType dataContribution1 = std::isnan(observation1) || (i == j) ?
 											RealType(0) :
 											residual1 * scale / distance1;
-				RealType dataContribution2 = std::isnan(observation2) ?
+				RealType dataContribution2 = std::isnan(observation2) || (i == (j+1)) ?
 											 RealType(0) :
 											 residual2 * scale / distance2;
 
@@ -301,6 +301,40 @@ public:
 					gradient[i * dim + d] += update1 + update2;
 				}
             }
+			if (locationCount % 2 != 0 && i != (locationCount - 1)) { // one more time for individual j = location count - 1
+
+            	int j = locationCount - 1;
+
+				const auto distance = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
+						begin(*locationsPtr) + i * dim,
+						begin(*locationsPtr) + j * dim,
+						dim
+				);
+
+				const auto observation = observations[i * locationCount + j];
+				RealType residual = (std::isnan(observation) ? RealType(0) : observation - distance);
+
+
+				if (withTruncation) {
+					const RealType trncDrv = std::isnan(observation) ?
+											  RealType(0) :
+											  pdf(distance * sqrt(scale)) /
+											  (std::exp(math::phi2<NewMultiDimensionalScaling>(distance * sqrt(scale))) *
+											   sqrt(scale));
+					residual = residual + trncDrv;
+				}
+
+				RealType dataContribution = std::isnan(observation) ?
+											 RealType(0) :
+											 residual * scale / distance;
+
+				for (int d = 0; d < dim; ++d) {
+					const RealType update = dataContribution *
+											 ((*locationsPtr)[i * dim + d] - (*locationsPtr)[j * dim + d]);
+
+					gradient[i * dim + d] += update;
+				}
+			}
         }, ParallelType());
     };
 
