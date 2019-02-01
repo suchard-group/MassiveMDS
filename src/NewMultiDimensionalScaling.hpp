@@ -2,6 +2,7 @@
 #define _NEWMULTIDIMENSIONALSCALING_HPP
 
 #include <numeric>
+#include <xsimd/xsimd.hpp>
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
@@ -672,7 +673,7 @@ public:
 //	__m128d phi2(__m128d value) const {
 //		const __m128d scalar = _mm_set1_ps(-M_SQRT1_2);
 //		value = _mm_mul_ps(value, scalar);
-//		return simd::log(0.5 * simd::erfc(value));
+//		return xsimd::log(0.5 * xsimd::erfc(value));
 //	}
 
 

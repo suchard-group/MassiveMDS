@@ -164,3 +164,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/CPack.txt)
 else(JNI_FOUND)
 	message (WARNING " No JNI found!")
 endif(JNI_FOUND)
+
+# include xsimd headers
+set(XSIMD_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../xsimd-master/include/")
+target_include_directories(mds_opencl INTERFACE ${XSIMD_INCLUDE_DIR})
