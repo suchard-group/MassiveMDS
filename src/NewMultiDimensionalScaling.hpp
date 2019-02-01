@@ -2,8 +2,8 @@
 #define _NEWMULTIDIMENSIONALSCALING_HPP
 
 #include <numeric>
-#include <xsimd/xsimd.hpp>
 
+#include "xsimd/xsimd.hpp"
 #include "AbstractMultiDimensionalScaling.hpp"
 
 //#undef SSE
