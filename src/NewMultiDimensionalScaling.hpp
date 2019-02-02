@@ -3,8 +3,8 @@
 
 #include <numeric>
 #include <vector>
-#include <xsimd/xsimd.hpp>
 
+#include "xsimd/xsimd.hpp"
 #include "AbstractMultiDimensionalScaling.hpp"
 
 //#undef SSE
@@ -115,9 +115,9 @@ public:
 			computeIncrements();
 			sumOfIncrementsKnown = true;
 		}
-		if (isLeftTruncated) {			
+		if (isLeftTruncated) {
 			return sumOfIncrements;
-		} else {		
+		} else {
 			return 0.5 * precision * sumOfIncrements;
 		}
  	}
@@ -349,7 +349,7 @@ public:
 		if (length != gradientPtr->size()) {
 			gradientPtr->resize(length);
 		}
-		
+
 		RealType* gradient = gradientPtr->data();
 		const RealType scale = precision;
 
@@ -582,9 +582,9 @@ public:
 
 		const RealType scale = 0.5 * precision;
 
-		RealType delta = 
+		RealType delta =
 		accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
-		
+
 			RealType lSumOfSquaredResiduals{0};
 
 			for (int j = 0; j < locationCount; ++j) {
@@ -611,14 +611,14 @@ public:
                         }
                     }
                 }
-				
+
 				increments[i * locationCount + j] = squaredResidual;
 				lSumOfSquaredResiduals += squaredResidual;
 
-			}			
+			}
 			return lSumOfSquaredResiduals;
 		}, ParallelType());
-		
+
 		double lSumOfSquaredResiduals = delta;
 
     	lSumOfSquaredResiduals /= 2.0;
@@ -764,7 +764,7 @@ public:
 //
 //        return std::sqrt(sum);
 //    }
-    
+
    template <typename Iterator>
     RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
 
@@ -772,10 +772,10 @@ public:
 
         AlignedValueType* x = &*iX;
         AlignedValueType* y = &*iY;
-        
+
         __m128d xv = _mm_load_pd(x);
         __m128d yv = _mm_load_pd(y);
-        
+
        __m128d diff = _mm_sub_pd(xv, yv);
 
 	   const int mask = 0x31;
@@ -1008,19 +1008,19 @@ private:
 
     mm::MemoryManager<RealType> increments;
     mm::MemoryManager<RealType> storedIncrements;
-    
+
     mm::MemoryManager<RealType> gradient0;
     mm::MemoryManager<RealType> gradient1;
 
     mm::MemoryManager<RealType>* gradientPtr;
     mm::MemoryManager<RealType>* storedGradientPtr;
-    
+
     mm::MemoryManager<double> buffer;
 
     bool isStoredIncrementsEmpty;
-    
+
     int nThreads;
-   
+
 };
 
 // factory
