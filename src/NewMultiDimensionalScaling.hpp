@@ -493,37 +493,34 @@ public:
 
 
 						using b_type = xsimd::simd_type<RealType>;
-                        std::vector<RealType> Distance(2);
-                        Distance.at(0) = distance1;
-                        Distance.at(1) = distance2;
-						const std::vector<RealType> DistanceConst = Distance;
-						b_type distance = xsimd::load_unaligned( &DistanceConst[1] );
+                        b_type distance;
+                        xsimd::load_unaligned( &distance1, distance );
+                        xsimd::load_unaligned( &distance2, distance );
 
-						//using c_type = xsimd::simd_type<int>;
-						std::vector<RealType> NeqI(2);
-                        NeqI.at(0) = i!=j ? RealType(0) : 1.0;
-                        NeqI.at(1) = i!=(j+1) ? RealType(0) : 1.0;
-                        b_type neqI = xsimd::load_unaligned(&NeqI[1]);
+                        b_type neqI;
+                        const RealType bool1 = i!=j ? RealType(0) : 1.0;
+                        const RealType bool2 = i!=(j+1) ? RealType(0) : 1.0;
+                        xsimd::load_unaligned( &bool1, neqI );
+                        xsimd::load_unaligned( &bool2, neqI );
 
                         const auto observation1 = observations[i * locationCount + j];
 						const auto observation2 = observations[i * locationCount + (j+1)];
 
-                        std::vector<RealType> NNan(2);
-                        NNan.at(0) = std::isnan(observation1) ? RealType(0): 1.0;
-                        NNan.at(1) = std::isnan(observation2) ? RealType(0): 1.0;
-                        b_type nNan = xsimd::load_unaligned(&NNan[1]);
+                        b_type nNan;
+                        const RealType bool3 = std::isnan(observation1) ? RealType(0): 1.0;
+                        const RealType bool4 = std::isnan(observation2) ? RealType(0): 1.0;
+
+                        xsimd::load_unaligned( &bool3, nNan );
+                        xsimd::load_unaligned( &bool4, nNan );
 
 						const auto residual1    = (std::isnan(observation1) ? RealType(0) : observation1 - distance1) *
 								(i!=j);
 						const auto residual2    = (std::isnan(observation2) ? RealType(0) : observation2 - distance2) *
 								(i!=(j+1));
 
-//                        auto squaredResidual1   = residual1 * residual1;
-//						auto squaredResidual2   = residual2 * residual2;
-						std::vector<RealType> Residual(2);
-						Residual.at(0) = residual1;
-						Residual.at(1) = residual2;
-                        b_type residual = xsimd::load_unaligned(&Residual[1]);
+						b_type residual;
+						xsimd::load_unaligned( &residual1 , residual );
+                        xsimd::load_unaligned( &residual2 , residual );
                         b_type squaredResidual = xsimd::pow(residual,2);
 
 
