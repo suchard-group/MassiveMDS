@@ -2,6 +2,7 @@
 #define _NEWMULTIDIMENSIONALSCALING_HPP
 
 #include <numeric>
+#include <vector>
 #include <xsimd/xsimd.hpp>
 
 #include "AbstractMultiDimensionalScaling.hpp"
@@ -470,7 +471,7 @@ public:
     template <bool withTruncation>
     void computeSumOfIncrementsGeneric() {
 
-        const RealType scale = 0.5 * precision;
+		const RealType scale = 0.5 * precision;
 
         RealType delta =
                 accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
@@ -489,28 +490,52 @@ public:
 								begin(*locationsPtr) + (j+1) * embeddingDimension,
 								embeddingDimension
 						);
+
+
+						using b_type = xsimd::simd_type<RealType>;
+                        std::vector<RealType> Distance(2);
+                        Distance[1] = distance1;
+                        Distance[2] = distance2;
+						const std::vector<RealType> DistanceConst = Distance;
+						b_type distance = xsimd::load_unaligned( &DistanceConst[1] );
+
+						//using c_type = xsimd::simd_type<int>;
+						std::vector<RealType> NeqI(2);
+                        NeqI[1] = i!=j ? RealType(0) : RealType(1);
+                        NeqI[2] = i!=(j+1) ? RealType(0) : RealType(1);
+                        b_type neqI = xsimd::load_unaligned(&NeqI[1]);
+
                         const auto observation1 = observations[i * locationCount + j];
 						const auto observation2 = observations[i * locationCount + (j+1)];
+
+                        std::vector<RealType> NNan(2);
+                        NNan[1] = std::isnan(observation1) ? RealType(0): RealType(1);
+                        NNan[2] = std::isnan(observation2) ? RealType(0): RealType(1);
+                        b_type nNan = xsimd::load_unaligned(&NNan[1]);
+
 						const auto residual1    = (std::isnan(observation1) ? RealType(0) : observation1 - distance1) *
 								(i!=j);
 						const auto residual2    = (std::isnan(observation2) ? RealType(0) : observation2 - distance2) *
 								(i!=(j+1));
-						auto squaredResidual1   = residual1 * residual1;
-						auto squaredResidual2   = residual2 * residual2;
 
-						if (withTruncation) {
-							squaredResidual1 *= scale;
-							squaredResidual2 *= scale;
+//                        auto squaredResidual1   = residual1 * residual1;
+//						auto squaredResidual2   = residual2 * residual2;
+						std::vector<RealType> Residual(2);
+						Residual[1] = residual1;
+						Residual[2] = residual2;
+                        b_type residual = xsimd::load_unaligned(&Residual[1]);
+                        b_type squaredResidual = xsimd::pow(residual,2);
 
-							squaredResidual1 += math::phi2<NewMultiDimensionalScaling>(distance1 * oneOverSd) *
-												(i != j) * (!std::isnan(observation1));
-							squaredResidual2 += math::phi2<NewMultiDimensionalScaling>(distance2 * oneOverSd) *
-												(i != (j + 1)) * (!std::isnan(observation2));
+
+                        if (withTruncation) {
+                            squaredResidual = scale * squaredResidual;
+
+							squaredResidual += phi2(distance*oneOverSd, neqI, nNan);
 						}
 
-						increments[i * locationCount + j] = squaredResidual1;
-						increments[i * locationCount + j+1] = squaredResidual2;
-						lSumOfSquaredResiduals += squaredResidual1 + squaredResidual2;
+						increments[i * locationCount + j] = squaredResidual[1];
+						increments[i * locationCount + j+1] = squaredResidual[2];
+						lSumOfSquaredResiduals += squaredResidual[1] + squaredResidual[2];
 
                     } // end for
                     if (locationCount % 2 != 0) { // one more time for individual j = location count - 1
@@ -663,12 +688,16 @@ public:
 //	double phi2(double value) const {
 //		return log(0.5 * erfc(-value * M_SQRT1_2));
 //	}
-//
-//	__m128 phi2(__m128 value) const {
-//		const __m128 scalar = _mm_set1_ps(-M_SQRT1_2);
-//		value = _mm_mul_ps(value, scalar);
-//		return simd::log(0.5 * simd::erfc(value));
-//	}
+
+    using b_type = xsimd::simd_type<RealType>;
+	b_type phi2(b_type scaledDistance, b_type neqI, b_type nNan) const {
+		scaledDistance *= -M_SQRT1_2;
+		b_type out0 = xsimd::erfc(scaledDistance);
+		b_type out1 = 0.5 * out0;
+		b_type out2 = xsimd::log(out1);
+		b_type out3 = out2 * neqI;
+		return out3 * nNan;
+	}
 //
 //	__m128d phi2(__m128d value) const {
 //		const __m128d scalar = _mm_set1_ps(-M_SQRT1_2);
