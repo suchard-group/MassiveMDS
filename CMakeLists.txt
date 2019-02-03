@@ -30,17 +30,17 @@ ELSE()
   MESSAGE(STATUS "Compiling local TBB")
   if (NO_RTM)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-rtm")
-  endif()  
-  
+  endif()
+
   SET(TBB_BUILD_STATIC OFF CACHE BOOL         "Build TBB static library")
   SET(TBB_BUILD_TBBMALLOC OFF CACHE BOOL      "Build TBB malloc library")
   SET(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL "Build TBB malloc proxy library")
   SET(TBB_BUILD_TESTS OFF CACHE BOOL           "Build TBB tests and enable testing infrastructure")
-  
+
   ADD_SUBDIRECTORY(external/tbb)
-  SET(TBB_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/external/tbb/include")  
+  SET(TBB_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/external/tbb/include")
   SET(TBB_LIBRARIES tbb)
-  #INCLUDE("${CMAKE_MODULE_PATH}/build_tbb.cmake")  
+  #INCLUDE("${CMAKE_MODULE_PATH}/build_tbb.cmake")
 ENDIF()
 INCLUDE_DIRECTORIES(${TBB_INCLUDE_DIRS})
 MESSAGE(STATUS "TBB directory: ${TBB_INCLUDE_DIRS}")
@@ -154,6 +154,7 @@ target_link_libraries(benchmark boost_program_options)
    target_link_libraries(benchmark-san ${TBB_LIBRARIES})
    target_link_libraries(benchmark-san boost_program_options)
 
+add_executable(testme src/test.cpp)
 
    ##
 # Packaging

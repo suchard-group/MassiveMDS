@@ -4,6 +4,8 @@
 #include <numeric>
 #include <vector>
 
+#define XSIMD_ENABLE_FALLBACK
+
 #include "xsimd/xsimd.hpp"
 #include "AbstractMultiDimensionalScaling.hpp"
 
@@ -701,7 +703,6 @@ public:
 //		value = _mm_mul_ps(value, scalar);
 //		return xsimd::log(0.5 * xsimd::erfc(value));
 //	}
-
 
 #ifdef SSE
 

@@ -3,6 +3,8 @@
 
 #include <float.h>
 
+#include "xsimd/xsimd.hpp"
+
 namespace mds {
 namespace math {
 
@@ -569,6 +571,11 @@ template <typename T>
 double phi2(double value) {
    return log(0.5 * erfc(-value * M_SQRT1_2));
 }
+        template <typename T>
+        T phi_new(T value) {
+            return xsimd::log(0.5 * xsimd::erfc(-value * M_SQRT1_2));
+
+        }
 
 } // namespace math
 } // namespace mds
