@@ -491,9 +491,9 @@ public:
 								embeddingDimension
 						);
 
-
 						using b_type = xsimd::simd_type<RealType>;
                         b_type distance;
+
                         xsimd::load_unaligned( &distance1, distance );
                         xsimd::load_unaligned( &distance2, distance );
 
@@ -688,13 +688,12 @@ public:
 
     using b_type = xsimd::simd_type<RealType>;
 	b_type phi2(b_type scaledDistance, b_type neqI, b_type nNan) const {
-		b_type scaledDistance2 = -M_SQRT1_2 * scaledDistance;
-		b_type out0 = xsimd::erfc(scaledDistance2);
-		b_type out1 = 0.5 * out0;
-		b_type out2 = xsimd::log(out1);
-		b_type out3 = out2 * neqI;
-		b_type out4 = out3 * nNan;
-		return out4;
+		scaledDistance *= -M_SQRT1_2;
+		scaledDistance = xsimd::erfc(scaledDistance);
+		scaledDistance *= 0.5;
+		scaledDistance = xsimd::log(scaledDistance);
+		scaledDistance *= neqI * nNan;
+		return scaledDistance;
 	}
 //
 //	__m128d phi2(__m128d value) const {
