@@ -711,11 +711,11 @@ public:
         mm::MemoryManager<RealType> x(10);
         mm::MemoryManager<RealType> y(10);
 
-        RealType result2 = calculateDistanceXsimd<xsimd::batch<double, 2>>(
+        RealType result2 = calculateDistanceXsimd<xsimd::batch<RealType, 2>>(
                 std::begin(x), std::begin(y), 10
         );
 
-        RealType result1 = calculateDistanceXsimd<xsimd::batch<double, 1>>(
+        RealType result1 = calculateDistanceXsimd<xsimd::batch<RealType, 1>>(
                 std::begin(x), std::begin(y), 10
         );
     }
