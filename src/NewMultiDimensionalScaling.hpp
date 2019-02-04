@@ -706,6 +706,34 @@ public:
 
 #ifdef SSE
 
+    void fun_test() {
+
+        mm::MemoryManager<RealType> x(10);
+        mm::MemoryManager<RealType> y(10);
+
+        RealType result2 = calculateDistanceXsimd<xsimd::batch<double, 2>>(
+                std::begin(x), std::begin(y), 10
+        );
+
+        RealType result1 = calculateDistanceXsimd<xsimd::batch<double, 1>>(
+                std::begin(x), std::begin(y), 10
+        );
+    }
+
+	template <typename VectorType, typename Iterator, typename SimdType>
+	RealType calculateDistanceXsimd(Iterator iX, Iterator iY, int length) const {
+
+		SimdType sum{0.0};
+
+		for (int i = 0; i < length; i += SimdType::size) {
+            sum += SimdType(iX + i, xsimd::aligned_mode()) -
+                              SimdType(iY + i, xsimd::aligned_mode());
+		}
+
+
+		return std::sqrt(sum.hadd());
+	}
+
     template <typename VectorType, typename Iterator>
     RealType calculateDistanceGeneric(Iterator iX, Iterator iY, int length) const {
 
