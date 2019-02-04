@@ -726,8 +726,9 @@ public:
 		SimdType sum{0.0};
 
 		for (int i = 0; i < length; i += SimdType::size) {
-            sum += SimdType(iX + i, xsimd::aligned_mode()) -
+            const auto diff = SimdType(iX + i, xsimd::aligned_mode()) -
                               SimdType(iY + i, xsimd::aligned_mode());
+            sum += diff * diff;
 		}
 
 
