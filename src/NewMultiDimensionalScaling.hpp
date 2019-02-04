@@ -501,23 +501,20 @@ public:
 						xsimd::load_unaligned( &distances[0], distance );
                         //xsimd::load_unaligned( &distance2, distance );
 
-                        b_type neqI;
-                        RealType bool1 [2];
-                        bool1[0] = i!=j ? RealType(0) : 1.0;
-                        bool1[1] = i!=(j+1) ? RealType(0) : 1.0;
-                        xsimd::load_unaligned( &bool1[0], neqI );
-                        //xsimd::load_unaligned( &bool2, neqI );
+//                        b_type neqI;
+//                        RealType bool1 [2];
+//                        bool1[0] = i!=j ? RealType(0) : 1.0;
+//                        bool1[1] = i!=(j+1) ? RealType(0) : 1.0;
+//                        xsimd::load_unaligned( &bool1[0], neqI );
 
                         const auto observation1 = observations[i * locationCount + j];
 						const auto observation2 = observations[i * locationCount + (j+1)];
 
-                        b_type nNan;
-                        RealType bool2 [2];
-                        bool2[0] = std::isnan(observation1) ? RealType(0): 1.0;
-                        bool2[1] = std::isnan(observation2) ? RealType(0): 1.0;
-
-                        xsimd::load_unaligned( &bool2[0], nNan );
-                        //xsimd::load_unaligned( &bool4, nNan );
+//                        b_type nNan;
+//                        RealType bool2 [2];
+//                        bool2[0] = std::isnan(observation1) ? RealType(0): 1.0;
+//                        bool2[1] = std::isnan(observation2) ? RealType(0): 1.0;
+//                        xsimd::load_unaligned( &bool2[0], nNan );
 
                         RealType residuals [2];
 						residuals[0]    = (std::isnan(observation1) ? RealType(0) : observation1 - distances[0]) *
@@ -532,9 +529,8 @@ public:
 
 
                         if (withTruncation) {
-                            b_type scaledSquaredResidual = scale * squaredResidual;
-
-							squaredResidual = scaledSquaredResidual + phi2(distance*oneOverSd, neqI, nNan);
+                            squaredResidual *= scale;
+							squaredResidual += math::phi_new(distance*oneOverSd);
 						}
 
 						increments[i * locationCount + j] = squaredResidual[0];
