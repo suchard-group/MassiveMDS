@@ -255,45 +255,80 @@ public:
         for_each(0, locationCount, [this, gradient, scale, dim](const int i) {
 
             for (int j = 0; j < locationCount-1; j+=2) {
-				const auto distance1 = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
+
+            	RealType distances [2];
+            	distances[0] = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
 						begin(*locationsPtr) + i * dim,
 						begin(*locationsPtr) + j * dim,
 						dim
 				);
-				const auto distance2 = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
+				distances[1] = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
 						begin(*locationsPtr) + i * dim,
 						begin(*locationsPtr) + (j + 1) * dim,
 						dim
 				);
 
+				using b_type = xsimd::simd_type<RealType>;
+				b_type distance;
+				xsimd::load_unaligned(&distances[0],distance);
+
+				b_type neqI;
+				RealType bool1 [2];
+				bool1[0] = i!=j ? 1.0 : RealType(0);
+				bool1[1] = i!=(j+1) ? 1.0 : RealType(0);
+				xsimd::load_unaligned( &bool1[0], neqI );
+
 				const auto observation1 = observations[i * locationCount + j];
-				const auto observation2 = observations[i * locationCount + (j + 1)];
-				RealType residual1 = (std::isnan(observation1) ? RealType(0) : observation1 - distance1) *
+				const auto observation2 = observations[i * locationCount + (j+1)];
+
+				b_type nNan;
+				RealType bool2 [2];
+				bool2[0] = std::isnan(observation1) ? RealType(0): 1.0;
+				bool2[1] = std::isnan(observation2) ? RealType(0): 1.0;
+				xsimd::load_unaligned( &bool2[0], nNan );
+
+				RealType residuals [2];
+
+				residuals[0] = (std::isnan(observation1) ? RealType(0) : observation1 - distances[0]) *
 									   (i != j);
-				RealType residual2 = (std::isnan(observation2) ? RealType(0) : observation2 - distance2) *
+				residuals[1] = (std::isnan(observation2) ? RealType(0) : observation2 - distances[1]) *
 									   (i != (j + 1));
+				b_type residual;
+				xsimd::load_unaligned( &residuals[0] , residual );
 
 				if (withTruncation) {
-					const RealType trncDrv1 = std::isnan(observation1) || i == j?
-											 RealType(0) :
-											 pdf(distance1 * sqrt(scale)) /
-											 (std::exp(math::phi2<NewMultiDimensionalScaling>(distance1 * sqrt(scale))) *
-											  sqrt(scale));
-					const RealType trncDrv2 = std::isnan(observation2) || i == (j+1)?
-											 RealType(0) :
-											 pdf(distance2 * sqrt(scale)) /
-											 (std::exp(math::phi2<NewMultiDimensionalScaling>(distance2 * sqrt(scale))) *
-											  sqrt(scale));
-					residual1 = residual1 + trncDrv1;
-					residual2 = residual2 + trncDrv2;
+					RealType zero [2];
+					zero[0] = RealType(0);
+					zero[1] = RealType(0);
+					b_type zeros;
+					b_type trncDrv;
+
+					xsimd::load_unaligned(&zero[0],zeros);
+
+					trncDrv = zeros + math::pdf_new( distance * sqrt(scale) ) /
+									  (xsimd::exp(math::phi_new(distance * sqrt(scale))) *
+									   sqrt(scale)) * nNan * neqI;
+//					RealType jnt_trnc [2] = math::pdf_new( distance * sqrt(scale) ) /
+//										(xsimd::exp(math::phi_new(distance * sqrt(scale))) *
+//										 sqrt(scale));
+//					b_type trncDrv;
+//					xsimd::load_unaligned( &jnt_trnc[0], trncDrv );
+
+
+//					jnt_trnc[0] = std::isnan(observation1) || i == j ? RealType(0) : trncDrv[0];
+//					jnt_trnc[1] = std::isnan(observation2) || i == (j+1) ? RealType(0) : trncDrv[1];
+//					xsimd::load_unaligned(&jnt_trnc[0],trncDrv);
+
+					residual += trncDrv;
 				}
+
 
 				RealType dataContribution1 = std::isnan(observation1) || (i == j) ?
 											RealType(0) :
-											residual1 * scale / distance1;
+											residual[0] * scale / distance[0];
 				RealType dataContribution2 = std::isnan(observation2) || (i == (j+1)) ?
 											 RealType(0) :
-											 residual2 * scale / distance2;
+											 residual[1] * scale / distance[1];
 
 				for (int d = 0; d < dim; ++d) {
 					const RealType update1 = dataContribution1 *
