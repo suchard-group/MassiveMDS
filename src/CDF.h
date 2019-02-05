@@ -577,6 +577,14 @@ double phi2(double value) {
 
         }
 
+template <typename T>
+double pdf(double value) { // standard normal density
+	return 0.398942280401432677939946059934 * std::exp( - value * value * 0.5);
+}
+		template <typename T>
+		T pdf_new(T value) {
+		return 0.398942280401432677939946059934 * xsimd::exp( - value * value * 0.5);
+		}
 } // namespace math
 } // namespace mds
 
