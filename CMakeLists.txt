@@ -121,6 +121,8 @@ set(JNI_SOURCE_FILES
         src/MemoryManagement.hpp
         src/AbstractMultiDimensionalScaling.hpp
         src/NewMultiDimensionalScaling.hpp
+        src/CDF.hpp
+        src/Distance.hpp
 	)
 
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})

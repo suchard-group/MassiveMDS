@@ -544,17 +544,29 @@ public:
 		return i == j || std::isnan(x);
 	}
 
-	D2 makeMask(D2Bool x) {
-		return xsimd::select(x, D2(0.0, 0.0), D2(1.0, 1.0));
-	}
+//	D2 makeMask(D2Bool x) {
+//		return xsimd::select(x, D2(0.0, 0.0), D2(1.0, 1.0));
+//	}
+//
+//	D1 makeMask(D1Bool x) {
+//		return xsimd::select(x, D1(0.0), D1(1.0));
+//	}
+//
+//	double makeMask(bool x) {
+//		return x ? 0.0 : 1.0;
+//	}
 
-	D1 makeMask(D1Bool x) {
-		return xsimd::select(x, D1(0.0), D1(1.0));
-	}
+    D2 mask(D2Bool flag, D2 x) {
+        return D2(flag()) & x;
+    }
 
-	double makeMask(bool x) {
-		return x ? 0.0 : 1.0;
-	}
+//    D1 mask(D1Bool flag, D1 x) {
+//        return D1(flag.size) & x; // TODO Fix
+//    }
+
+    double mask(bool flag, double x) {
+        return flag ? x : 0.0;
+    }
 
 	bool any(D2Bool x) {
 		return xsimd::any(x);
@@ -580,18 +592,6 @@ public:
         return x;
     }
 
-	D2 zero(D2) {
-		return D2(0.0, 0.0);
-	}
-
-	D1 zero(D1) {
-		return D1(0.0);
-	}
-
-	double zero(double) {
-		return 0.0;
-	}
-
 	double reduce(D2 x) {
 		return xsimd::hadd(x);
 	}
@@ -604,6 +604,30 @@ public:
 		return x;
 	}
 
+    template <bool withTruncation, typename SimdType, typename DispatchType>
+    SimdType incrementLikelihood(const DispatchType& dispatch, const RealType scale, const int i, const int j) {
+
+        const auto distance = dispatch.calculate(j);
+        const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
+        const auto notMissing = !getMissing(i, j, observation);
+
+        auto squaredResidual = SimdType(0.0);
+        if (any(notMissing)) {
+
+            const auto residual = mask(notMissing, observation - distance);
+            squaredResidual = residual * residual;
+
+            if (withTruncation) {
+                squaredResidual *= scale;
+                squaredResidual += mask(notMissing, math::phi_new(distance * oneOverSd));
+            }
+
+            SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
+        }
+
+        return squaredResidual;
+    };
+
     template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeSumOfIncrementsGeneric() {
 
@@ -614,70 +638,29 @@ public:
         RealType delta =
                 accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
 
-                    auto vSumOfSquaredResiduals = zero(SimdType());
+                    auto vSumOfSquaredResiduals = SimdType(0.0);
 
                     DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
                     const int vectorCount = locationCount - locationCount % SimdSize;
+                    
                     for (int j = 0; j < vectorCount; j += SimdSize) {
-
-						const auto distance = dispatch.calculate(j);
-
-						const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
-
-                        const auto missing = getMissing(i, j, observation);
-
-                        if (any(!missing)) {
-
-                            const auto mask = makeMask(missing);
-
-                            const auto residual = mask * (observation - distance);
-                            auto squaredResidual = residual * residual;
-
-                            if (withTruncation) {
-                                squaredResidual *= scale;
-                                squaredResidual += mask * math::phi_new(distance * oneOverSd);
-                            }
-
-                            SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
-                            vSumOfSquaredResiduals += squaredResidual;
-                        }
-
+                        vSumOfSquaredResiduals += incrementLikelihood<withTruncation, SimdType>(dispatch, scale, i, j);
                     } // end for
 
 					RealType sumOfSquaredResiduals = reduce(vSumOfSquaredResiduals);
 
-                    if (vectorCount < locationCount) {
+                    if (vectorCount < locationCount) { // Edge-cases
 
                         DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
                         for (int j = vectorCount; j < locationCount; ++j) {
-
-                            const auto distance = dispatch.calculate(j);
-
-                            const auto observation = SimdHelper<RealType, RealType>::get(&observations[i * locationCount + j]);
-
-                            const auto missing = getMissing(i, j, observation);
-
-                            if (any(!missing)) {
-
-                                const auto mask = makeMask(missing);
-
-                                const auto residual = mask * (observation - distance);
-                                auto squaredResidual = residual * residual;
-
-                                if (withTruncation) {
-                                    squaredResidual *= scale;
-                                    squaredResidual += mask * math::phi_new(distance * oneOverSd);
-                                }
-
-                                SimdHelper<RealType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
-                                sumOfSquaredResiduals += squaredResidual;
-                            }
+                            sumOfSquaredResiduals += incrementLikelihood<withTruncation, RealType>(dispatch, scale, i, j);
                         }
                     }
 
                     return sumOfSquaredResiduals;
+
                 }, ParallelType());
 
         double lSumOfSquaredResiduals = delta;

@@ -41,7 +41,9 @@ int main(int argc, char* argv[]) {
         xsimd::batch_bool<double, 2> flag{true, false};
         using st = xsimd::batch<double, 2>;
 
-        const auto result = xsimd::select(flag, st(1.0,1.0), st(0.0,0.0));
+//         const auto result = xsimd::select(flag, st(1.0,1.0), st(0.0,0.0));
+
+        const auto result = st(flag()) & st(2.0, 1.0);
 
         std::cout << result << std::endl;
 

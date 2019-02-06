@@ -32,7 +32,7 @@ public:
 		iterator(locations.begin()), start(iterator + i * embeddingDimension) { }
 
 
-	inline SimdType calculate(int j);
+	inline SimdType calculate(int j) const;
 
 
 private:
@@ -126,7 +126,7 @@ private:
 
 
 template <>
-inline D2 DistanceDispatch<D2, D2::value_type, Generic>::calculate(int j) {
+inline D2 DistanceDispatch<D2, D2::value_type, Generic>::calculate(int j) const {
 
 	const auto distance = D2(
 						impl::calculateDistanceGeneric2(
@@ -143,7 +143,7 @@ inline D2 DistanceDispatch<D2, D2::value_type, Generic>::calculate(int j) {
 }
 
 template <>
-inline D2 DistanceDispatch<D2, D2::value_type, NonGeneric>::calculate(int j) {
+inline D2 DistanceDispatch<D2, D2::value_type, NonGeneric>::calculate(int j) const {
 
 	const auto distance = D2(
 						impl::calculateDistance2(
@@ -160,7 +160,7 @@ inline D2 DistanceDispatch<D2, D2::value_type, NonGeneric>::calculate(int j) {
 }
 
 template <>
-inline D1 DistanceDispatch<D1, D1::value_type, Generic>::calculate(int j) {
+inline D1 DistanceDispatch<D1, D1::value_type, Generic>::calculate(int j) const {
 
 	const auto distance = D1(
 						impl::calculateDistanceGeneric2(
@@ -173,7 +173,7 @@ inline D1 DistanceDispatch<D1, D1::value_type, Generic>::calculate(int j) {
 }
 
 template <>
-inline D1 DistanceDispatch<D1, D1::value_type, NonGeneric>::calculate(int j) {
+inline D1 DistanceDispatch<D1, D1::value_type, NonGeneric>::calculate(int j) const {
 
 	const auto distance = D1(
 						impl::calculateDistance2(
@@ -186,7 +186,7 @@ inline D1 DistanceDispatch<D1, D1::value_type, NonGeneric>::calculate(int j) {
 }
 
 template <>
-inline double DistanceDispatch<double, double, Generic>::calculate(int j) {
+inline double DistanceDispatch<double, double, Generic>::calculate(int j) const {
 
 	return
 						impl::calculateDistanceGeneric2(
@@ -197,7 +197,7 @@ inline double DistanceDispatch<double, double, Generic>::calculate(int j) {
 }
 
 template <>
-inline double DistanceDispatch<double, double, NonGeneric>::calculate(int j) {
+inline double DistanceDispatch<double, double, NonGeneric>::calculate(int j) const {
 
 	return
 						impl::calculateDistance2(
