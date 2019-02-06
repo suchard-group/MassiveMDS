@@ -8,6 +8,7 @@
 
 #include "xsimd/xsimd.hpp"
 #include "AbstractMultiDimensionalScaling.hpp"
+#include "Distance.hpp"
 
 //#undef SSE
 #define SSE
@@ -96,11 +97,31 @@ public:
 
     void computeIncrements() {
 
+	#define SIMD_TYPE xsimd::batch<RealType, 2>
+	#define SIMD_SIZE 2
+
+// 	#define SIMD_TYPE xsimd::batch<RealType, 1>
+// 	#define SIMD_SIZE 1
+
+// 	#define SIMD_TYPE double
+// 	#define SIMD_SIZE 1
+
+       using D2 = xsimd::batch<RealType, 2>;
+// 		using SimdType = double;
+
 		if (!incrementsKnown) {
 			if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-				computeSumOfIncrementsGeneric<true>();
+				if (embeddingDimension == 2) {
+					computeSumOfIncrementsGeneric<true, SIMD_TYPE, SIMD_SIZE, NonGeneric>();
+				} else {
+					computeSumOfIncrementsGeneric<true, SIMD_TYPE, SIMD_SIZE, Generic>();
+				}
 			} else {
-				computeSumOfIncrementsGeneric<false>();
+				if (embeddingDimension == 2) {
+					computeSumOfIncrementsGeneric<false, SIMD_TYPE, SIMD_SIZE, NonGeneric>();
+				} else {
+					computeSumOfIncrementsGeneric<false, SIMD_TYPE, SIMD_SIZE, Generic>();
+				}
 			}
 			incrementsKnown = true;
 		} else {
@@ -505,99 +526,158 @@ public:
 
 	int count = 0;
 
-    template <bool withTruncation>
+	using D2 = xsimd::batch<double, 2>;
+	using D2Bool = xsimd::batch_bool<double, 2>;
+
+	using D1 = xsimd::batch<double, 1>;
+	using D1Bool = xsimd::batch_bool<double, 1>;
+
+	D2Bool getMissing(int i, int j, D2 x) {
+		return D2Bool(i == j, i == j + 1) || xsimd::isnan(x);
+	}
+
+	D1Bool getMissing(int i, int j, D1 x) {
+		return D1Bool(i == j) || xsimd::isnan(x());
+	}
+
+	bool getMissing(int i, int j, double x) {
+		return i == j || std::isnan(x);
+	}
+
+	D2 makeMask(D2Bool x) {
+		return xsimd::select(x, D2(0.0, 0.0), D2(1.0, 1.0));
+	}
+
+	D1 makeMask(D1Bool x) {
+		return xsimd::select(x, D1(0.0), D1(1.0));
+	}
+
+	double makeMask(bool x) {
+		return x ? 0.0 : 1.0;
+	}
+
+	bool any(D2Bool x) {
+		return xsimd::any(x);
+	}
+
+	bool any(D1Bool x) {
+		return xsimd::any(x);
+	}
+
+	bool any(bool x) {
+		return x;
+	}
+
+    bool all(D2Bool x) {
+        return xsimd::all(x);
+    }
+
+    bool all(D1Bool x) {
+        return xsimd::all(x);
+    }
+
+    bool all(bool x) {
+        return x;
+    }
+
+	D2 zero(D2) {
+		return D2(0.0, 0.0);
+	}
+
+	D1 zero(D1) {
+		return D1(0.0);
+	}
+
+	double zero(double) {
+		return 0.0;
+	}
+
+	double reduce(D2 x) {
+		return xsimd::hadd(x);
+	}
+
+	double reduce(D1 x) {
+		return xsimd::hadd(x);
+	}
+
+	double reduce(double x) {
+		return x;
+	}
+
+    template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeSumOfIncrementsGeneric() {
 
-		const RealType scale = 0.5 * precision;
+        const int vectorCount = locationCount - locationCount % SimdSize;
+
+        const auto scale = 0.5 * precision;
 
         RealType delta =
                 accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
 
-                    RealType lSumOfSquaredResiduals{0};
+                    auto vSumOfSquaredResiduals = zero(SimdType());
 
-                    for (int j = 0; j < locationCount-1; j+=2) {
+                    DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-                        RealType distances [2];
+                    const int vectorCount = locationCount - locationCount % SimdSize;
+                    for (int j = 0; j < vectorCount; j += SimdSize) {
 
-                        distances[0] = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
-                                begin(*locationsPtr) + i * embeddingDimension,
-                                begin(*locationsPtr) + j * embeddingDimension,
-                                embeddingDimension
-                        );
-						distances[1] = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
-								begin(*locationsPtr) + i * embeddingDimension,
-								begin(*locationsPtr) + (j+1) * embeddingDimension,
-								embeddingDimension
-						);
+						const auto distance = dispatch.calculate(j);
 
-						using b_type = xsimd::simd_type<RealType>;
+						const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
 
-						b_type distance;
-						xsimd::load_unaligned( &distances[0], distance );
-                        //xsimd::load_unaligned( &distance2, distance );
+                        const auto missing = getMissing(i, j, observation);
 
-                        b_type neqI;
-                        RealType bool1 [2];
-                        bool1[0] = i!=j ? 1.0 : RealType(0);
-                        bool1[1] = i!=(j+1) ? 1.0 : RealType(0);
-                        xsimd::load_unaligned( &bool1[0], neqI );
+                        if (any(!missing)) {
 
-                        const auto observation1 = observations[i * locationCount + j];
-						const auto observation2 = observations[i * locationCount + (j+1)];
+                            const auto mask = makeMask(missing);
 
-                        b_type nNan;
-                        RealType bool2 [2];
-                        bool2[0] = std::isnan(observation1) ? RealType(0): 1.0;
-                        bool2[1] = std::isnan(observation2) ? RealType(0): 1.0;
-                        xsimd::load_unaligned( &bool2[0], nNan );
+                            const auto residual = mask * (observation - distance);
+                            auto squaredResidual = residual * residual;
 
-                        RealType residuals [2];
-						residuals[0]    = (std::isnan(observation1) ? RealType(0) : observation1 - distances[0]) *
-								(i!=j);
-						residuals[1]    = (std::isnan(observation2) ? RealType(0) : observation2 - distances[1]) *
-								(i!=(j+1));
+                            if (withTruncation) {
+                                squaredResidual *= scale;
+                                squaredResidual += mask * math::phi_new(distance * oneOverSd);
+                            }
 
-						b_type residual;
-						xsimd::load_unaligned( &residuals[0] , residual );
-                        //xsimd::load_unaligned( &residual2 , residual );
-                        b_type squaredResidual = xsimd::pow(residual,2);
-
-
-                        if (withTruncation) {
-                            squaredResidual *= scale;
-							squaredResidual += math::phi_new(distance*oneOverSd) * neqI * nNan;
-						}
-
-						increments[i * locationCount + j] = squaredResidual[0];
-						increments[i * locationCount + j+1] = squaredResidual[1];
-						lSumOfSquaredResiduals += xsimd::hadd(squaredResidual);
+                            SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
+                            vSumOfSquaredResiduals += squaredResidual;
+                        }
 
                     } // end for
-                    if (locationCount % 2 != 0) { // one more time for individual j = location count - 1
 
-                    	int j = locationCount - 1;
-						const auto distance = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
-								begin(*locationsPtr) + i * embeddingDimension,
-								begin(*locationsPtr) + j * embeddingDimension,
-								embeddingDimension
-						);
+					RealType sumOfSquaredResiduals = reduce(vSumOfSquaredResiduals);
 
-						const auto observation = observations[i * locationCount + j];
-						const auto residual    = (std::isnan(observation) ? RealType(0) : observation - distance) *
-												  (i!=j);
-						auto squaredResidual = residual * residual;
+                    if (vectorCount < locationCount) {
 
-						if (withTruncation) {
-							squaredResidual = scale * squaredResidual;
-							squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd) *
-							        (i != j) * (!std::isnan(observation));
-						}
+                        DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-						increments[i * locationCount + j] = squaredResidual;
-						lSumOfSquaredResiduals += squaredResidual;
+                        for (int j = vectorCount; j < locationCount; ++j) {
 
+                            const auto distance = dispatch.calculate(j);
+
+                            const auto observation = SimdHelper<RealType, RealType>::get(&observations[i * locationCount + j]);
+
+                            const auto missing = getMissing(i, j, observation);
+
+                            if (any(!missing)) {
+
+                                const auto mask = makeMask(missing);
+
+                                const auto residual = mask * (observation - distance);
+                                auto squaredResidual = residual * residual;
+
+                                if (withTruncation) {
+                                    squaredResidual *= scale;
+                                    squaredResidual += mask * math::phi_new(distance * oneOverSd);
+                                }
+
+                                SimdHelper<RealType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
+                                sumOfSquaredResiduals += squaredResidual;
+                            }
+                        }
                     }
-                    return lSumOfSquaredResiduals;
+
+                    return sumOfSquaredResiduals;
                 }, ParallelType());
 
         double lSumOfSquaredResiduals = delta;
@@ -609,59 +689,59 @@ public:
         sumOfIncrementsKnown = true;
     }
 
-	template <bool withTruncation>
-	void computeSumOfIncrements() {
-
-    	assert(false);
-        assert (embeddingDimension == 2);
-
-		const RealType scale = 0.5 * precision;
-
-		RealType delta =
-		accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
-
-			RealType lSumOfSquaredResiduals{0};
-
-			for (int j = 0; j < locationCount; ++j) {
-
-				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-					begin(*locationsPtr) + i * embeddingDimension,
-					begin(*locationsPtr) + j * embeddingDimension,
-					embeddingDimension
-				);
-
-				const auto observation = observations[i * locationCount + j];
-                auto squaredResidual = RealType(0);
-
-                if (!std::isnan(observation)) {
-
-                    const auto residual = distance - observation;
-
-                    squaredResidual = residual * residual;
-
-                    if (withTruncation) {
-                        squaredResidual = scale * squaredResidual;
-                        if (i != j) {
-                            squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
-                        }
-                    }
-                }
-
-				increments[i * locationCount + j] = squaredResidual;
-				lSumOfSquaredResiduals += squaredResidual;
-
-			}
-			return lSumOfSquaredResiduals;
-		}, ParallelType());
-
-		double lSumOfSquaredResiduals = delta;
-
-    	lSumOfSquaredResiduals /= 2.0;
-    	sumOfIncrements = lSumOfSquaredResiduals;
-
-	    incrementsKnown = true;
-	    sumOfIncrementsKnown = true;
-	}
+//	template <bool withTruncation>
+//	void computeSumOfIncrements() {
+//
+//    	assert(false);
+//        assert (embeddingDimension == 2);
+//
+//		const RealType scale = 0.5 * precision;
+//
+//		RealType delta =
+//		accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
+//
+//			RealType lSumOfSquaredResiduals{0};
+//
+//			for (int j = 0; j < locationCount; ++j) {
+//
+//				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
+//					begin(*locationsPtr) + i * embeddingDimension,
+//					begin(*locationsPtr) + j * embeddingDimension,
+//					embeddingDimension
+//				);
+//
+//				const auto observation = observations[i * locationCount + j];
+//                auto squaredResidual = RealType(0);
+//
+//                if (!std::isnan(observation)) {
+//
+//                    const auto residual = distance - observation;
+//
+//                    squaredResidual = residual * residual;
+//
+//                    if (withTruncation) {
+//                        squaredResidual = scale * squaredResidual;
+//                        if (i != j) {
+//                            squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
+//                        }
+//                    }
+//                }
+//
+//				increments[i * locationCount + j] = squaredResidual;
+//				lSumOfSquaredResiduals += squaredResidual;
+//
+//			}
+//			return lSumOfSquaredResiduals;
+//		}, ParallelType());
+//
+//		double lSumOfSquaredResiduals = delta;
+//
+//    	lSumOfSquaredResiduals /= 2.0;
+//    	sumOfIncrements = lSumOfSquaredResiduals;
+//
+//	    incrementsKnown = true;
+//	    sumOfIncrementsKnown = true;
+//	}
 
 // 	int count = 0
 	int count2 = 0;
@@ -1103,13 +1183,15 @@ constructNewMultiDimensionalScalingDoubleTbb(int embeddingDimension, int locatio
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingFloatNoParallel(int embeddingDimension, int locationCount, long flags, int threads) {
 	std::cerr << "SINGLE, NO PARALLEL" << std::endl;
-	return std::make_shared<NewMultiDimensionalScaling<float, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+//	return std::make_shared<NewMultiDimensionalScaling<float, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+    return std::make_shared<NewMultiDimensionalScaling<double, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingFloatTbb(int embeddingDimension, int locationCount, long flags, int threads) {
 	std::cerr << "SINGLE, TBB PARALLEL" << std::endl;
-	return std::make_shared<NewMultiDimensionalScaling<float, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+//	return std::make_shared<NewMultiDimensionalScaling<float, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+    return std::make_shared<NewMultiDimensionalScaling<double, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 } // namespace mds
