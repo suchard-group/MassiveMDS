@@ -604,59 +604,60 @@ public:
 		return x;
 	}
 
-    template <bool withTruncation, typename SimdType, typename DispatchType>
-    SimdType incrementLikelihood(const DispatchType& dispatch, const RealType scale, const int i, const int j) {
+    template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
+    RealType innerLikelihoodLoop(const DispatchType& dispatch, const RealType scale, const int i,
+                                 const int begin, const int end) {
 
-        const auto distance = dispatch.calculate(j);
-        const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
-        const auto notMissing = !getMissing(i, j, observation);
+        SimdType sum = SimdType(RealType(0));
 
-        auto squaredResidual = SimdType(0.0);
-        if (any(notMissing)) {
+        for (int j = begin; j < end; j += SimdSize) {
 
-            const auto residual = mask(notMissing, observation - distance);
-            squaredResidual = residual * residual;
+            const auto distance = dispatch.calculate(j);
+            const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
+            const auto notMissing = !getMissing(i, j, observation);
 
-            if (withTruncation) {
-                squaredResidual *= scale;
-                squaredResidual += mask(notMissing, math::phi_new(distance * oneOverSd));
+            if (any(notMissing)) {
+
+                const auto residual = mask(notMissing, observation - distance);
+                auto squaredResidual = residual * residual;
+
+                if (withTruncation) {
+                    squaredResidual *= scale;
+                    squaredResidual += mask(notMissing, math::phi_new(distance * oneOverSd));
+                }
+
+                SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
+                sum += squaredResidual;
             }
-
-            SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
         }
 
-        return squaredResidual;
+        return reduce(sum);
     };
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeSumOfIncrementsGeneric() {
-
-        const int vectorCount = locationCount - locationCount % SimdSize;
 
         const auto scale = 0.5 * precision;
 
         RealType delta =
                 accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
 
-                    auto vSumOfSquaredResiduals = SimdType(0.0);
+                    const int vectorCount = locationCount - locationCount % SimdSize;
 
                     DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-                    const int vectorCount = locationCount - locationCount % SimdSize;
-                    
-                    for (int j = 0; j < vectorCount; j += SimdSize) {
-                        vSumOfSquaredResiduals += incrementLikelihood<withTruncation, SimdType>(dispatch, scale, i, j);
-                    } // end for
+					RealType sumOfSquaredResiduals =
+                            innerLikelihoodLoop<withTruncation, SimdType, SimdSize>(dispatch, scale, i,
+                                                                                    0, vectorCount);
 
-					RealType sumOfSquaredResiduals = reduce(vSumOfSquaredResiduals);
 
                     if (vectorCount < locationCount) { // Edge-cases
 
                         DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-                        for (int j = vectorCount; j < locationCount; ++j) {
-                            sumOfSquaredResiduals += incrementLikelihood<withTruncation, RealType>(dispatch, scale, i, j);
-                        }
+                        sumOfSquaredResiduals +=
+                                innerLikelihoodLoop<withTruncation, RealType, 1>(dispatch, scale, i,
+                                                                                 vectorCount, locationCount);
                     }
 
                     return sumOfSquaredResiduals;
