@@ -9,6 +9,7 @@ enum Flags {
 	OPENCL = 1 << 4,
     LEFT_TRUNCATION = 1 << 5,
     EGPU = 1 << 6,
+    SIMD = 1 << 7
 };
 
 } // namespace mds

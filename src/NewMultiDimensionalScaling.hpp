@@ -4,20 +4,49 @@
 #include <numeric>
 #include <vector>
 
-#define XSIMD_ENABLE_FALLBACK
+//#define XSIMD_ENABLE_FALLBACK
 
 #include "xsimd/xsimd.hpp"
 #include "AbstractMultiDimensionalScaling.hpp"
 #include "Distance.hpp"
 
 //#undef SSE
-#define SSE
+//#define SSE
 
 namespace mds {
 
-template <typename RealType, typename ParallelType>
+	struct DoubleNoSimdTypeInfo {
+		using BaseType = double;
+		using SimdType = double;
+		static const int SimdSize = 1;
+	};
+
+    struct FloatNoSimdTypeInfo {
+        using BaseType = float;
+        using SimdType = float;
+        static const int SimdSize = 1;
+    };
+
+#ifdef USE_SIMD
+    struct DoubleSimdTypeInfo {
+        using BaseType = double;
+        using SimdType = xsimd::batch<double, 2>;
+        static const int SimdSize = 2;
+    };
+
+    struct FloatSimdTypeInfo {
+        using BaseType = float;
+        using SimdType = xsimd::batch<float, 4>;
+        static const int SimdSize = 4;
+    };
+#endif
+
+template <typename TypeInfo, typename ParallelType>
 class NewMultiDimensionalScaling : public AbstractMultiDimensionalScaling {
 public:
+
+	using RealType = typename TypeInfo::BaseType;
+
     NewMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int threads)
         : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
           precision(0.0), storedPrecision(0.0),
@@ -96,31 +125,18 @@ public:
     }
 
     void computeIncrements() {
-
-	#define SIMD_TYPE xsimd::batch<RealType, 2>
-	#define SIMD_SIZE 2
-
-// 	#define SIMD_TYPE xsimd::batch<RealType, 1>
-// 	#define SIMD_SIZE 1
-
-// 	#define SIMD_TYPE double
-// 	#define SIMD_SIZE 1
-
-       using D2 = xsimd::batch<RealType, 2>;
-// 		using SimdType = double;
-
 		if (!incrementsKnown) {
 			if (isLeftTruncated) { // run-time dispatch to compile-time optimization
 				if (embeddingDimension == 2) {
-					computeSumOfIncrementsGeneric<true, SIMD_TYPE, SIMD_SIZE, NonGeneric>();
+					computeSumOfIncrementsGeneric<true, typename TypeInfo::SimdType, TypeInfo::SimdSize, NonGeneric>();
 				} else {
-					computeSumOfIncrementsGeneric<true, SIMD_TYPE, SIMD_SIZE, Generic>();
+					computeSumOfIncrementsGeneric<true, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
 				}
 			} else {
 				if (embeddingDimension == 2) {
-					computeSumOfIncrementsGeneric<false, SIMD_TYPE, SIMD_SIZE, NonGeneric>();
+					computeSumOfIncrementsGeneric<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, NonGeneric>();
 				} else {
-					computeSumOfIncrementsGeneric<false, SIMD_TYPE, SIMD_SIZE, Generic>();
+					computeSumOfIncrementsGeneric<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
 				}
 			}
 			incrementsKnown = true;
@@ -442,79 +458,93 @@ public:
 
 	int count = 0;
 
+#ifdef USE_SIMD
 	using D2 = xsimd::batch<double, 2>;
 	using D2Bool = xsimd::batch_bool<double, 2>;
 
-	using D1 = xsimd::batch<double, 1>;
-	using D1Bool = xsimd::batch_bool<double, 1>;
+//	using D1 = xsimd::batch<double, 1>;
+//	using D1Bool = xsimd::batch_bool<double, 1>;
+
+	using S4 = xsimd::batch<float, 4>;
+	using S4Bool = xsimd::batch_bool<float, 4>;
 
 	D2Bool getMissing(int i, int j, D2 x) {
 		return D2Bool(i == j, i == j + 1) || xsimd::isnan(x);
 	}
 
-	D1Bool getMissing(int i, int j, D1 x) {
-		return D1Bool(i == j) || xsimd::isnan(x());
-	}
+//	D1Bool getMissing(int i, int j, D1 x) {
+//		return D1Bool(i == j) || xsimd::isnan(x());
+//	}
 
-	bool getMissing(int i, int j, double x) {
-		return i == j || std::isnan(x);
-	}
 
-//	D2 makeMask(D2Bool x) {
-//		return xsimd::select(x, D2(0.0, 0.0), D2(1.0, 1.0));
-//	}
-//
-//	D1 makeMask(D1Bool x) {
-//		return xsimd::select(x, D1(0.0), D1(1.0));
-//	}
-//
-//	double makeMask(bool x) {
-//		return x ? 0.0 : 1.0;
-//	}
+	S4Bool getMissing(int i, int j, S4 x) {
+		return S4Bool(i == j, i == j + 1, i == j + 2, i == j + 3) || xsimd::isnan(x);
+	}
 
     D2 mask(D2Bool flag, D2 x) {
         return D2(flag()) & x;
+    }
+
+    S4 mask(S4Bool flag, S4 x) {
+        return S4(flag()) & x;
     }
 
 //    D1 mask(D1Bool flag, D1 x) {
 //        return D1(flag.size) & x; // TODO Fix
 //    }
 
+    bool any(D2Bool x) {
+        return xsimd::any(x);
+    }
+
+//    bool any(D1Bool x) {
+//        return xsimd::any(x);
+//    }
+
+    bool any(S4Bool x) {
+        return xsimd::any(x);
+    }
+
+//    bool all(D2Bool x) {
+//        return xsimd::all(x);
+//    }
+//
+//    bool all(D1Bool x) {
+//        return xsimd::all(x);
+//    }
+
+    double reduce(D2 x) {
+        return xsimd::hadd(x);
+    }
+
+//    double reduce(D1 x) {
+//        return xsimd::hadd(x);
+//    }
+
+    float reduce(S4 x) {
+        return xsimd::hadd(x);
+    }
+#endif
+
+    bool getMissing(int i, int j, float x) {
+        return i == j || std::isnan(x);
+    }
+
+    bool getMissing(int i, int j, double x) {
+        return i == j || std::isnan(x);
+    }
+
     double mask(bool flag, double x) {
         return flag ? x : 0.0;
     }
-
-	bool any(D2Bool x) {
-		return xsimd::any(x);
-	}
-
-	bool any(D1Bool x) {
-		return xsimd::any(x);
-	}
 
 	bool any(bool x) {
 		return x;
 	}
 
-    bool all(D2Bool x) {
-        return xsimd::all(x);
-    }
-
-    bool all(D1Bool x) {
-        return xsimd::all(x);
-    }
-
-    bool all(bool x) {
-        return x;
-    }
-
-	double reduce(D2 x) {
-		return xsimd::hadd(x);
-	}
-
-	double reduce(D1 x) {
-		return xsimd::hadd(x);
-	}
+//    bool all(bool x) {
+//        return x;
+//    }
 
 	double reduce(double x) {
 		return x;
@@ -1068,7 +1098,6 @@ public:
 				}
 		);
 	};
-
 #endif
 
 private:
@@ -1108,30 +1137,54 @@ private:
 
 // factory
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDoubleNoParallel(int embeddingDimension, int locationCount, long flags, int threads) {
-	std::cerr << "DOUBLE, NO PARALLEL" << std::endl;
-	return std::make_shared<NewMultiDimensionalScaling<double, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+	std::cerr << "DOUBLE, NO PARALLEL, NO SIMD" << std::endl;
+	return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDoubleTbb(int embeddingDimension, int locationCount, long flags, int threads) {
-	std::cerr << "DOUBLE, TBB PARALLEL" << std::endl;
-	return std::make_shared<NewMultiDimensionalScaling<double, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+constructNewMultiDimensionalScalingDoubleTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+	std::cerr << "DOUBLE, TBB PARALLEL, NO SIMD" << std::endl;
+	return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloatNoParallel(int embeddingDimension, int locationCount, long flags, int threads) {
-	std::cerr << "SINGLE, NO PARALLEL" << std::endl;
-//	return std::make_shared<NewMultiDimensionalScaling<float, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
-    return std::make_shared<NewMultiDimensionalScaling<double, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+	std::cerr << "SINGLE, NO PARALLEL, NO SIMD" << std::endl;
+    return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloatTbb(int embeddingDimension, int locationCount, long flags, int threads) {
-	std::cerr << "SINGLE, TBB PARALLEL" << std::endl;
-//	return std::make_shared<NewMultiDimensionalScaling<float, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
-    return std::make_shared<NewMultiDimensionalScaling<double, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+	std::cerr << "SINGLE, TBB PARALLEL, NO SIMD" << std::endl;
+    return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
+
+#ifdef USE_SIMD
+    std::shared_ptr<AbstractMultiDimensionalScaling>
+    constructNewMultiDimensionalScalingDoubleNoParallelSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+        std::cerr << "DOUBLE, NO PARALLEL, SIMD" << std::endl;
+        return std::make_shared<NewMultiDimensionalScaling<DoubleSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+    }
+
+    std::shared_ptr<AbstractMultiDimensionalScaling>
+    constructNewMultiDimensionalScalingDoubleTbbSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+        std::cerr << "DOUBLE, TBB PARALLEL, SIMD" << std::endl;
+        return std::make_shared<NewMultiDimensionalScaling<DoubleSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+    }
+
+	std::shared_ptr<AbstractMultiDimensionalScaling>
+	constructNewMultiDimensionalScalingFloatNoParallelSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+		std::cerr << "SINGLE, NO PARALLEL, SIMD" << std::endl;
+		return std::make_shared<NewMultiDimensionalScaling<FloatSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+	}
+
+	std::shared_ptr<AbstractMultiDimensionalScaling>
+	constructNewMultiDimensionalScalingFloatTbbSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+		std::cerr << "SINGLE, TBB PARALLEL, SIMD" << std::endl;
+		return std::make_shared<NewMultiDimensionalScaling<FloatSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+	}
+#endif
 
 } // namespace mds
 

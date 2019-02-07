@@ -39,6 +39,7 @@ int main(int argc, char* argv[]) {
             ("dimension", po::value<int>()->default_value(2), "number of dimensions")
 			("internal", "use internal dimension")
 			("missing", "allow for missing entries")
+            ("simd", "use hand-rolled SIMD")
 	;
 	po::variables_map vm;
 
@@ -101,6 +102,14 @@ int main(int argc, char* argv[]) {
 		flags |= mds::Flags::FLOAT;
 	} else {
 		std::cout << "Running in double-precision" << std::endl;
+	}
+
+	if (vm.count("simd")) {
+	    flags |= mds::Flags::SIMD;
+#ifndef USE_SIMD
+        std::cerr << "SIMD is not implemented" << std::endl;
+        exit(-1);
+#endif
 	}
 	
 	bool truncation = false;

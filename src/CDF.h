@@ -1,9 +1,11 @@
 #ifndef _CDF_H
 #define _CDF_H
 
-#include <float.h>
+#include <cfloat>
 
+#ifdef USE_SIMD
 #include "xsimd/xsimd.hpp"
+#endif
 
 namespace mds {
 namespace math {
@@ -571,19 +573,42 @@ template <typename T>
 double phi2(double value) {
    return log(0.5 * erfc(-value * M_SQRT1_2));
 }
+
+
+
         template <typename T>
         T phi_new(T value) {
-            return xsimd::log(0.5 * xsimd::erfc(-value * M_SQRT1_2));
+#ifdef USE_SIMD
+            using namespace xsimd;
+#else
+            using namespace std;
+#endif
+            return log(0.5 * erfc(-value * M_SQRT1_2));
 
         }
 
+//        template <>
+//        double phi_new(double value) {
+//            return std::log(0.5 * std::erfc(-value * M_SQRT1_2));
+//        }
+//
+//        template <>
+//        float phi_new(float value) {
+//            return std::log(0.5f * std::erfc(-value * M_SQRT1_2));
+//        }
+
 template <typename T>
 double pdf(double value) { // standard normal density
-	return 0.398942280401432677939946059934 * std::exp( - value * value * 0.5);
+	return M_1_SQRT_2PI * std::exp( - value * value * 0.5);
 }
 		template <typename T>
 		T pdf_new(T value) {
-		return 0.398942280401432677939946059934 * xsimd::exp( - value * value * 0.5);
+#ifdef USE_SIMD
+            using namespace xsimd;
+#else
+            using namespace std;
+#endif
+		    return M_1_SQRT_2PI * exp(-0.5 * value * value);
 		}
 } // namespace math
 } // namespace mds
