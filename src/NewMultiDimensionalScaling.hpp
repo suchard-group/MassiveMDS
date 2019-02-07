@@ -238,10 +238,6 @@ public:
 		}
     }
 
-	double pdf(double value) { // standard normal density
-		return 0.398942280401432677939946059934 * std::exp( - value * value * 0.5);
-	}
-
     void makeDirty() {
     	sumOfIncrementsKnown = false;
     	incrementsKnown = false;
@@ -375,20 +371,6 @@ public:
 			gradient[i * embeddingDimension + 1] = gradij1;
 
 		}, ParallelType());
-
-//#define TEST_GENERIC_GRADIENT
-
-#ifdef TEST_GENERIC_GRADIENT
-        auto twoSum = std::accumulate(std::begin(*gradientPtr), std::end(*gradientPtr), 0.0);
-
-        std::fill(std::begin(*gradientPtr), std::end(*gradientPtr), 1.0);
-
-        computeLogLikelihoodGradientGeneric<withTruncation>();
-        auto genericSum = std::accumulate(std::begin(*gradientPtr), std::end(*gradientPtr), 0.0);
-        std::cerr << genericSum << " " << twoSum << std::endl;
-        exit(0);
-#endif // TEST_GENERIC_GRADIENT
-
 	};
 
     template <bool withTruncation>
@@ -719,11 +701,8 @@ public:
 //	    sumOfIncrementsKnown = true;
 //	}
 
-// 	int count = 0
-	int count2 = 0;
-
 	template <bool withTruncation>
-	void updateSumOfIncrements() {
+	void updateSumOfIncrements() { // TODO To be vectorized (when we start using this function again)
 
 		assert (false); // Should not get here anymore
 		const RealType scale = RealType(0.5) * precision;
@@ -776,42 +755,8 @@ public:
 		sumOfIncrements += delta;
 	}
 
-//	double phi2(double value) const {
-//		return log(0.5 * erfc(-value * M_SQRT1_2));
-//	}
-
-    using b_type = xsimd::simd_type<RealType>;
-    //b_type = xsimd::batch<RealType,2>;
-	b_type phi2(b_type scaledDistance, b_type neqI, b_type nNan) const {
-		scaledDistance *= -M_SQRT1_2;
-		scaledDistance = xsimd::erfc(scaledDistance);
-		scaledDistance *= 0.5;
-		scaledDistance = xsimd::log(scaledDistance);
-		scaledDistance *= neqI * nNan;
-		return scaledDistance;
-	}
-//
-//	__m128d phi2(__m128d value) const {
-//		const __m128d scalar = _mm_set1_ps(-M_SQRT1_2);
-//		value = _mm_mul_ps(value, scalar);
-//		return xsimd::log(0.5 * xsimd::erfc(value));
-//	}
 
 #ifdef SSE
-
-    void fun_test() {
-
-        mm::MemoryManager<RealType> x(10);
-        mm::MemoryManager<RealType> y(10);
-
-        RealType result2 = calculateDistanceXsimd<xsimd::batch<RealType, 2>>(
-                std::begin(x), std::begin(y), 10
-        );
-
-        RealType result1 = calculateDistanceXsimd<xsimd::batch<RealType, 1>>(
-                std::begin(x), std::begin(y), 10
-        );
-    }
 
 	template <typename VectorType, typename Iterator, typename SimdType>
 	RealType calculateDistanceXsimd(Iterator iX, Iterator iY, int length) const {
