@@ -253,41 +253,19 @@ public:
 
         // TODO Cache values
 
-		#define SIMD_TYPE xsimd::batch<RealType, 2>
-		#define SIMD_SIZE 2
-
-// 	#define SIMD_TYPE xsimd::batch<RealType, 1>
-// 	#define SIMD_SIZE 1
-
-// 	#define SIMD_TYPE double
-// 	#define SIMD_SIZE 1
-
-		using D2 = xsimd::batch<RealType, 2>;
-// 		using SimdType = double;
-
-//#define TEST_PARALLEL
-//
-//#ifdef TEST_PARALLEL
 		if (isLeftTruncated) { // run-time dispatch to compile-time optimization
 			if (embeddingDimension == 2) {
-				computeLogLikelihoodGradientGeneric<true, SIMD_TYPE, SIMD_SIZE, NonGeneric>();
+				computeLogLikelihoodGradientGeneric<true, typename TypeInfo::SimdType, TypeInfo::SimdSize, NonGeneric>();
 			} else {
-				computeLogLikelihoodGradientGeneric<true, SIMD_TYPE, SIMD_SIZE, Generic>();
+				computeLogLikelihoodGradientGeneric<true, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
 			}
 		} else {
 			if (embeddingDimension == 2) {
-				computeLogLikelihoodGradientGeneric<false, SIMD_TYPE, SIMD_SIZE, NonGeneric>();
+				computeLogLikelihoodGradientGeneric<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, NonGeneric>();
 			} else {
-				computeLogLikelihoodGradientGeneric<false, SIMD_TYPE, SIMD_SIZE, Generic>();
+				computeLogLikelihoodGradientGeneric<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
 			}
 		}
-//#else
-//        if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-//            computeLogLikelihoodGradientOld<true>();
-//        } else {
-//            computeLogLikelihoodGradientOld<false>();
-//        }
-//#endif // TEST_PARALLEL
 
 		mm::bufferedCopy(std::begin(*gradientPtr), std::end(*gradientPtr), result, buffer);
     }
