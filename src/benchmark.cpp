@@ -39,7 +39,8 @@ int main(int argc, char* argv[]) {
             ("dimension", po::value<int>()->default_value(2), "number of dimensions")
 			("internal", "use internal dimension")
 			("missing", "allow for missing entries")
-            ("simd", "use hand-rolled SIMD")
+            ("sse", "use hand-rolled SSE")
+            ("avx", "use hand-rolled AVX")
 	;
 	po::variables_map vm;
 
@@ -104,12 +105,20 @@ int main(int argc, char* argv[]) {
 		std::cout << "Running in double-precision" << std::endl;
 	}
 
-	if (vm.count("simd")) {
-	    flags |= mds::Flags::SIMD;
+	if (vm.count("sse") || vm.count("avx")) {
 #ifndef USE_SIMD
         std::cerr << "SIMD is not implemented" << std::endl;
         exit(-1);
 #endif
+        if (vm.count("sse")) {
+            if (vm.count("avx")) {
+                std::cerr << "Can not request SSE and AVX simultaneously" << std::endl;
+                exit(-1);
+            }
+            flags |= mds::Flags::SSE;
+        } else {
+            flags |= mds::Flags::AVX;
+        }
 	}
 	
 	bool truncation = false;

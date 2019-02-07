@@ -11,7 +11,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeMod
 
 if(APPLE)
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -fno-vectorize -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-avx -std=c++11")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -DUSE_SIMD -msse4.2 -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -DUSE_SIMD -msse4.2 -mavx -std=c++11")
 else(APPLE)
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -O3 -g -pedantic -fno-vectorize -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-avx -std=c++11")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -O3 -g -pedantic -DUSE_SIMD -msse4.2 -std=c++11")
@@ -155,7 +155,7 @@ target_link_libraries(benchmark boost_program_options)
    target_link_libraries(benchmark-san ${TBB_LIBRARIES})
    target_link_libraries(benchmark-san boost_program_options)
 
-#add_executable(testme src/test.cpp)
+add_executable(testme src/test.cpp)
 
    ##
 # Packaging

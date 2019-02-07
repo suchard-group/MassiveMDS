@@ -17,6 +17,10 @@ namespace mds {
 struct Generic {};
 struct NonGeneric {};
 
+#ifdef USE_SIMD
+    using D4 = xsimd::batch<double, 4>;
+    using D4Bool = xsimd::batch_bool<double, 4>;
+
 using D2 = xsimd::batch<double, 2>;
 using D2Bool = xsimd::batch_bool<double, 2>;
 
@@ -25,6 +29,7 @@ using D2Bool = xsimd::batch_bool<double, 2>;
 
 using S4 = xsimd::batch<float, 4>;
 using S4Bool = xsimd::batch_bool<float, 4>;
+#endif
 
 template <typename SimdType, typename RealType, typename Algorithm>
 class DistanceDispatch {
@@ -132,6 +137,56 @@ private:
 
 } // namespace impl
 
+#ifdef USE_SIMD
+    template <>
+    inline D4 DistanceDispatch<D4, D4::value_type, Generic>::calculate(int j) const {
+
+        const auto distance = D4(
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + j * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 1) * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 2) * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 3) * embeddingDimension,
+                        embeddingDimension)
+        );
+
+        return distance;
+    }
+
+    template <>
+    inline D4 DistanceDispatch<D4, D4::value_type, NonGeneric>::calculate(int j) const {
+
+        const auto distance = D4(
+                impl::calculateDistance2(
+                        start,
+                        iterator + j * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 1) * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 2) * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 3) * embeddingDimension,
+                        embeddingDimension, D4::value_type())
+        );
+
+        return distance;
+    }
 
 template <>
 inline D2 DistanceDispatch<D2, D2::value_type, Generic>::calculate(int j) const {
@@ -150,7 +205,6 @@ inline D2 DistanceDispatch<D2, D2::value_type, Generic>::calculate(int j) const 
 	return distance;
 }
 
-#ifdef USE_SIMD
 template <>
 inline D2 DistanceDispatch<D2, D2::value_type, NonGeneric>::calculate(int j) const {
 
@@ -313,6 +367,11 @@ public:
 
 };
 
+    template <>
+    inline D4 SimdHelper<D4, D4::value_type>::get(const double* iterator) {
+        return D4(iterator, xsimd::unaligned_mode());
+    }
+
 template <>
 inline D2 SimdHelper<D2, D2::value_type>::get(const double* iterator) {
 		return D2(iterator, xsimd::unaligned_mode());
@@ -322,9 +381,14 @@ inline D2 SimdHelper<D2, D2::value_type>::get(const double* iterator) {
 	inline S4 SimdHelper<S4, S4::value_type>::get(const float* iterator) {
 		return S4(iterator, xsimd::unaligned_mode());
 	}
+    template <>
+
+    inline void SimdHelper<D4, D4::value_type>::put(D4 x, double* iterator) {
+        x.store_unaligned(iterator);
+    }
 
 
-template <>
+    template <>
 inline void SimdHelper<D2, D2::value_type>::put(D2 x, double* iterator) {
 	x.store_unaligned(iterator);
 }

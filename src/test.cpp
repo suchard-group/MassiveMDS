@@ -7,11 +7,14 @@
 
 #define XSIMD_ENABLE_FALLBACK
 
+#ifdef USE_SIMD
 #include "xsimd/xsimd.hpp"
+#endif
 #include "AbstractMultiDimensionalScaling.hpp"
 
 int main(int argc, char* argv[]) {
 
+#ifdef USE_SIMD
         xsimd::batch<double, 2> x{1.0, 1.0};
         x = mds::math::phi_new(x);
         std::cout << x << " : " << decltype(x)::size << std::endl;
@@ -47,4 +50,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << result << std::endl;
 
+        xsimd::batch<double, 4> w(double(0));
+
+#endif
 }

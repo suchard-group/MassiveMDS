@@ -13,28 +13,31 @@ namespace mds {
     SharedPtr constructNewMultiDimensionalScalingFloatTbbNoSimd(int, int, long, int);
 
 #ifdef USE_SIMD
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbSimd(int, int, long, int);
-    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelSimd(int, int, long, int);
-    SharedPtr constructNewMultiDimensionalScalingFloatNoParallelSimd(int, int, long, int);
-    SharedPtr constructNewMultiDimensionalScalingFloatTbbSimd(int, int, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx(int, int, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx(int, int, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbSse(int, int, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelSse(int, int, long, int);
+    SharedPtr constructNewMultiDimensionalScalingFloatNoParallelSse(int, int, long, int);
+    SharedPtr constructNewMultiDimensionalScalingFloatTbbSse(int, int, long, int);
 #endif
 
 SharedPtr factory(int dim1, int dim2, long flags, int device, int threads) {
 	bool useFloat = flags & mds::Flags::FLOAT;
 	bool useOpenCL = flags & mds::Flags::OPENCL;
 	bool useTbb = flags & mds::Flags::TBB;
-	bool useSimd = flags & mds::Flags::SIMD;
+	bool useAvx = flags & mds::Flags::AVX;
+	bool useSse = flags & mds::Flags::SSE;
 
 	if (useFloat) {
 		if (useOpenCL) {
 			return constructOpenCLMultiDimensionalScalingFloat(dim1, dim2, flags, device);
 		} else {
 #ifdef USE_SIMD
-		    if (useSimd) {
+		    if (useSse) {
                 if (useTbb) {
-                    return constructNewMultiDimensionalScalingFloatTbbSimd(dim1, dim2, flags, threads);
+                    return constructNewMultiDimensionalScalingFloatTbbSse(dim1, dim2, flags, threads);
                 } else {
-                    return constructNewMultiDimensionalScalingFloatNoParallelSimd(dim1, dim2, flags, threads);
+                    return constructNewMultiDimensionalScalingFloatNoParallelSse(dim1, dim2, flags, threads);
                 }
 		    } else {
 #endif
@@ -52,11 +55,17 @@ SharedPtr factory(int dim1, int dim2, long flags, int device, int threads) {
 			return constructOpenCLMultiDimensionalScalingDouble(dim1, dim2, flags, device);
 		} else {
 #ifdef USE_SIMD
-		    if (useSimd) {
+		    if (useAvx) {
                 if (useTbb) {
-                    return constructNewMultiDimensionalScalingDoubleTbbSimd(dim1, dim2, flags, threads);
+                    return constructNewMultiDimensionalScalingDoubleTbbAvx(dim1, dim2, flags, threads);
                 } else {
-                    return constructNewMultiDimensionalScalingDoubleNoParallelSimd(dim1, dim2, flags, threads);
+                    return constructNewMultiDimensionalScalingDoubleNoParallelAvx(dim1, dim2, flags, threads);
+                }
+		    } else if (useSse) {
+                if (useTbb) {
+                    return constructNewMultiDimensionalScalingDoubleTbbSse(dim1, dim2, flags, threads);
+                } else {
+                    return constructNewMultiDimensionalScalingDoubleNoParallelSse(dim1, dim2, flags, threads);
                 }
 		    } else {
 #endif

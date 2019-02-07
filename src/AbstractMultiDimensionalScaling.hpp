@@ -8,9 +8,10 @@
 #include <complex>
 #include <future>
 
-//#include <xmmintrin.h>
+#ifdef USE_SIMD
 #include <emmintrin.h>
 #include <smmintrin.h>
+#endif
 
 #define USE_TBB
 
