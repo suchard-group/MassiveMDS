@@ -253,34 +253,46 @@ public:
 
         // TODO Cache values
 
-#define TEST_PARALLEL
+		#define SIMD_TYPE xsimd::batch<RealType, 2>
+		#define SIMD_SIZE 2
 
-#ifdef TEST_PARALLEL
-        if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-            if (embeddingDimension == 2) {
-                computeLogLikelihoodGradientNew<true>();
-            } else {
-                computeLogLikelihoodGradientGeneric<true>();
-            }
-        } else {
-            if (embeddingDimension == 2) {
-                computeLogLikelihoodGradientNew<false>();
-            } else {
-                computeLogLikelihoodGradientGeneric<false>();
-            }
-        }
-#else
-        if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-            computeLogLikelihoodGradientOld<true>();
-        } else {
-            computeLogLikelihoodGradientOld<false>();
-        }
-#endif // TEST_PARALLEL
+// 	#define SIMD_TYPE xsimd::batch<RealType, 1>
+// 	#define SIMD_SIZE 1
+
+// 	#define SIMD_TYPE double
+// 	#define SIMD_SIZE 1
+
+		using D2 = xsimd::batch<RealType, 2>;
+// 		using SimdType = double;
+
+//#define TEST_PARALLEL
+//
+//#ifdef TEST_PARALLEL
+		if (isLeftTruncated) { // run-time dispatch to compile-time optimization
+			if (embeddingDimension == 2) {
+				computeLogLikelihoodGradientGeneric<true, SIMD_TYPE, SIMD_SIZE, NonGeneric>();
+			} else {
+				computeLogLikelihoodGradientGeneric<true, SIMD_TYPE, SIMD_SIZE, Generic>();
+			}
+		} else {
+			if (embeddingDimension == 2) {
+				computeLogLikelihoodGradientGeneric<false, SIMD_TYPE, SIMD_SIZE, NonGeneric>();
+			} else {
+				computeLogLikelihoodGradientGeneric<false, SIMD_TYPE, SIMD_SIZE, Generic>();
+			}
+		}
+//#else
+//        if (isLeftTruncated) { // run-time dispatch to compile-time optimization
+//            computeLogLikelihoodGradientOld<true>();
+//        } else {
+//            computeLogLikelihoodGradientOld<false>();
+//        }
+//#endif // TEST_PARALLEL
 
 		mm::bufferedCopy(std::begin(*gradientPtr), std::end(*gradientPtr), result, buffer);
     }
 
-    template <bool withTruncation>
+	template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeLogLikelihoodGradientGeneric() {
 
         const auto length = locationCount * embeddingDimension;
@@ -297,125 +309,29 @@ public:
 
         for_each(0, locationCount, [this, gradient, scale, dim](const int i) {
 
-            for (int j = 0; j < locationCount-1; j+=2) {
+			const int vectorCount = locationCount - locationCount % SimdSize;
 
-            	RealType distances [2];
-            	distances[0] = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
-						begin(*locationsPtr) + i * dim,
-						begin(*locationsPtr) + j * dim,
-						dim
-				);
-				distances[1] = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
-						begin(*locationsPtr) + i * dim,
-						begin(*locationsPtr) + (j + 1) * dim,
-						dim
-				);
+			DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-				using b_type = xsimd::simd_type<RealType>;
-				b_type distance;
-				xsimd::load_unaligned(&distances[0],distance);
-
-				b_type neqI;
-				RealType bool1 [2];
-				bool1[0] = i!=j ? 1.0 : RealType(0);
-				bool1[1] = i!=(j+1) ? 1.0 : RealType(0);
-				xsimd::load_unaligned( &bool1[0], neqI );
-
-				const auto observation1 = observations[i * locationCount + j];
-				const auto observation2 = observations[i * locationCount + (j+1)];
-
-				b_type nNan;
-				RealType bool2 [2];
-				bool2[0] = std::isnan(observation1) ? RealType(0): 1.0;
-				bool2[1] = std::isnan(observation2) ? RealType(0): 1.0;
-				xsimd::load_unaligned( &bool2[0], nNan );
-
-				RealType residuals [2];
-
-				residuals[0] = (std::isnan(observation1) ? RealType(0) : observation1 - distances[0]) *
-									   (i != j);
-				residuals[1] = (std::isnan(observation2) ? RealType(0) : observation2 - distances[1]) *
-									   (i != (j + 1));
-				b_type residual;
-				xsimd::load_unaligned( &residuals[0] , residual );
-
-				if (withTruncation) {
-					RealType zero [2];
-					zero[0] = RealType(0);
-					zero[1] = RealType(0);
-					b_type zeros;
-					b_type trncDrv;
-
-					xsimd::load_unaligned(&zero[0],zeros);
-
-					trncDrv = zeros + math::pdf_new( distance * sqrt(scale) ) /
-									  (xsimd::exp(math::phi_new(distance * sqrt(scale))) *
-									   sqrt(scale)) * nNan * neqI;
-//					RealType jnt_trnc [2] = math::pdf_new( distance * sqrt(scale) ) /
-//										(xsimd::exp(math::phi_new(distance * sqrt(scale))) *
-//										 sqrt(scale));
-//					b_type trncDrv;
-//					xsimd::load_unaligned( &jnt_trnc[0], trncDrv );
+			innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch, scale, i, 0, vectorCount);
+//			SimdHelper<SimdType, RealType>::put(innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch,
+//																									  scale, i, 0,
+//																									  vectorCount),
+//												&gradient[i * embeddingDimension]);
 
 
-//					jnt_trnc[0] = std::isnan(observation1) || i == j ? RealType(0) : trncDrv[0];
-//					jnt_trnc[1] = std::isnan(observation2) || i == (j+1) ? RealType(0) : trncDrv[1];
-//					xsimd::load_unaligned(&jnt_trnc[0],trncDrv);
 
-					residual += trncDrv;
-				}
+			if (vectorCount < locationCount) { // Edge-cases
 
+				DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-				RealType dataContribution1 = std::isnan(observation1) || (i == j) ?
-											RealType(0) :
-											residual[0] * scale / distance[0];
-				RealType dataContribution2 = std::isnan(observation2) || (i == (j+1)) ?
-											 RealType(0) :
-											 residual[1] * scale / distance[1];
-
-				for (int d = 0; d < dim; ++d) {
-					const RealType update1 = dataContribution1 *
-											((*locationsPtr)[i * dim + d] - (*locationsPtr)[j * dim + d]);
-					const RealType update2 = dataContribution2 *
-											((*locationsPtr)[i * dim + d] - (*locationsPtr)[(j+1) * dim + d]);
-
-
-					gradient[i * dim + d] += update1 + update2;
-				}
-            }
-			if (locationCount % 2 != 0 && i != (locationCount - 1)) { // one more time for individual j = location count - 1
-
-            	int j = locationCount - 1;
-
-				const auto distance = calculateDistanceGeneric<mm::MemoryManager<RealType>>(
-						begin(*locationsPtr) + i * dim,
-						begin(*locationsPtr) + j * dim,
-						dim
-				);
-
-				const auto observation = observations[i * locationCount + j];
-				RealType residual = (std::isnan(observation) ? RealType(0) : observation - distance);
-
-
-				if (withTruncation) {
-					const RealType trncDrv = std::isnan(observation) ?
-											  RealType(0) :
-											  pdf(distance * sqrt(scale)) /
-											  (std::exp(math::phi2<NewMultiDimensionalScaling>(distance * sqrt(scale))) *
-											   sqrt(scale));
-					residual = residual + trncDrv;
-				}
-
-				RealType dataContribution = std::isnan(observation) ?
-											 RealType(0) :
-											 residual * scale / distance;
-
-				for (int d = 0; d < dim; ++d) {
-					const RealType update = dataContribution *
-											 ((*locationsPtr)[i * dim + d] - (*locationsPtr)[j * dim + d]);
-
-					gradient[i * dim + d] += update;
-				}
+				//gradient[i * embeddingDimension] +=
+				innerGradientLoop<withTruncation, RealType, 1>(dispatch, scale, i, vectorCount, locationCount);
+//				SimdHelper<SimdType, RealType>::put(innerGradientLoop<withTruncation, RealType, 1>(dispatch,
+//																								   scale, i,
+//																								   vectorCount,
+//																								   locationCount),
+//													&gradient[i * embeddingDimension]);
 			}
         }, ParallelType());
     };
@@ -662,6 +578,45 @@ public:
 	double reduce(double x) {
 		return x;
 	}
+
+	template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
+	void innerGradientLoop(const DispatchType& dispatch, const RealType scale, const int i,
+								 const int begin, const int end) {
+
+		for (int j = begin; j < end; j += SimdSize) {
+
+			const auto distance = dispatch.calculate(j);
+			const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
+			const auto notMissing = !getMissing(i, j, observation);
+
+			if (any(notMissing)) {
+
+				auto residual = mask(notMissing, observation - distance);
+
+				if (withTruncation) {
+					SimdType trncDrv = SimdType(RealType(0));
+
+					trncDrv += mask(notMissing, math::pdf_new( distance * sqrt(scale) ) /
+									  (xsimd::exp(math::phi_new(distance * sqrt(scale))) *
+									   sqrt(scale)) );
+
+					residual += trncDrv;
+				}
+
+				auto dataContribution = mask(notMissing, residual * scale / distance);
+
+				for (int d = 0; d < embeddingDimension; ++d) {
+					const auto update = dataContribution *
+											 ((*locationsPtr)[i * embeddingDimension + d] -
+											  (*locationsPtr)[j * embeddingDimension + d]);
+
+					(*gradientPtr)[i * embeddingDimension + d] += reduce(update);
+				}
+			}
+		}
+
+		//return grad;
+	};
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
     RealType innerLikelihoodLoop(const DispatchType& dispatch, const RealType scale, const int i,
