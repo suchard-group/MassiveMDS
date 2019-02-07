@@ -1,8 +1,5 @@
 #include "AbstractMultiDimensionalScaling.hpp"
 
-
-#define USE_SIMD
-
 // forward reference
 namespace mds {
 

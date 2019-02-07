@@ -106,6 +106,10 @@ int main(int argc, char* argv[]) {
 
 	if (vm.count("simd")) {
 	    flags |= mds::Flags::SIMD;
+#ifndef USE_SIMD
+        std::cerr << "SIMD is not implemented" << std::endl;
+        exit(-1);
+#endif
 	}
 	
 	bool truncation = false;
