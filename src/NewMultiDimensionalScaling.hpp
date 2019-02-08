@@ -565,6 +565,8 @@ public:
 
 				auto dataContribution = mask(notMissing, residual * scale / distance);
 
+				// TODO for-loop over j + k, where k = 0, ..., SimdSize-1
+				
 				for (int d = 0; d < embeddingDimension; ++d) {
 
 					const SimdType iLoc = SimdType((*locationsPtr)[i * embeddingDimension + d]);
