@@ -566,24 +566,45 @@ public:
 				auto dataContribution = mask(notMissing, residual * scale / distance);
 
 				// TODO for-loop over j + k, where k = 0, ..., SimdSize-1
-				
-				for (int d = 0; d < embeddingDimension; ++d) {
 
-					const SimdType iLoc = SimdType((*locationsPtr)[i * embeddingDimension + d]);
-					RealType jLocs [2];
-					jLocs[0] = (*locationsPtr)[j * embeddingDimension + d];
-					jLocs[1] = (*locationsPtr)[(j+1) * embeddingDimension + d];
+						for (int k = 0; k < SimdSize; ++k) {
+							for (int d = 0; d < embeddingDimension; ++d) {
 
-					const auto jLocsSimd = SimdHelper<SimdType, RealType>::get(jLocs);
-					const auto update = dataContribution * (iLoc - jLocsSimd);
+								const RealType something = getScalar(dataContribution, k);
 
-					(*gradientPtr)[i * embeddingDimension + d] += reduce(update);
-				}
+								const RealType update = something *
+														((*locationsPtr)[i * embeddingDimension + d] -
+														 (*locationsPtr)[(j + k) * embeddingDimension + d]);
+
+
+								(*gradientPtr)[i * embeddingDimension + d] += update;
+							}
+						}
 			}
 		}
 
 		//return grad;
 	};
+
+	double getScalar(double x, int i) {
+		return x;
+	}
+
+	float getScalar(float x, int i) {
+		return x;
+	}
+
+	double getScalar(D4 x, int i) {
+		return x[i];
+	}
+
+	double getScalar(D2 x, int i) {
+		return x[i];
+	}
+
+	float getScalar(S4 x, int i) {
+		return x[i];
+	}
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
     RealType innerLikelihoodLoop(const DispatchType& dispatch, const RealType scale, const int i,
