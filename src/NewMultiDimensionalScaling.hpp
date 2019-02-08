@@ -566,9 +566,14 @@ public:
 				auto dataContribution = mask(notMissing, residual * scale / distance);
 
 				for (int d = 0; d < embeddingDimension; ++d) {
-					const auto update = dataContribution *
-											 ((*locationsPtr)[i * embeddingDimension + d] -
-											  (*locationsPtr)[j * embeddingDimension + d]);
+
+					const SimdType iLoc = SimdType((*locationsPtr)[i * embeddingDimension + d]);
+					RealType jLocs [2];
+					jLocs[0] = (*locationsPtr)[j * embeddingDimension + d];
+					jLocs[1] = (*locationsPtr)[(j+1) * embeddingDimension + d];
+
+					const auto jLocsSimd = SimdHelper<SimdType, RealType>::get(jLocs);
+					const auto update = dataContribution * (iLoc - jLocsSimd);
 
 					(*gradientPtr)[i * embeddingDimension + d] += reduce(update);
 				}
