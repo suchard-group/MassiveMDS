@@ -554,36 +554,29 @@ public:
 				auto residual = mask(notMissing, observation - distance);
 
 				if (withTruncation) {
-					SimdType trncDrv = SimdType(RealType(0));
 
-					trncDrv += mask(notMissing, math::pdf_new( distance * sqrt(scale) ) /
+					residual += mask(notMissing, math::pdf_new( distance * sqrt(scale) ) /
 									  (xsimd::exp(math::phi_new(distance * sqrt(scale))) *
 									   sqrt(scale)) );
-
-					residual += trncDrv;
 				}
 
 				auto dataContribution = mask(notMissing, residual * scale / distance);
 
-				// TODO for-loop over j + k, where k = 0, ..., SimdSize-1
+                for (int k = 0; k < SimdSize; ++k) {
+                    for (int d = 0; d < embeddingDimension; ++d) {
 
-						for (int k = 0; k < SimdSize; ++k) {
-							for (int d = 0; d < embeddingDimension; ++d) {
+                        const RealType something = getScalar(dataContribution, k);
 
-								const RealType something = getScalar(dataContribution, k);
-
-								const RealType update = something *
-														((*locationsPtr)[i * embeddingDimension + d] -
-														 (*locationsPtr)[(j + k) * embeddingDimension + d]);
+                        const RealType update = something *
+                                                ((*locationsPtr)[i * embeddingDimension + d] -
+                                                 (*locationsPtr)[(j + k) * embeddingDimension + d]);
 
 
-								(*gradientPtr)[i * embeddingDimension + d] += update;
-							}
-						}
+                        (*gradientPtr)[i * embeddingDimension + d] += update;
+                    }
+                }
 			}
 		}
-
-		//return grad;
 	};
 
 	double getScalar(double x, int i) {
