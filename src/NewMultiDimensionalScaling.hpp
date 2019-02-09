@@ -543,6 +543,8 @@ public:
 	void innerGradientLoop(const DispatchType& dispatch, const RealType scale, const int i,
 								 const int begin, const int end) {
 
+        const SimdType sqrtScale(std::sqrt(scale));
+
 		for (int j = begin; j < end; j += SimdSize) {
 
 			const auto distance = dispatch.calculate(j);
@@ -555,9 +557,9 @@ public:
 
 				if (withTruncation) {
 
-					residual += mask(notMissing, math::pdf_new( distance * sqrt(scale) ) /
-									  (xsimd::exp(math::phi_new(distance * sqrt(scale))) *
-									   sqrt(scale)) );
+					residual += mask(notMissing, math::pdf_new( distance * sqrtScale ) /
+									  (xsimd::exp(math::phi_new(distance * sqrtScale)) *
+									   sqrtScale) );
 				}
 
 				auto dataContribution = mask(notMissing, residual * scale / distance);
