@@ -43,6 +43,7 @@ SET(OPENCL_SOURCE_FILES
 	Reducer.hpp
 	)
 ADD_LIBRARY(mds_opencl ${OPENCL_SOURCE_FILES})
+set_target_properties(mds_opencl PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -msse4.2 -mavx")
 TARGET_LINK_LIBRARIES(mds_opencl ${OpenCL_LIBRARIES})
 
 #ADD_EXECUTABLE(test test.cpp)

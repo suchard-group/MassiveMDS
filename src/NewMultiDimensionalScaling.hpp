@@ -594,6 +594,7 @@ public:
 		return x;
 	}
 
+#ifdef USE_SIMD
 	double getScalar(D4 x, int i) {
 		return x[i];
 	}
@@ -605,6 +606,7 @@ public:
 	float getScalar(S4 x, int i) {
 		return x[i];
 	}
+#endif // USE_SIMD
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
     RealType innerLikelihoodLoop(const DispatchType& dispatch, const RealType scale, const int i,

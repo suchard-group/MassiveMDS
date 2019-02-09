@@ -367,15 +367,16 @@ public:
 
 };
 
+#ifdef USE_SIMD
     template <>
     inline D4 SimdHelper<D4, D4::value_type>::get(const double* iterator) {
         return D4(iterator, xsimd::unaligned_mode());
     }
 
-template <>
-inline D2 SimdHelper<D2, D2::value_type>::get(const double* iterator) {
-		return D2(iterator, xsimd::unaligned_mode());
-}
+    template <>
+    inline D2 SimdHelper<D2, D2::value_type>::get(const double* iterator) {
+        return D2(iterator, xsimd::unaligned_mode());
+    }
 
 	template <>
 	inline S4 SimdHelper<S4, S4::value_type>::get(const float* iterator) {
@@ -389,9 +390,9 @@ inline D2 SimdHelper<D2, D2::value_type>::get(const double* iterator) {
 
 
     template <>
-inline void SimdHelper<D2, D2::value_type>::put(D2 x, double* iterator) {
-	x.store_unaligned(iterator);
-}
+    inline void SimdHelper<D2, D2::value_type>::put(D2 x, double* iterator) {
+        x.store_unaligned(iterator);
+    }
 
 //template <>
 //inline D1 SimdHelper<D1, D1::value_type>::get(const double* iterator) {
@@ -407,43 +408,27 @@ inline void SimdHelper<D2, D2::value_type>::put(D2 x, double* iterator) {
 	inline void SimdHelper<S4, S4::value_type>::put(S4 x, float* iterator) {
 		x.store_unaligned(iterator);
 	}
+#endif // USE_SIMD
 
-template <>
-inline double SimdHelper<double, double>::get(const double* iterator) {
-		return *iterator;
-}
+    template <>
+    inline double SimdHelper<double, double>::get(const double* iterator) {
+        return *iterator;
+    }
 
-	template <>
-	inline float SimdHelper<float, float>::get(const float* iterator) {
-		return *iterator;
-	}
+    template <>
+    inline float SimdHelper<float, float>::get(const float* iterator) {
+        return *iterator;
+    }
 
-template <>
-inline void SimdHelper<double, double>::put(double x, double* iterator) {
-	*iterator = x;
-}
+    template <>
+    inline void SimdHelper<double, double>::put(double x, double* iterator) {
+        *iterator = x;
+    }
 
-	template <>
-	inline void SimdHelper<float, float>::put(float x, float* iterator) {
-		*iterator = x;
-	}
-
-// template <>
-// inline D2Bool SimdHelper<D2>::missing(int i, int j, D2 x) {
-// 	return D2Bool(i == j, i == j + 1) || xsimd::isnan(x);
-// }
-//
-// template <>
-// inline D2 SimdHelper<D2>::mask(D2Bool x) {
-// 	return xsimd::select(x, D2(0.0, 0.0), D2(1.0, 1.0));
-// }
-//
-// template <>
-// inline bool SimdHelper<D2>::any(D2Bool x) {
-// 	return xsimd::any(x);
-// }
-
-
+    template <>
+    inline void SimdHelper<float, float>::put(float x, float* iterator) {
+        *iterator = x;
+    }
 } // namespace mds
 
 #endif // _DISTANCE_HPP

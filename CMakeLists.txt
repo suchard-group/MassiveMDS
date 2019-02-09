@@ -1,20 +1,16 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(mds)
 
-#set(CMAKE_CXX_COMPILER "/opt/clang6.0/bin/clang++")
-
-OPTION(BUILD_CPU "Build MDS with a CPU backend" OFF)
+OPTION(BUILD_NOSIMD "Build MDS without SIMD" OFF)
 OPTION(BUILD_CUDA "Build MDS with a CUDA backend" OFF)
 OPTION(BUILD_OPENCL "Build MDS with a OpenCL backend" ON)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
 if(APPLE)
-	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -fno-vectorize -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-avx -std=c++11")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -DUSE_SIMD -msse4.2 -mavx -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -std=c++11")
 else(APPLE)
-	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -O3 -g -pedantic -fno-vectorize -mno-sse4.1 -mno-sse4.2 -mno-sse4a -mno-avx -std=c++11")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -O3 -g -pedantic -DUSE_SIMD -msse4.2 -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -O3 -g -pedantic -std=c++11")
 endif(APPLE)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++11")
 
@@ -70,10 +66,6 @@ ENDIF()
 # Version information
 INCLUDE(${CMAKE_MODULE_PATH}/Version.cmake)
 
-IF(${BUILD_CPU})
-  ADD_SUBDIRECTORY(src/backend/cpu)
-ENDIF()
-
 IF(${BUILD_CUDA})
     ADD_SUBDIRECTORY(src/backend/cuda)
 ENDIF()
@@ -110,6 +102,21 @@ if (JNI_FOUND)
    message (STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
    message (STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
 
+   ##
+   # Build boost program_options for benchmark
+   ##
+   INCLUDE("${CMAKE_MODULE_PATH}/build_boost_headers.cmake")
+   file(GLOB BOOST_PO_FILES
+           "${BoostHeaders_INCLUDE_DIRS}/libs/program_options/src/*.cpp"
+           )
+   include_directories(${BoostHeaders_INCLUDE_DIRS})
+   add_library(boost_program_options ${BOOST_PO_FILES})
+
+   IF(${BUILD_NOSIMD})
+       ADD_SUBDIRECTORY(src/backend/nosimd)
+   ENDIF()
+
+       ## Build MDS with SIMD
 include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni
 	TBB_INCLUDE_DIRS
 	)
@@ -125,19 +132,9 @@ set(JNI_SOURCE_FILES
 	)
 
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
+   set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -msse4.2 -mavx")
 target_link_libraries(mds_jni mds_opencl)
 target_link_libraries(mds_jni ${TBB_LIBRARIES})
-
-
-##
-# Build boost program_options for benchmark
-##
-INCLUDE("${CMAKE_MODULE_PATH}/build_boost_headers.cmake")
-file(GLOB BOOST_PO_FILES
-    "${BoostHeaders_INCLUDE_DIRS}/libs/program_options/src/*.cpp"
-)
-include_directories(${BoostHeaders_INCLUDE_DIRS})
-add_library(boost_program_options ${BOOST_PO_FILES})
 
 ##
 # Build benchmark
@@ -145,12 +142,14 @@ add_library(boost_program_options ${BOOST_PO_FILES})
 
 add_executable(benchmark src/benchmark.cpp)
 target_link_libraries(benchmark mds_jni)
+   set_target_properties(benchmark PROPERTIES COMPILE_FLAGS "-DUSE_SIMD")
 target_link_libraries(benchmark ${TBB_LIBRARIES})
 target_link_libraries(benchmark boost_program_options)
 
    add_executable(benchmark-san src/benchmark.cpp)
    set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "-fsanitize=address")
    set_target_properties(benchmark-san PROPERTIES LINK_FLAGS "-fsanitize=address")
+   set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "-DUSE_SIMD")
    target_link_libraries(benchmark-san mds_jni)
    target_link_libraries(benchmark-san ${TBB_LIBRARIES})
    target_link_libraries(benchmark-san boost_program_options)
