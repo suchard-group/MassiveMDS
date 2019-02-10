@@ -40,6 +40,14 @@ namespace mds {
         static const int SimdSize = 4;
     };
 
+#ifdef USE_AVX512
+    struct DoubleAvx512TypeInfo {
+        using BaseType = double;
+        using SimdType = xsimd::batch<double, 8>;
+        static const int SimdSize = 8;
+    };
+#endif
+
     struct FloatSimdTypeInfo {
         using BaseType = float;
         using SimdType = xsimd::batch<float, 4>;
@@ -1150,6 +1158,19 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
         return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
     }
 
+#ifdef USE_AVX512
+    std::shared_ptr<AbstractMultiDimensionalScaling>
+    constructNewMultiDimensionalScalingDoubleNoParallelAvx512(int embeddingDimension, int locationCount, long flags, int threads) {
+        std::cerr << "DOUBLE, NO PARALLEL, AVX512" << std::endl;
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+    }
+
+    std::shared_ptr<AbstractMultiDimensionalScaling>
+    constructNewMultiDimensionalScalingDoubleTbbAvx512(int embeddingDimension, int locationCount, long flags, int threads) {
+        std::cerr << "DOUBLE, TBB PARALLEL, AVX512" << std::endl;
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+    }
+#endif
 
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads) {

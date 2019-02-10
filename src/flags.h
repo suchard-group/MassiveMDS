@@ -10,7 +10,8 @@ enum Flags {
     LEFT_TRUNCATION = 1 << 5,
     EGPU = 1 << 6,
     SSE = 1 << 7,
-    AVX = 1 << 8
+    AVX = 1 << 8,
+	AVX512 = 1 << 9
 };
 
 } // namespace mds

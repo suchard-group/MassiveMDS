@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
 			("missing", "allow for missing entries")
             ("sse", "use hand-rolled SSE")
             ("avx", "use hand-rolled AVX")
+            ("avx512", "use hand-rolled AVX-512")
 	;
 	po::variables_map vm;
 
@@ -105,20 +106,33 @@ int main(int argc, char* argv[]) {
 		std::cout << "Running in double-precision" << std::endl;
 	}
 
-	if (vm.count("sse") || vm.count("avx")) {
+    int simdCount = 0;
+    if (vm.count("sse")) ++simdCount;
+    if (vm.count("avx")) ++simdCount;
+    if (vm.count("avx512")) ++simdCount;
+
+    if (simdCount > 0) {
 #ifndef USE_SIMD
         std::cerr << "SIMD is not implemented" << std::endl;
         exit(-1);
-#endif
-        if (vm.count("sse")) {
-            if (vm.count("avx")) {
-                std::cerr << "Can not request SSE and AVX simultaneously" << std::endl;
-                exit(-1);
-            }
+#else
+        if (simdCount > 1) {
+            std::cerr << "Can not request more than one SIMD simultaneously" << std::endl;
+            exit(-1);
+        }
+        if (vm.count("avx512")) {
+#ifndef USE_AVX512
+            std::cerr << "AVX-512 is not implemented" << std::endl;
+            exit(-1);
+#else
+            flags |= mds::Flags::AVX512;
+#endif // USE_AVX512
+        } else if (vm.count("sse")) {
             flags |= mds::Flags::SSE;
         } else {
             flags |= mds::Flags::AVX;
         }
+#endif // USE_SIMD
 	}
 	
 	bool truncation = false;
