@@ -40,6 +40,14 @@ ENDIF()
 INCLUDE_DIRECTORIES(${TBB_INCLUDE_DIRS})
 MESSAGE(STATUS "TBB directory: ${TBB_INCLUDE_DIRS}")
 
+option(USE_SYSTEM_XSIMD "Use system XSIMD" OFF)
+if(USE_SYSTEM_XSIMD)
+  find_package(xsimd REQUIRED)
+else()
+  include("${CMAKE_MODULE_PATH}/build_xsimd.cmake")
+endif()
+message(STATUS "xsimd directory: ${xsimd_INCLUDE_DIRS}")
+
 
 # OS Definitions
 IF(UNIX)
@@ -110,6 +118,7 @@ if (JNI_FOUND)
            "${BoostHeaders_INCLUDE_DIRS}/libs/program_options/src/*.cpp"
            )
    include_directories(${BoostHeaders_INCLUDE_DIRS})
+   include_directories(${xsimd_INCLUDE_DIRS})
    add_library(boost_program_options ${BOOST_PO_FILES})
 
    IF(${BUILD_NOSIMD})
@@ -165,7 +174,3 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/CPack.txt)
 else(JNI_FOUND)
 	message (WARNING " No JNI found!")
 endif(JNI_FOUND)
-
-# include xsimd headers
-set(XSIMD_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../xsimd-master/include/")
-target_include_directories(mds_opencl INTERFACE ${XSIMD_INCLUDE_DIR})
