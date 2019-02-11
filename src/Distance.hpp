@@ -31,6 +31,11 @@ using S4 = xsimd::batch<float, 4>;
 using S4Bool = xsimd::batch_bool<float, 4>;
 #endif
 
+#ifdef USE_AVX512
+using D8 = xsimd::batch<double, 8>;
+using D8Bool = xsimd::batch_bool<double, 8>;
+#endif // USE_AVX512
+
 template <typename SimdType, typename RealType, typename Algorithm>
 class DistanceDispatch {
 
@@ -109,7 +114,7 @@ private:
 	   __m128d d = _mm_dp_pd(diff, diff, mask);
 	   return  std::sqrt(_mm_cvtsd_f64(d));
     }
-#endif
+#endif // USE_SIMD
 
     template <typename Iterator>
     typename Iterator::value_type calculateDistanceScalar(Iterator x, Iterator y, int length) {
@@ -247,7 +252,92 @@ inline D2 DistanceDispatch<D2, D2::value_type, NonGeneric>::calculate(int j) con
 //
 //	return distance;
 //}
-#endif
+#endif // USE_SIMD
+
+#ifdef USE_AVX512
+    template <>
+    inline D8 DistanceDispatch<D8, D8::value_type, Generic>::calculate(int j) const {
+
+        const auto distance = D8(
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + j * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 1) * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 2) * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 3) * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 4) * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 5) * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 6) * embeddingDimension,
+                        embeddingDimension),
+                impl::calculateDistanceGeneric2(
+                        start,
+                        iterator + (j + 7) * embeddingDimension,
+                        embeddingDimension)
+        );
+
+        return distance;
+    }
+
+    template <>
+    inline D8 DistanceDispatch<D8, D8::value_type, NonGeneric>::calculate(int j) const {
+
+        const auto distance = D8(
+                impl::calculateDistance2(
+                        start,
+                        iterator + j * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 1) * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 2) * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 3) * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 4) * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 5) * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 6) * embeddingDimension,
+                        embeddingDimension, D4::value_type()),
+                impl::calculateDistance2(
+                        start,
+                        iterator + (j + 7) * embeddingDimension,
+                        embeddingDimension, D4::value_type())
+        );
+
+        return distance;
+    }
+
+#endif // USE_AVX512
 
 template <>
 inline double DistanceDispatch<double, double, Generic>::calculate(int j) const {
@@ -409,6 +499,18 @@ public:
 		x.store_unaligned(iterator);
 	}
 #endif // USE_SIMD
+
+#ifdef USE_AVX512
+    template <>
+    inline D8 SimdHelper<D8, D8::value_type>::get(const double* iterator) {
+        return D8(iterator, xsimd::unaligned_mode());
+    }
+
+    template <>
+    inline void SimdHelper<D8, D8::value_type>::put(D8 x, double* iterator) {
+        x.store_unaligned(iterator);
+    }
+#endif // USE_AVX512
 
     template <>
     inline double SimdHelper<double, double>::get(const double* iterator) {

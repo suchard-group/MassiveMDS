@@ -143,7 +143,7 @@ set(JNI_SOURCE_FILES
 
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
    if(BUILD_AVX512)
-     set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -DUSE_AVX512 -march=native")
+     set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -DUSE_AVX512 -march=native -mtune=native") # -msse4.2 -mavx -mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl -mavx512ifma -mavx512vbmi
    else(BUILD_AVX512)
        set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -msse4.2 -mavx")
    endif(BUILD_AVX512)
@@ -157,7 +157,7 @@ target_link_libraries(mds_jni ${TBB_LIBRARIES})
 add_executable(benchmark src/benchmark.cpp)
 target_link_libraries(benchmark mds_jni)
    if(BUILD_AVX512)
-       set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -DUSE_AVX512 -march=native")
+       set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -DUSE_AVX512 -march=native -mtune=native")
    else(BUILD_AVX512)
        set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -msse4.2 -mavx")
    endif(BUILD_AVX512)

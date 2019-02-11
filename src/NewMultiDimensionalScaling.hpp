@@ -519,6 +519,27 @@ public:
     }
 #endif
 
+#ifdef USE_AVX512
+    using D8 = xsimd::batch<double, 8>;
+	using D8Bool = xsimd::batch_bool<double, 8>;
+
+    D8Bool getMissing(int i, int j, D8 x) {
+	    return D8Bool(i == j, i == j + 1, i == j + 2, i == j + 3, i == j + 4, i == j + 5, i == j + 6, i == j + 7) || xsimd::isnan(x);
+	}
+
+	D8 mask(D8Bool flag, D8 x) {
+        return D8(flag()) & x;
+    }
+
+    bool any(D8Bool x) {
+        return xsimd::any(x);
+    }
+
+    double reduce(D8 x) {
+        return xsimd::hadd(x);
+    }
+#endif
+
     bool getMissing(int i, int j, float x) {
         return i == j || std::isnan(x);
     }
@@ -610,6 +631,12 @@ public:
 		return x[i];
 	}
 #endif // USE_SIMD
+
+#ifdef USE_AVX512
+    double getScalar(D8 x, int i) {
+	    return x[i];
+	}
+#endif
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
     RealType innerLikelihoodLoop(const DispatchType& dispatch, const RealType scale, const int i,
