@@ -433,89 +433,52 @@ public:
 	int count = 0;
 
 #ifdef USE_SIMD
+
+	template <typename T, size_t N>
+	using SimdBatch = xsimd::batch<T, N>;
+
+	template <typename T, size_t N>
+	using SimdBatchBool = xsimd::batch_bool<T, N>;
+
+	template <typename T, size_t N>
+	bool any(SimdBatchBool<T, N> x) {
+	    return xsimd::any(x);
+	}
+
+	template <typename T, size_t N>
+	T reduce(SimdBatch<T, N> x) {
+	    return xsimd::hadd(x);
+	}
+
+	template <typename T, size_t N>
+	SimdBatch<T, N> mask(SimdBatchBool<T, N> flag, SimdBatch<T, N> x) {
+	    return SimdBatch<T, N>(flag()) & x;
+	}
+
+	template <typename T, size_t N>
+	SimdBatchBool<T, N> getMissing(int i, int j, SimdBatch<T, N> x) {
+        return SimdBatch<T, N>(i) == (SimdBatch<T, N>(j) + getIota(SimdBatch<T, N>())) || xsimd::isnan(x);
+	}
+
 	using D4 = xsimd::batch<double, 4>;
 	using D4Bool = xsimd::batch_bool<double, 4>;
 
 	using D2 = xsimd::batch<double, 2>;
 	using D2Bool = xsimd::batch_bool<double, 2>;
 
-//	using D1 = xsimd::batch<double, 1>;
-//	using D1Bool = xsimd::batch_bool<double, 1>;
-
 	using S4 = xsimd::batch<float, 4>;
 	using S4Bool = xsimd::batch_bool<float, 4>;
 
-	D4Bool getMissing(int i, int j, D4 x) {
-        return D4Bool(i == j, i == j + 1, i == j + 2, i == j + 3) || xsimd::isnan(x);
-	}
-
-	D2Bool getMissing(int i, int j, D2 x) {
-		return D2Bool(i == j, i == j + 1) || xsimd::isnan(x);
-	}
-
-//	D1Bool getMissing(int i, int j, D1 x) {
-//		return D1Bool(i == j) || xsimd::isnan(x());
-//	}
-
-
-	S4Bool getMissing(int i, int j, S4 x) {
-		return S4Bool(i == j, i == j + 1, i == j + 2, i == j + 3) || xsimd::isnan(x);
-	}
-
-	D4 mask(D4Bool flag, D4 x) {
-		return D4(flag()) & x;
-	}
-
-    D2 mask(D2Bool flag, D2 x) {
-        return D2(flag()) & x;
+    D4 getIota(D4) {
+        return D4(0, 1, 2, 3);
     }
 
-    S4 mask(S4Bool flag, S4 x) {
-        return S4(flag()) & x;
+    D2 getIota(D2) {
+        return D2(0, 1);
     }
 
-//    D1 mask(D1Bool flag, D1 x) {
-//        return D1(flag.size) & x; // TODO Fix
-//    }
-
-    bool any(D4Bool x) {
-	    return xsimd::any(x);
-	}
-
-    bool any(D2Bool x) {
-        return xsimd::any(x);
-    }
-
-//    bool any(D1Bool x) {
-//        return xsimd::any(x);
-//    }
-
-    bool any(S4Bool x) {
-        return xsimd::any(x);
-    }
-
-//    bool all(D2Bool x) {
-//        return xsimd::all(x);
-//    }
-//
-//    bool all(D1Bool x) {
-//        return xsimd::all(x);
-//    }
-
-    double reduce(D4 x) {
-	    return xsimd::hadd(x);
-	}
-
-    double reduce(D2 x) {
-        return xsimd::hadd(x);
-    }
-
-//    double reduce(D1 x) {
-//        return xsimd::hadd(x);
-//    }
-
-    float reduce(S4 x) {
-        return xsimd::hadd(x);
+    S4 getIota(S4) {
+        return S4(0, 1, 2, 3);
     }
 #endif
 
@@ -523,49 +486,31 @@ public:
     using D8 = xsimd::batch<double, 8>;
 	using D8Bool = xsimd::batch_bool<double, 8>;
 
-    D8Bool getMissing(int i, int j, D8 x) {
-	    return D8Bool(i == j, i == j + 1, i == j + 2, i == j + 3, i == j + 4, i == j + 5, i == j + 6, i == j + 7) || xsimd::isnan(x);
+	D8 getIota(D8) {
+	    return D8(0, 1, 2, 3, 4, 5, 6, 7);
 	}
 
 	D8 mask(D8Bool flag, D8 x) {
-//        return D8(flag()) & x;
-		return xsimd::select(flag, x, D8(0.0));
-    }
-
-    bool any(D8Bool x) {
-        return xsimd::any(x);
-    }
-
-    double reduce(D8 x) {
-        return xsimd::hadd(x);
+		return xsimd::select(flag, x, D8(0.0)); // bitwise & does not appear to work
     }
 #endif
 
-    bool getMissing(int i, int j, float x) {
+    template <typename T>
+    bool getMissing(int i, int j, T x) {
         return i == j || std::isnan(x);
     }
 
-    bool getMissing(int i, int j, double x) {
-        return i == j || std::isnan(x);
+    template <typename T>
+    T mask(bool flag, T x) {
+        return flag ? x : T(0.0);
     }
 
-    float mask(bool flag, float x) {
-        return flag ? x : 0.f;
-    }
-
-    double mask(bool flag, double x) {
-        return flag ? x : 0.0;
+    template <typename T>
+    T reduce(T x) {
+        return x;
     }
 
 	bool any(bool x) {
-		return x;
-	}
-
-//    bool all(bool x) {
-//        return x;
-//    }
-
-	double reduce(double x) {
 		return x;
 	}
 
