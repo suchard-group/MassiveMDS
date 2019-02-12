@@ -107,9 +107,19 @@ int main(int argc, char* argv[]) {
 	}
 
     int simdCount = 0;
-    if (vm.count("sse")) ++simdCount;
-    if (vm.count("avx")) ++simdCount;
-    if (vm.count("avx512")) ++simdCount;
+    auto simd = "no simd";
+    if (vm.count("sse")){
+        ++simdCount;
+        simd = "sse";
+    }
+    if (vm.count("avx")){
+        ++simdCount;
+        simd = "avx";
+    }
+    if (vm.count("avx512")){
+        ++simdCount;
+        simd = "avx512";
+    }
 
     if (simdCount > 0) {
 #ifndef USE_SIMD
@@ -306,7 +316,7 @@ int main(int argc, char* argv[]) {
 
 	std::ofstream outfile;
 	outfile.open("report.txt",std::ios_base::app);
-    outfile << deviceNumber << " " << threads << " " << locationCount << " " << embeddingDimension << " " << iterations << " " << timer << " " << timer2 << "\n" ;
+    outfile << deviceNumber << " " << threads << " " << simd << " " << locationCount << " " << embeddingDimension << " " << iterations << " " << timer << " " << timer2 << "\n" ;
 	outfile.close();
 
 }
