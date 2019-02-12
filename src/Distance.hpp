@@ -303,35 +303,35 @@ inline D2 DistanceDispatch<D2, D2::value_type, NonGeneric>::calculate(int j) con
                 impl::calculateDistance2(
                         start,
                         iterator + j * embeddingDimension,
-                        embeddingDimension, D4::value_type()),
+                        embeddingDimension, D8::value_type()),
                 impl::calculateDistance2(
                         start,
                         iterator + (j + 1) * embeddingDimension,
-                        embeddingDimension, D4::value_type()),
+                        embeddingDimension, D8::value_type()),
                 impl::calculateDistance2(
                         start,
                         iterator + (j + 2) * embeddingDimension,
-                        embeddingDimension, D4::value_type()),
+                        embeddingDimension, D8::value_type()),
                 impl::calculateDistance2(
                         start,
                         iterator + (j + 3) * embeddingDimension,
-                        embeddingDimension, D4::value_type()),
+                        embeddingDimension, D8::value_type()),
                 impl::calculateDistance2(
                         start,
                         iterator + (j + 4) * embeddingDimension,
-                        embeddingDimension, D4::value_type()),
+                        embeddingDimension, D8::value_type()),
                 impl::calculateDistance2(
                         start,
                         iterator + (j + 5) * embeddingDimension,
-                        embeddingDimension, D4::value_type()),
+                        embeddingDimension, D8::value_type()),
                 impl::calculateDistance2(
                         start,
                         iterator + (j + 6) * embeddingDimension,
-                        embeddingDimension, D4::value_type()),
+                        embeddingDimension, D8::value_type()),
                 impl::calculateDistance2(
                         start,
                         iterator + (j + 7) * embeddingDimension,
-                        embeddingDimension, D4::value_type())
+                        embeddingDimension, D8::value_type())
         );
 
         return distance;

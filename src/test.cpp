@@ -53,4 +53,21 @@ int main(int argc, char* argv[]) {
         xsimd::batch<double, 4> w(double(0));
 
 #endif
+
+#ifdef USE_AVX512
+
+        using D8 = xsimd::batch<double, 8>;
+        using D8Bool = xsimd::batch_bool<double, 8>;
+
+        const auto a = D8(1.0);
+        const auto b = D8Bool(true, false, true, false,true, false, true, false);
+
+        const auto c = a;
+        c ^= b.;
+
+        const auto kernel = xsimd::bool_cast(b);
+
+        std::cout << a <<  " " << xsimd::select(b, a, D8(0.0)) << " " << (xsimd::bool_cast(b) & a) << std::endl;
+
+#endif // USE_AVX512
 }

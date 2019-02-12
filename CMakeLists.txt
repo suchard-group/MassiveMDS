@@ -2,7 +2,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(mds)
 
 OPTION(BUILD_NOSIMD "Build MDS without SIMD" OFF)
-OPTION(BUILD_AVX512 "Build MDS with AVX-512" OFF)
+OPTION(BUILD_AVX "Build MDS with AVX-512" OFF)
 OPTION(BUILD_CUDA "Build MDS with a CUDA backend" OFF)
 OPTION(BUILD_OPENCL "Build MDS with a OpenCL backend" ON)
 
@@ -122,9 +122,9 @@ if (JNI_FOUND)
    include_directories(${xsimd_INCLUDE_DIRS})
    add_library(boost_program_options ${BOOST_PO_FILES})
 
-   IF(${BUILD_NOSIMD})
-       ADD_SUBDIRECTORY(src/backend/nosimd)
-   ENDIF()
+#   IF(${BUILD_NOSIMD})
+#       ADD_SUBDIRECTORY(src/backend/nosimd)
+#   ENDIF()
 
        ## Build MDS with SIMD
 include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni
@@ -141,12 +141,16 @@ set(JNI_SOURCE_FILES
         src/Distance.hpp
 	)
 
+
+   set(AVX_FLAGS "-DUSE_SIMD -DUSE_AVX512 -msse4.2 -mavx -mavx2 -mfma  -msse4.2 -mavx -mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl -mavx512ifma -mavx512vbmi")
+   set(SSE_FLAGS "-DUSE_SIMD -msse4.2 -mavx")
+
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
-   if(BUILD_AVX512)
-     set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -DUSE_AVX512 -march=native -mtune=native") # -msse4.2 -mavx -mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl -mavx512ifma -mavx512vbmi
-   else(BUILD_AVX512)
-       set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -msse4.2 -mavx")
-   endif(BUILD_AVX512)
+   if(${BUILD_AVX})
+       set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "${AVX_FLAGS}")
+   else(${BUILD_AVX})
+       set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "${SSE_FLAGS}")
+   endif(${BUILD_AVX})
 target_link_libraries(mds_jni mds_opencl)
 target_link_libraries(mds_jni ${TBB_LIBRARIES})
 
@@ -156,11 +160,11 @@ target_link_libraries(mds_jni ${TBB_LIBRARIES})
 
 add_executable(benchmark src/benchmark.cpp)
 target_link_libraries(benchmark mds_jni)
-   if(BUILD_AVX512)
-       set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -DUSE_AVX512 -march=native -mtune=native")
-   else(BUILD_AVX512)
-       set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "-DUSE_SIMD -msse4.2 -mavx")
-   endif(BUILD_AVX512)
+   if(${BUILD_AVX})
+       set_target_properties(benchmark PROPERTIES COMPILE_FLAGS "${AVX_FLAGS}")
+   else(${BUILD_AVX})
+       set_target_properties(benchmark PROPERTIES COMPILE_FLAGS "${SSE_FLAGS}")
+   endif(${BUILD_AVX})
 target_link_libraries(benchmark ${TBB_LIBRARIES})
 target_link_libraries(benchmark boost_program_options)
 

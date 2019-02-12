@@ -528,7 +528,8 @@ public:
 	}
 
 	D8 mask(D8Bool flag, D8 x) {
-        return D8(flag()) & x;
+//        return D8(flag()) & x;
+		return xsimd::select(flag, x, D8(0.0));
     }
 
     bool any(D8Bool x) {
