@@ -122,9 +122,9 @@ if (JNI_FOUND)
    include_directories(${xsimd_INCLUDE_DIRS})
    add_library(boost_program_options ${BOOST_PO_FILES})
 
-#   IF(${BUILD_NOSIMD})
-#       ADD_SUBDIRECTORY(src/backend/nosimd)
-#   ENDIF()
+   IF(${BUILD_NOSIMD})
+       ADD_SUBDIRECTORY(src/backend/nosimd)
+   ENDIF()
 
        ## Build MDS with SIMD
 include_directories(. ${CMAKE_SOURCE_DIR}/src ${JNI_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/src/jni
