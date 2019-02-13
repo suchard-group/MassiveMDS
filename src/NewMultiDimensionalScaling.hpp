@@ -28,17 +28,28 @@ namespace mds {
     };
 
 #ifdef USE_SIMD
+
+#ifdef USE_SSE
     struct DoubleSseTypeInfo {
         using BaseType = double;
         using SimdType = xsimd::batch<double, 2>;
         static const int SimdSize = 2;
     };
 
+    struct FloatSimdTypeInfo {
+        using BaseType = float;
+        using SimdType = xsimd::batch<float, 4>;
+        static const int SimdSize = 4;
+    };
+#endif
+
+#ifdef USE_AVX
     struct DoubleAvxTypeInfo {
         using BaseType = double;
         using SimdType = xsimd::batch<double, 4>;
         static const int SimdSize = 4;
     };
+#endif
 
 #ifdef USE_AVX512
     struct DoubleAvx512TypeInfo {
@@ -48,11 +59,6 @@ namespace mds {
     };
 #endif
 
-    struct FloatSimdTypeInfo {
-        using BaseType = float;
-        using SimdType = xsimd::batch<float, 4>;
-        static const int SimdSize = 4;
-    };
 #endif
 
 template <typename TypeInfo, typename ParallelType>
@@ -459,19 +465,34 @@ public:
 	SimdBatchBool<T, N> getMissing(int i, int j, SimdBatch<T, N> x) {
         return SimdBatch<T, N>(i) == (SimdBatch<T, N>(j) + getIota(SimdBatch<T, N>())) || xsimd::isnan(x);
 	}
+//
+//	using D4 = xsimd::batch<double, 4>;
+//	using D4Bool = xsimd::batch_bool<double, 4>;
+//
+//	using D2 = xsimd::batch<double, 2>;
+//	using D2Bool = xsimd::batch_bool<double, 2>;
+//
+//	using S4 = xsimd::batch<float, 4>;
+//	using S4Bool = xsimd::batch_bool<float, 4>;
+//
+//    D4 getIota(D4) {
+//        return D4(0, 1, 2, 3);
+//    }
+//
+//    D2 getIota(D2) {
+//        return D2(0, 1);
+//    }
+//
+//    S4 getIota(S4) {
+//        return S4(0, 1, 2, 3);
+//    }
+#endif
 
-	using D4 = xsimd::batch<double, 4>;
-	using D4Bool = xsimd::batch_bool<double, 4>;
-
+#ifdef USE_SSE
 	using D2 = xsimd::batch<double, 2>;
 	using D2Bool = xsimd::batch_bool<double, 2>;
-
 	using S4 = xsimd::batch<float, 4>;
 	using S4Bool = xsimd::batch_bool<float, 4>;
-
-    D4 getIota(D4) {
-        return D4(0, 1, 2, 3);
-    }
 
     D2 getIota(D2) {
         return D2(0, 1);
@@ -479,6 +500,15 @@ public:
 
     S4 getIota(S4) {
         return S4(0, 1, 2, 3);
+    }
+#endif
+
+#ifdef USE_AVX
+	using D4 = xsimd::batch<double, 4>;
+	using D4Bool = xsimd::batch_bool<double, 4>;
+
+	D4 getIota(D4) {
+        return D4(0, 1, 2, 3);
     }
 #endif
 
@@ -565,10 +595,12 @@ public:
 	}
 
 #ifdef USE_SIMD
+#ifdef USE_AVX
 	double getScalar(D4 x, int i) {
 		return x[i];
 	}
-
+#endif
+#ifdef USE_SSE
 	double getScalar(D2 x, int i) {
 		return x[i];
 	}
@@ -576,6 +608,7 @@ public:
 	float getScalar(S4 x, int i) {
 		return x[i];
 	}
+#endif
 #endif // USE_SIMD
 
 #ifdef USE_AVX512
@@ -1119,6 +1152,8 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 }
 
 #ifdef USE_SIMD
+
+#ifdef USE_AVX
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleNoParallelAvx(int embeddingDimension, int locationCount, long flags, int threads) {
         std::cerr << "DOUBLE, NO PARALLEL, AVX" << std::endl;
@@ -1130,6 +1165,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
         std::cerr << "DOUBLE, TBB PARALLEL, AVX" << std::endl;
         return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
     }
+#endif
 
 #ifdef USE_AVX512
     std::shared_ptr<AbstractMultiDimensionalScaling>
@@ -1145,6 +1181,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
     }
 #endif
 
+#ifdef USE_SSE
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads) {
         std::cerr << "DOUBLE, NO PARALLEL, SSE" << std::endl;
@@ -1168,6 +1205,8 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 		std::cerr << "SINGLE, TBB PARALLEL, SSE" << std::endl;
 		return std::make_shared<NewMultiDimensionalScaling<FloatSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 	}
+#endif
+
 #endif
 
 } // namespace mds

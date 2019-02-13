@@ -13,12 +13,17 @@ namespace mds {
     SharedPtr constructNewMultiDimensionalScalingFloatTbbNoSimd(int, int, long, int);
 
 #ifdef USE_SIMD
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx(int, int, long, int);
-    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx(int, int, long, int);
+#ifdef USE_SSE
     SharedPtr constructNewMultiDimensionalScalingDoubleTbbSse(int, int, long, int);
     SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelSse(int, int, long, int);
     SharedPtr constructNewMultiDimensionalScalingFloatNoParallelSse(int, int, long, int);
     SharedPtr constructNewMultiDimensionalScalingFloatTbbSse(int, int, long, int);
+#endif
+
+#ifdef USE_AVX
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx(int, int, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx(int, int, long, int);
+#endif
 
 #ifdef USE_AVX512
     SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx512(int, int, long, int);
@@ -71,17 +76,22 @@ SharedPtr factory(int dim1, int dim2, long flags, int device, int threads) {
             } else
 #endif
 		    if (useAvx) {
+#ifdef USE_AVX
+
                 if (useTbb) {
                     return constructNewMultiDimensionalScalingDoubleTbbAvx(dim1, dim2, flags, threads);
                 } else {
                     return constructNewMultiDimensionalScalingDoubleNoParallelAvx(dim1, dim2, flags, threads);
                 }
+#endif USE_AVX
 		    } else if (useSse) {
+#ifdef USE_SSE
                 if (useTbb) {
                     return constructNewMultiDimensionalScalingDoubleTbbSse(dim1, dim2, flags, threads);
                 } else {
                     return constructNewMultiDimensionalScalingDoubleNoParallelSse(dim1, dim2, flags, threads);
                 }
+#endif
 		    } else {
 #endif
                 if (useTbb) {

@@ -18,9 +18,13 @@ struct Generic {};
 struct NonGeneric {};
 
 #ifdef USE_SIMD
+
+#ifdef USE_AVX
     using D4 = xsimd::batch<double, 4>;
     using D4Bool = xsimd::batch_bool<double, 4>;
+#endif
 
+#ifdef USE_SSE
 using D2 = xsimd::batch<double, 2>;
 using D2Bool = xsimd::batch_bool<double, 2>;
 
@@ -29,6 +33,8 @@ using D2Bool = xsimd::batch_bool<double, 2>;
 
 using S4 = xsimd::batch<float, 4>;
 using S4Bool = xsimd::batch_bool<float, 4>;
+#endif
+
 #endif
 
 #ifdef USE_AVX512
@@ -143,6 +149,8 @@ private:
 } // namespace impl
 
 #ifdef USE_SIMD
+
+#ifdef USE_AVX
     template <>
     inline D4 DistanceDispatch<D4, D4::value_type, Generic>::calculate(int j) const {
 
@@ -167,7 +175,9 @@ private:
 
         return distance;
     }
+#endif
 
+#ifdef USE_AVX
     template <>
     inline D4 DistanceDispatch<D4, D4::value_type, NonGeneric>::calculate(int j) const {
 
@@ -192,7 +202,9 @@ private:
 
         return distance;
     }
+#endif
 
+#ifdef USE_SSE
 template <>
 inline D2 DistanceDispatch<D2, D2::value_type, Generic>::calculate(int j) const {
 
@@ -226,6 +238,8 @@ inline D2 DistanceDispatch<D2, D2::value_type, NonGeneric>::calculate(int j) con
 
 	return distance;
 }
+
+#endif //USE_SSE
 
 //template <>
 //inline D1 DistanceDispatch<D1, D1::value_type, Generic>::calculate(int j) const {
@@ -366,6 +380,7 @@ inline double DistanceDispatch<double, double, NonGeneric>::calculate(int j) con
 }
 
 #ifdef USE_SIMD
+#ifdef USE_SSE
 	template <>
 	inline S4 DistanceDispatch<S4, S4::value_type, Generic>::calculate(int j) const {
 
@@ -415,7 +430,9 @@ inline double DistanceDispatch<double, double, NonGeneric>::calculate(int j) con
 
 		return distance;
 	}
-#endif
+
+#endif //USE_SSE
+#endif //USE_SIMD
 
 	template <>
 	inline float DistanceDispatch<float, float, Generic>::calculate(int j) const {
@@ -458,11 +475,14 @@ public:
 };
 
 #ifdef USE_SIMD
+#ifdef USE_AVX
     template <>
     inline D4 SimdHelper<D4, D4::value_type>::get(const double* iterator) {
         return D4(iterator, xsimd::unaligned_mode());
     }
+#endif
 
+#ifdef USE_SSE
     template <>
     inline D2 SimdHelper<D2, D2::value_type>::get(const double* iterator) {
         return D2(iterator, xsimd::unaligned_mode());
@@ -472,17 +492,19 @@ public:
 	inline S4 SimdHelper<S4, S4::value_type>::get(const float* iterator) {
 		return S4(iterator, xsimd::unaligned_mode());
 	}
+#endif
+#ifdef USE_AVX
     template <>
-
     inline void SimdHelper<D4, D4::value_type>::put(D4 x, double* iterator) {
         x.store_unaligned(iterator);
     }
-
-
+#endif
+#ifdef USE_SSE
     template <>
     inline void SimdHelper<D2, D2::value_type>::put(D2 x, double* iterator) {
         x.store_unaligned(iterator);
     }
+
 
 //template <>
 //inline D1 SimdHelper<D1, D1::value_type>::get(const double* iterator) {
@@ -498,6 +520,8 @@ public:
 	inline void SimdHelper<S4, S4::value_type>::put(S4 x, float* iterator) {
 		x.store_unaligned(iterator);
 	}
+
+#endif //USE_SSE
 #endif // USE_SIMD
 
 #ifdef USE_AVX512
