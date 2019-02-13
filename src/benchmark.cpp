@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (simdCount > 0) {
-#ifndef USE_SIMD
+#if not defined(USE_SSE) && not defined(USE_AVX) && not defined(USE_AVX512)
         std::cerr << "SIMD is not implemented" << std::endl;
         exit(-1);
 #else
@@ -137,12 +137,18 @@ int main(int argc, char* argv[]) {
 #else
             flags |= mds::Flags::AVX512;
 #endif // USE_AVX512
-        } else if (vm.count("sse")) {
-            flags |= mds::Flags::SSE;
-        } else {
+
+		} else if (vm.count("avx")) {
+#ifndef USE_AVX
+			std::cerr << "AVX is not implemented" << std::endl;
+			exit(-1);
+#else
             flags |= mds::Flags::AVX;
+#endif // USE_AVX
+        } else {
+            flags |= mds::Flags::SSE;
         }
-#endif // USE_SIMD
+#endif // not defined(USE_SSE) && not defined(USE_AVX) && not defined(USE_AVX512)
 	}
 	
 	bool truncation = false;
