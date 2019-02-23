@@ -3,12 +3,14 @@
 
 #include <numeric>
 #include <vector>
+#include <tbb/task_scheduler_init.h>
 
 //#define XSIMD_ENABLE_FALLBACK
 
 #include "xsimd/xsimd.hpp"
 #include "AbstractMultiDimensionalScaling.hpp"
 #include "Distance.hpp"
+
 
 //#undef SSE
 //#define SSE
