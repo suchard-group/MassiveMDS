@@ -102,8 +102,7 @@ public:
     			threads = tbb::task_scheduler_init::default_num_threads();
     		}
             std::cout << "Using " << threads << " threads" << std::endl;
-			std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
-			task = std::make_shared<tbb::task_scheduler_init>(threads);
+			std::make_shared<tbb::task_scheduler_init>(threads);
     	}
     }
 
