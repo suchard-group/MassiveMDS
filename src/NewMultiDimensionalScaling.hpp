@@ -87,7 +87,7 @@ public:
 
           isStoredIncrementsEmpty(false)
 
-          , nThreads(4) //, pool(nThreads)
+          , nThreads(threads) //, pool(nThreads)
     {
 
     	if (flags & Flags::LEFT_TRUNCATION) {
@@ -95,13 +95,13 @@ public:
     		std::cout << "Using left truncation" << std::endl;
     	}
 
-        if (flags & mds::Flags::TBB) {
-    		if (threads==0) {
-    			threads = tbb::task_scheduler_init::default_num_threads();
-    		}
-            std::cout << "Using " << threads << " threads" << std::endl;
-			std::make_shared<tbb::task_scheduler_init>(threads);
-    	}
+//        if (flags & mds::Flags::TBB) {
+//    		if (threads==0) {
+//    			threads = tbb::task_scheduler_init::default_num_threads();
+//    		}
+//            std::cout << "Using " << threads << " threads" << std::endl;
+//			std::make_shared<tbb::task_scheduler_init>(threads);
+//    	}
     }
 
 
@@ -282,6 +282,15 @@ public:
 
 	template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeLogLikelihoodGradientGeneric() {
+
+		std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
+		if (flags & mds::Flags::TBB) {
+			if (nThreads==0) {
+				nThreads = tbb::task_scheduler_init::default_num_threads();
+			}
+			//std::cout << "Using " << nThreads << " threads" << std::endl;
+			task = std::make_shared<tbb::task_scheduler_init>(nThreads);
+		}
 
         const auto length = locationCount * embeddingDimension;
         if (length != gradientPtr->size()) {
@@ -649,6 +658,15 @@ public:
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeSumOfIncrementsGeneric() {
+
+		std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
+		if (flags & mds::Flags::TBB) {
+			if (nThreads==0) {
+				nThreads = tbb::task_scheduler_init::default_num_threads();
+			}
+			//std::cout << "Using " << nThreads << " threads" << std::endl;
+			task = std::make_shared<tbb::task_scheduler_init>(nThreads);
+		}
 
         const auto scale = 0.5 * precision;
 
