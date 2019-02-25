@@ -283,15 +283,6 @@ public:
 	template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeLogLikelihoodGradientGeneric() {
 
-		std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
-		if (flags & mds::Flags::TBB) {
-			if (nThreads==0) {
-				nThreads = tbb::task_scheduler_init::default_num_threads();
-			}
-			//std::cout << "Using " << nThreads << " threads" << std::endl;
-			task = std::make_shared<tbb::task_scheduler_init>(nThreads);
-		}
-
         const auto length = locationCount * embeddingDimension;
         if (length != gradientPtr->size()) {
             gradientPtr->resize(length);
@@ -658,15 +649,6 @@ public:
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeSumOfIncrementsGeneric() {
-
-		std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
-		if (flags & mds::Flags::TBB) {
-			if (nThreads==0) {
-				nThreads = tbb::task_scheduler_init::default_num_threads();
-			}
-			//std::cout << "Using " << nThreads << " threads" << std::endl;
-			task = std::make_shared<tbb::task_scheduler_init>(nThreads);
-		}
 
         const auto scale = 0.5 * precision;
 
@@ -1074,8 +1056,22 @@ public:
 #endif
 
 #ifdef USE_TBB
+	std::shared_ptr<tbb::task_scheduler_init> setTBBThreads() {
+		std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
+		if (flags & mds::Flags::TBB) {
+			if (nThreads==0) {
+				nThreads = tbb::task_scheduler_init::default_num_threads();
+			}
+			task = std::make_shared<tbb::task_scheduler_init>(nThreads);
+			return task;
+		}
+	}
+
 	template <typename Integer, typename Function, typename Real>
 	inline Real accumulate(Integer begin, Integer end, Real sum, Function function, TbbAccumulate) {
+
+		auto task = setTBBThreads();
+
 		return tbb::parallel_reduce(
  			tbb::blocked_range<size_t>(begin, end
  			//, 200
@@ -1095,6 +1091,9 @@ public:
 
 	template <typename Integer, typename Function>
 	inline void for_each(Integer begin, const Integer end, Function function, TbbAccumulate) {
+
+		auto task = setTBBThreads();
+
 		tbb::parallel_for(
 				tbb::blocked_range<size_t>(begin, end
 				//, 200
