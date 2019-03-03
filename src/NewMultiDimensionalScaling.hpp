@@ -4,6 +4,9 @@
 #include <numeric>
 #include <vector>
 
+#define TBB_PREVIEW_GLOBAL_CONTROL 1
+#include "tbb/global_control.h"
+
 //#define XSIMD_ENABLE_FALLBACK
 
 #include "xsimd/xsimd.hpp"
@@ -85,9 +88,9 @@ public:
           increments(locationCount * locationCount),
           storedIncrements(locationCount),
 
-          isStoredIncrementsEmpty(false)
+          isStoredIncrementsEmpty(false),
 
-          , nThreads(threads) //, pool(nThreads)
+          nThreads(threads)
     {
 
     	if (flags & Flags::LEFT_TRUNCATION) {
@@ -95,13 +98,16 @@ public:
     		std::cout << "Using left truncation" << std::endl;
     	}
 
-//        if (flags & mds::Flags::TBB) {
-//    		if (threads==0) {
-//    			threads = tbb::task_scheduler_init::default_num_threads();
-//    		}
-//            std::cout << "Using " << threads << " threads" << std::endl;
-//			std::make_shared<tbb::task_scheduler_init>(threads);
-//    	}
+#ifdef USE_TBB
+        if (flags & mds::Flags::TBB) {
+    		if (nThreads <= 0) {
+                nThreads = tbb::task_scheduler_init::default_num_threads();
+    		}
+            std::cout << "Using " << nThreads << " threads" << std::endl;
+
+            control = std::make_shared<tbb::global_control>(tbb::global_control::max_allowed_parallelism, nThreads);
+    	}
+#endif
     }
 
 
@@ -1056,21 +1062,14 @@ public:
 #endif
 
 #ifdef USE_TBB
-	std::shared_ptr<tbb::task_scheduler_init> setTBBThreads() {
-		std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
-		if (flags & mds::Flags::TBB) {
-			if (nThreads==0) {
-				nThreads = tbb::task_scheduler_init::default_num_threads();
-			}
-			task = std::make_shared<tbb::task_scheduler_init>(nThreads);
-			return task;
-		}
-	}
+//	std::shared_ptr<tbb::task_scheduler_init> setTBBThreads() {
+//        return std::make_shared<tbb::task_scheduler_init>(nThreads);
+//	}
 
 	template <typename Integer, typename Function, typename Real>
 	inline Real accumulate(Integer begin, Integer end, Real sum, Function function, TbbAccumulate) {
 
-		auto task = setTBBThreads();
+//		auto task = setTBBThreads();
 
 		return tbb::parallel_reduce(
  			tbb::blocked_range<size_t>(begin, end
@@ -1092,7 +1091,7 @@ public:
 	template <typename Integer, typename Function>
 	inline void for_each(Integer begin, const Integer end, Function function, TbbAccumulate) {
 
-		auto task = setTBBThreads();
+//		auto task = setTBBThreads();
 
 		tbb::parallel_for(
 				tbb::blocked_range<size_t>(begin, end
@@ -1140,6 +1139,10 @@ private:
     bool isStoredIncrementsEmpty;
 
     int nThreads;
+
+#ifdef USE_TBB
+    std::shared_ptr<tbb::global_control> control;
+#endif
 
 };
 
