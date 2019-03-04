@@ -13,9 +13,6 @@
 #include "AbstractMultiDimensionalScaling.hpp"
 #include "Distance.hpp"
 
-//#undef SSE
-//#define SSE
-
 namespace mds {
 
 	struct DoubleNoSimdTypeInfo {
@@ -308,141 +305,15 @@ public:
 			DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
 			innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch, scale, i, 0, vectorCount);
-//			SimdHelper<SimdType, RealType>::put(innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch,
-//																									  scale, i, 0,
-//																									  vectorCount),
-//												&gradient[i * embeddingDimension]);
-
-
 
 			if (vectorCount < locationCount) { // Edge-cases
 
 				DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-				//gradient[i * embeddingDimension] +=
 				innerGradientLoop<withTruncation, RealType, 1>(dispatch, scale, i, vectorCount, locationCount);
-//				SimdHelper<SimdType, RealType>::put(innerGradientLoop<withTruncation, RealType, 1>(dispatch,
-//																								   scale, i,
-//																								   vectorCount,
-//																								   locationCount),
-//													&gradient[i * embeddingDimension]);
 			}
         }, ParallelType());
     };
-
-    template <bool withTruncation>
-    void computeLogLikelihoodGradientNew() {
-
-        assert (embeddingDimension == 2);
-
-		const auto length = locationCount * embeddingDimension;
-		if (length != gradientPtr->size()) {
-			gradientPtr->resize(length);
-		}
-
-		RealType* gradient = gradientPtr->data();
-		const RealType scale = precision;
-
-		// TODO This is easy to parallelize, but runs a bit slower than the old version
-		for_each(0, locationCount, [this, gradient, scale](const int i) {
-
-			// TODO Use SIMD
-			RealType gradij0 = 0.0;
-			RealType gradij1 = 0.0;
-
-			for (int j = 0; j < locationCount; ++j) {
-				if (i != j) {
-					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-						begin(*locationsPtr) + i * embeddingDimension,
-						begin(*locationsPtr) + j * embeddingDimension,
-						embeddingDimension
-					);
-
-                    const RealType observation = observations[i * locationCount + j];
-					RealType residual = std::isnan(observation) ?
-										RealType(0) :
-										observation - distance;
-
-					if (withTruncation) {
-						const RealType trncDrv = std::isnan(observation) ?
-												 RealType(0) :
-												 -pdf(distance * sqrt(scale)) /
-												 (std::exp(math::phi2<NewMultiDimensionalScaling>(distance * sqrt(scale))) * sqrt(scale));
-						residual = residual + trncDrv;
-					}
-
-					const RealType dataContribution = residual * scale / distance;
-
-					const RealType update0 = dataContribution *
-						((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
-					const RealType update1 = dataContribution *
-						((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
-
-                    if (withTruncation) {
-                        // TODO
-                    }
-
-					gradij0 += update0;
-					gradij1 += update1;
-				}
-			}
-
-			gradient[i * embeddingDimension + 0] = gradij0;
-			gradient[i * embeddingDimension + 1] = gradij1;
-
-		}, ParallelType());
-	};
-
-    template <bool withTruncation>
-	void computeLogLikelihoodGradientOld() {
-
-		const auto length = locationCount * embeddingDimension;
-		if (length != gradientPtr->size()) {
-			gradientPtr->resize(length);
-		}
-
-		std::fill(std::begin(*gradientPtr), std::end(*gradientPtr), static_cast<RealType>(0.0));
-
-		RealType* gradient = gradientPtr->data();
-
-		const RealType scale = precision;
-
-		for (int i = 0; i < locationCount; ++i) {
-
-			for (int j = i; j < locationCount; ++j) {
-				if (i != j) {
-					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-							begin(*locationsPtr) + i * embeddingDimension,
-							begin(*locationsPtr) + j * embeddingDimension,
-							embeddingDimension
-					);
-
-                    const RealType observation = observations[i * locationCount + j];
-					const RealType dataContribution = std::isnan(observation) ?
-                                                      RealType(0) :
-                                                      (observation - distance) * scale / distance;
-
-					const RealType update0 = dataContribution *
-											 ((*locationsPtr)[i * embeddingDimension + 0] - (*locationsPtr)[j * embeddingDimension + 0]);
-					const RealType update1 = dataContribution *
-											 ((*locationsPtr)[i * embeddingDimension + 1] - (*locationsPtr)[j * embeddingDimension + 1]);
-
-                    if (withTruncation) {
-                        // TODO
-                    }
-
-					gradient[i * embeddingDimension + 0] += update0;
-					gradient[i * embeddingDimension + 1] += update1;
-
-					gradient[j * embeddingDimension + 0] -= update0;
-					gradient[j * embeddingDimension + 1] -= update1;
-
-				}
-			}
-		}
-	};
-
-	int count = 0;
 
 #ifdef USE_SIMD
 
@@ -471,27 +342,6 @@ public:
 	SimdBatchBool<T, N> getMissing(int i, int j, SimdBatch<T, N> x) {
         return SimdBatch<T, N>(i) == (SimdBatch<T, N>(j) + getIota(SimdBatch<T, N>())) || xsimd::isnan(x);
 	}
-//
-//	using D4 = xsimd::batch<double, 4>;
-//	using D4Bool = xsimd::batch_bool<double, 4>;
-//
-//	using D2 = xsimd::batch<double, 2>;
-//	using D2Bool = xsimd::batch_bool<double, 2>;
-//
-//	using S4 = xsimd::batch<float, 4>;
-//	using S4Bool = xsimd::batch_bool<float, 4>;
-//
-//    D4 getIota(D4) {
-//        return D4(0, 1, 2, 3);
-//    }
-//
-//    D2 getIota(D2) {
-//        return D2(0, 1);
-//    }
-//
-//    S4 getIota(S4) {
-//        return S4(0, 1, 2, 3);
-//    }
 #endif
 
 #ifdef USE_SSE
@@ -692,60 +542,6 @@ public:
         sumOfIncrementsKnown = true;
     }
 
-//	template <bool withTruncation>
-//	void computeSumOfIncrements() {
-//
-//    	assert(false);
-//        assert (embeddingDimension == 2);
-//
-//		const RealType scale = 0.5 * precision;
-//
-//		RealType delta =
-//		accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
-//
-//			RealType lSumOfSquaredResiduals{0};
-//
-//			for (int j = 0; j < locationCount; ++j) {
-//
-//				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-//					begin(*locationsPtr) + i * embeddingDimension,
-//					begin(*locationsPtr) + j * embeddingDimension,
-//					embeddingDimension
-//				);
-//
-//				const auto observation = observations[i * locationCount + j];
-//                auto squaredResidual = RealType(0);
-//
-//                if (!std::isnan(observation)) {
-//
-//                    const auto residual = distance - observation;
-//
-//                    squaredResidual = residual * residual;
-//
-//                    if (withTruncation) {
-//                        squaredResidual = scale * squaredResidual;
-//                        if (i != j) {
-//                            squaredResidual += math::phi2<NewMultiDimensionalScaling>(distance * oneOverSd);
-//                        }
-//                    }
-//                }
-//
-//				increments[i * locationCount + j] = squaredResidual;
-//				lSumOfSquaredResiduals += squaredResidual;
-//
-//			}
-//			return lSumOfSquaredResiduals;
-//		}, ParallelType());
-//
-//		double lSumOfSquaredResiduals = delta;
-//
-//    	lSumOfSquaredResiduals /= 2.0;
-//    	sumOfIncrements = lSumOfSquaredResiduals;
-//
-//	    incrementsKnown = true;
-//	    sumOfIncrementsKnown = true;
-//	}
-
 	template <bool withTruncation>
 	void updateSumOfIncrements() { // TODO To be vectorized (when we start using this function again)
 
@@ -763,11 +559,12 @@ public:
 
 			[this, i, &offset, scale,
 			&start](const int j) {
-                const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-                    start,
-                    offset + embeddingDimension * j,
-                    embeddingDimension
-                );
+                const auto distance = 0.0; // TODO
+//                        calculateDistance<mm::MemoryManager<RealType>>(
+//                    start,
+//                    offset + embeddingDimension * j,
+//                    embeddingDimension
+//                );
 
                 const auto observation = observations[i * locationCount + j];
                 auto squaredResidual = RealType(0);
@@ -799,177 +596,6 @@ public:
 
 		sumOfIncrements += delta;
 	}
-
-
-#ifdef SSE
-
-	template <typename VectorType, typename Iterator, typename SimdType>
-	RealType calculateDistanceXsimd(Iterator iX, Iterator iY, int length) const {
-
-		SimdType sum{0.0};
-
-		for (int i = 0; i < length; i += SimdType::size) {
-            const auto diff = SimdType(iX + i, xsimd::aligned_mode()) -
-                              SimdType(iY + i, xsimd::aligned_mode());
-            sum += diff * diff;
-		}
-
-
-		return std::sqrt(sum.hadd());
-	}
-
-    template <typename VectorType, typename Iterator>
-    RealType calculateDistanceGeneric(Iterator iX, Iterator iY, int length) const {
-
-        RealType sum = static_cast<RealType>(0.0);
-
-        for (int i = 0; i < length; ++i, ++iX, ++iY) {
-            const auto diff = *iX - *iY;
-            sum += diff * diff;
-        }
-
-        return std::sqrt(sum);
-    }
-
-	#ifdef __clang__
-
-    template <typename VectorType, typename Iterator>
-    RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
-    	return calculateDistance(iX, iY, length, RealType());
-    }
-
-    template <typename Iterator>
-    RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
-
-        //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
-
-        typedef float aligned_float __attribute__((aligned(16)));
-        typedef aligned_float* SSE_PTR;
-
-        SSE_PTR __restrict__ x = &*iX;
-        SSE_PTR __restrict__ y = &*iY;
-
-        auto a = _mm_loadu_ps(x);
-        auto b = _mm_loadu_ps(y); // TODO second call is not aligned without padding
-        auto c = a - b;
-
-        const int mask = 0x31;
-        __m128 d = _mm_dp_ps(c, c, mask);
-        return  _mm_cvtss_f32(_mm_sqrt_ps(d));
-    }
-
-//   template <typename Iterator>
-//    RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
-//
-//        using AlignedValueType = typename mm::MemoryManager<float>::allocator_type::aligned_value_type;
-//
-//        AlignedValueType* x = &*iX;
-//        AlignedValueType* y = &*iY;
-//
-//        auto sum = static_cast<AlignedValueType>(0);
-//        for (int i = 0; i < 2; ++i, ++x, ++y) {
-//            const auto difference = *x - *y;
-//            sum += difference * difference;
-//        }
-//
-//        return std::sqrt(sum);
-//    }
-
-   template <typename Iterator>
-    RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
-
-        using AlignedValueType = typename mm::MemoryManager<double>::allocator_type::aligned_value_type;
-
-        AlignedValueType* x = &*iX;
-        AlignedValueType* y = &*iY;
-
-        __m128d xv = _mm_load_pd(x);
-        __m128d yv = _mm_load_pd(y);
-
-       __m128d diff = _mm_sub_pd(xv, yv);
-
-	   const int mask = 0x31;
-	   __m128d d = _mm_dp_pd(diff, diff, mask);
-	   return  std::sqrt(_mm_cvtsd_f64(d));
-    }
-
-	#else // __clang__
-
-  template <typename VectorType, typename Iterator>
-  RealType calculateDistance(Iterator iX, Iterator iY, int length) const {
- 	return calculateDistance(iX, iY, length, RealType());
-  }
-
-  //namespace detail {
-   template <typename Iterator>
-    RealType calculateDistance(Iterator iX, Iterator iY, int length, float) const {
-
-        //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
-
- 	typedef float aligned_float __attribute__((aligned(16)));
-  	typedef aligned_float* SSE_PTR;
-
-	SSE_PTR __restrict__ x = &*iX;
-	SSE_PTR __restrict__ y = &*iY;
-
-	auto a = _mm_loadu_ps(x);
-	auto b = _mm_loadu_ps(y); // TODO second call is not aligned without padding
-	auto c = a - b;
-
-	const int mask = 0x31;
-	__m128 d = _mm_dp_ps(c, c, mask);
-	return  _mm_cvtss_f32(_mm_sqrt_ps(d));
-    }
-
-   template <typename Iterator>
-   RealType calculateDistance(Iterator iX, Iterator iY, int length, double) const {
-
-        //using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
-
- 	typedef double aligned_double __attribute__((aligned(16)));
-  	typedef aligned_double* SSE_PTR;
-
-	SSE_PTR __restrict__ x = &*iX;
-	SSE_PTR __restrict__ y = &*iY;
-
-	const auto a = _mm_load_pd(x);
-	const auto b = _mm_load_pd(y);
-	const auto c = a - b;
-
-	const int mask = 0x31;
-	__m128d d = _mm_dp_pd(c, c, mask);
-	return  _mm_cvtsd_f64(_mm_sqrt_pd(d));
-    }
-	//} // namespace detail
-
-    #endif // __clang__
-
-#else // SSE
-
-	// Non-SIMD implementations
-
-    template <typename VectorType, typename Iterator>
-    double calculateDistance(Iterator x, Iterator y, int length) const {
-        auto sum = static_cast<double>(0);
-
-        for (int i = 0; i < 2; ++i, ++x, ++y) {
-            const auto difference = *x - *y;
-            sum += difference * difference;
-        }
-        return std::sqrt(sum);
-    }
-
-	template <typename VectorType, typename Iterator>
-	double calculateDistanceGeneric(Iterator x, Iterator y, int length) const {
-		auto sum = static_cast<double>(0);
-
-		for (int i = 0; i < length; ++i, ++x, ++y) {
-			const auto difference = *x - *y;
-			sum += difference * difference;
-		}
-		return std::sqrt(sum);
-	}
-#endif // SSE
 
 // Parallelization helper functions
 
@@ -1062,14 +688,8 @@ public:
 #endif
 
 #ifdef USE_TBB
-//	std::shared_ptr<tbb::task_scheduler_init> setTBBThreads() {
-//        return std::make_shared<tbb::task_scheduler_init>(nThreads);
-//	}
-
 	template <typename Integer, typename Function, typename Real>
 	inline Real accumulate(Integer begin, Integer end, Real sum, Function function, TbbAccumulate) {
-
-//		auto task = setTBBThreads();
 
 		return tbb::parallel_reduce(
  			tbb::blocked_range<size_t>(begin, end
@@ -1090,8 +710,6 @@ public:
 
 	template <typename Integer, typename Function>
 	inline void for_each(Integer begin, const Integer end, Function function, TbbAccumulate) {
-
-//		auto task = setTBBThreads();
 
 		tbb::parallel_for(
 				tbb::blocked_range<size_t>(begin, end
