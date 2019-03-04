@@ -36,7 +36,7 @@ namespace mds {
         static const int SimdSize = 2;
     };
 
-    struct FloatSimdTypeInfo {
+    struct FloatSseTypeInfo {
         using BaseType = float;
         using SimdType = xsimd::batch<float, 4>;
         static const int SimdSize = 4;
@@ -835,13 +835,13 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 	std::shared_ptr<AbstractMultiDimensionalScaling>
 	constructNewMultiDimensionalScalingFloatNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads) {
 		std::cerr << "SINGLE, NO PARALLEL, SSE" << std::endl;
-		return std::make_shared<NewMultiDimensionalScaling<FloatSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+		return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 	}
 
 	std::shared_ptr<AbstractMultiDimensionalScaling>
 	constructNewMultiDimensionalScalingFloatTbbSse(int embeddingDimension, int locationCount, long flags, int threads) {
 		std::cerr << "SINGLE, TBB PARALLEL, SSE" << std::endl;
-		return std::make_shared<NewMultiDimensionalScaling<FloatSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+		return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 	}
 #endif
 
