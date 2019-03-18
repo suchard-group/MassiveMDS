@@ -418,7 +418,7 @@ public:
 
 				if (withTruncation) {
 
-					residual += mask(notMissing, math::pdf_new( distance * sqrtScale ) /
+					residual -= mask(notMissing, math::pdf_new( distance * sqrtScale ) /
 									  (xsimd::exp(math::phi_new(distance * sqrtScale)) *
 									   sqrtScale) );
 				}
