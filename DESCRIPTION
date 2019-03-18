@@ -16,5 +16,6 @@ Imports:
     Rcpp,
     devtools,
     OutbreakTools (>= 0.1-13.999),
-    caper
+    caper,
+    RcppParallel
 RoxygenNote: 6.1.1
