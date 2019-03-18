@@ -9,10 +9,16 @@ computeLoglikelihood <- function(data, locations, precision, truncation = FALSE,
       if (i != j) {
         mean <- as.numeric(dist(rbind(locations[i,], locations[j,])))
         if (gradient) {
-          gradlogLikelihood[i,] <- gradlogLikelihood[i,] + (data[i,j]-mean)*precision*(locations[i,]-locations[j,])/mean
-          gradlogLikelihood[j,] <- gradlogLikelihood[j,] + (data[i,j]-mean)*precision*(locations[j,]-locations[i,])/mean
-        }
-        else {
+          if(truncation) {
+            gradlogLikelihood[i,] <- gradlogLikelihood[i,] - ((mean-data[i,j])*precision+dnorm(mean/sd)/(sd*pnorm(mean/sd)))*
+              (locations[i,]-locations[j,])/mean
+            gradlogLikelihood[j,] <- gradlogLikelihood[j,] - ((mean-data[i,j])*precision+dnorm(mean/sd)/(sd*pnorm(mean/sd)))*
+              (locations[j,]-locations[i,])/mean
+          } else {
+            gradlogLikelihood[i,] <- gradlogLikelihood[i,] + (data[i,j]-mean)*precision*(locations[i,]-locations[j,])/mean
+            gradlogLikelihood[j,] <- gradlogLikelihood[j,] + (data[i,j]-mean)*precision*(locations[j,]-locations[i,])/mean
+          }
+        } else {
           logLikelihood <- logLikelihood + dnorm(data[i, j], mean = mean, sd = sd, log = TRUE)
           if (truncation) {
             logLikelihood <- logLikelihood - log(pnorm(mean/sd))
@@ -73,10 +79,12 @@ test <- function() {
   locations <- matrix(rnorm(n = embeddingDimension * locationCount, sd = 1),
                       ncol = embeddingDimension, nrow = locationCount)
 
+  cat("no trunc\n")
   engine <- mds:::createEngine(embeddingDimension, locationCount, truncation, threads)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
 
+  cat("logliks\n")
   engine <- mds::setPrecision(engine, 2.0)
   print(mds::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 2.0, truncation))
@@ -85,13 +93,24 @@ test <- function() {
   print(mds::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 0.5, truncation))
 
-  # Truncation is not working correctly yet
+  cat("grads (max error)\n")
+  engine <- mds::setPrecision(engine, 2.0)
+  print(max(abs(mds::getGradient(engine) -
+                  computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
+  #print(mds::getGradient(engine))
+  #print(computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))
+
+  engine <- mds::setPrecision(engine, 0.5)
+  print(max(abs(mds::getGradient(engine) -
+                  computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
+
   truncation <- TRUE
 
   engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
 
+  cat("logliks\n")
   engine <- mds::setPrecision(engine, 2.0)
   print(mds::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 2.0, truncation))
@@ -100,6 +119,15 @@ test <- function() {
   print(mds::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 0.5, truncation))
 
+  cat("grads (max error)\n")
+  engine <- mds::setPrecision(engine, 2.0)
+  print(max(abs(mds::getGradient(engine) -
+                  computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
+  #print(mds::getGradient(engine))
+
+  engine <- mds::setPrecision(engine, 0.5)
+  print(max(abs(mds::getGradient(engine) -
+                  computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
 }
 
 
