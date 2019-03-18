@@ -274,12 +274,13 @@ getdata <- function(N, locations) { # TEMP EDIT: ADD locations param
 }
 
 
-engineInitial <- function(data,locations,N,P, precision = 1.470222) {
+engineInitial <- function(data,locations,N,P,
+                          precision = 1.470222,threads) {
 
   # Build reusable object
   truncation <- FALSE
   engine <- mds::createEngine(embeddingDimension = P,
-                                    locationCount = N, truncation = truncation)
+                                    locationCount = N, truncation = truncation, threads = threads)
   # Set data once
   engine <- mds::setPairwiseData(engine, as.matrix(data))
 
@@ -316,7 +317,8 @@ hmcsampler <- function(n_iter, BurnIn, file = "large",
                        Trajectory = 0.2, traitInvWeight = 1,
                        randomizeInitialState = FALSE,
                        priorRootSampleSize = 0.001,
-                       mdsPrecision = 1.470222) {
+                       mdsPrecision = 1.470222,
+                       threads=1) {
 
   # Set up the parameters
   NumOfIterations = n_iter
@@ -347,7 +349,7 @@ hmcsampler <- function(n_iter, BurnIn, file = "large",
   data <- getdata(N, locations)   # TEMP EDIT: ADD locations param
 
   # Build reusable object to compute Loglikelihood (gradient)
-  engine <- engineInitial(data,locations,N,P, mdsPrecision)
+  engine <- engineInitial(data,locations,N,P, mdsPrecision,threads)
 
   Accepted = 0;
   Proposed = 0;
