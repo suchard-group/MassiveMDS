@@ -1,0 +1,5 @@
+# BEAST v1.9.0pre20170207 Prerelease #20fe946
+# Generated Fri Apr 28 09:27:49 PDT 2017 [seed=666]
+# -overwrite -seed 666 h3_large_geo_BMDS_Country_HMC.xml
+state	posterior	prior	likelihood	Current Tree	mds.residual.precision	loc.traitLikelihood	mdsLikelihood	loc.avDiffusionRate	loc.wavdDiffusionRate	loc.avDiffusionCoefficient	loc.wavDiffusionCoefficient
+0	-143276.14216880465	-6.885076191730567	-143269.2570926129	24.0	1.470222	-31444.293480144013	-111824.9636124689	11.941214703097208	6.382113354702898	4.111680216771503	3.238297674519378

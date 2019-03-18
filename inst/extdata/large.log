@@ -1,0 +1,5 @@
+# BEAST v1.9.0pre20170207 Prerelease #20fe946
+# Generated Mon Mar 20 18:34:12 CET 2017 [seed=1490031250452]
+# -beagle_SSE -overwrite h3_large_geo_BMDS_Country.xml
+state	posterior	prior	likelihood	Current Tree	meanRate	coefficientOfVariationDiffusion	covarianceDiffusion	loc.precision.col11	loc.precision.col12	loc.precision.col21	loc.precision.col22	correlation	loc.treeLength	loc.treeLengthPrecision1	loc.treeLengthPrecision2	loc.traitLikelihood	mdsLikelihood	loc.avDiffusionRate	loc.wavdDiffusionRate	loc.avDiffusionCoefficient	loc.wavDiffusionCoefficient	mds.residual.precision
+520000	-86312.32592048474	-1.9737614537582049	-86310.35215903098	96.0	1.0074214714862597	0.10324981539616347	0.07597934796018431	3.4788268620116716E-4	-9.687526867844726E-6	-9.687526867844726E-6	4.297960734398445E-4	0.025053320302667083	108.18464667999996	0.03763556549276257	0.04649733634954089	-1751.4804054921747	-84558.87175353881	31.191501110347097	11.789151539415865	11.86065615574965	8.27110929563171	1.4702218794753121
