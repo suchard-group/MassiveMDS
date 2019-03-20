@@ -2,13 +2,14 @@ SET(VER 7.1.3)
 SET(URL https://github.com/QuantStack/xsimd/archive/${VER}.tar.gz)
 SET(MD5 1d831e7f6ca87aa75b09c6e88911c18f)
 
-SET(thirdPartyDir "${CMAKE_BINARY_DIR}/third_party")
+SET(thirdPartyDir "${CMAKE_BINARY_DIR}/../inst/include")
 SET(srcDir "${thirdPartyDir}/xsimd-${VER}")
 SET(archive ${srcDir}.tar.gz)
 SET(inflated ${srcDir}-inflated)
 
 # the config to be used in the code
 SET(xsimd_INCLUDE_DIRS "${srcDir}/include")
+file(COPY ${xsimd_INCLUDE_DIRS}/xsimd DESTINATION ${thirdPartyDir})
 
 # do we have to do it again?
 SET(doExtraction ON)
