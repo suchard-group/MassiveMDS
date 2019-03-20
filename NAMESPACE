@@ -1,3 +1,4 @@
 exportPattern("^[[:alpha:]]+")
 importFrom(Rcpp, sourceCpp)
+importFrom(RcppParallel, RcppParallelLibs)
 useDynLib(mds)

@@ -5,6 +5,9 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
+// [[Rcpp::depends(RcppParallel)]]
+#include <RcppParallel.h>
+
 // [[Rcpp::export]]
 List rcpp_hello() {
   CharacterVector x = CharacterVector::create("foo", "bar");
@@ -33,7 +36,11 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
   }
 
   EnginePtr engine(
+#if RCPP_PARALLEL_USE_TBB
+      new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads)
+#else
       new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
+#endif
   );
 
   Rcpp::List list = Rcpp::List::create(
@@ -43,7 +50,7 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
     Rcpp::Named("dataInitialzied") = false,
     Rcpp::Named("locationsInitialized") = false,
     Rcpp::Named("truncation") = truncation,
-    Rcpp::Named("threads") = threads
+    Rcpp::Named("threads") = 4
   );
 
   return list;
