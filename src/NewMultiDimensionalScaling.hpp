@@ -13,6 +13,7 @@
 #include "AbstractMultiDimensionalScaling.hpp"
 #include "Distance.hpp"
 
+
 namespace mds {
 
 	struct DoubleNoSimdTypeInfo {

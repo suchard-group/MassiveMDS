@@ -5,6 +5,7 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
+
 // [[Rcpp::depends(RcppParallel)]]
 #include <RcppParallel.h>
 
@@ -38,17 +39,18 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
   int deviceNumber = -1;
 
   int threads = 0;
+
+  auto newMdsObj = new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads);
+
 #if RCPP_PARALLEL_USE_TBB
   std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
 
   if (tbb > 0) {
     threads = tbb;
     if (threads != 0) {
-      std::cout << "Using TBB with " << threads << " out of "
-                << tbb::task_scheduler_init::default_num_threads()
-                << " threads" << std::endl;
       flags |= mds::Flags::TBB;
       task = std::make_shared<tbb::task_scheduler_init>(threads);
+#define TBB_SWITCH
     }
   }
 #else
@@ -60,11 +62,23 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
  }
  if (simd == 0) {
    std::cout << "Using no SIMD" << std::endl;
+
+#ifdef TBB_SWITCH
+   auto newMdsObj = new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads);
+#endif
+
  }
  if (simd == 1) {
 #ifdef USE_SSE
    flags |= mds::Flags::SSE;
    std::cout << "Using SSE vectorization" << std::endl;
+
+#ifdef TBB_SWITCH
+   auto newMdsObj = new mds::NewMultiDimensionalScaling<mds::DoubleSseTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads);
+#else
+   auto newMdsObj = new mds::NewMultiDimensionalScaling<mds::DoubleSseTypeInfo,mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads);
+#endif
+
 #else
    std::cout << "Using no SIMD" << std::endl;
 #endif
@@ -73,92 +87,19 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
 #ifdef USE_AVX
    flags |= mds::Flags::AVX;
    std::cout << "Using AVX vectorization" << std::endl;
+
+#ifdef TBB_SWITCH
+   auto newMdsObj = new mds::NewMultiDimensionalScaling<mds::DoubleAvxTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads);
+#else
+   auto newMdsObj = new mds::NewMultiDimensionalScaling<mds::DoubleAvxTypeInfo,mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads);
+#endif
+
 #else
    std::cout << "Using no SIMD" << std::endl;
 #endif
  }
 
-if (tbb > 0) {
-#if RCPP_PARALLEL_USE_TBB
-  if(simd == 1) {
-#ifdef USE_SSE
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleSseTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#else // SSE
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#endif // SSE
-  } else if(simd == 2) {
-#ifdef USE_AVX
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleAvxTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#else // AVX
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#endif // AVX
-  } else {
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::TbbAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-}
-#else // TBB precomp
-  if (simd == 1) {
-#ifdef USE_SSE
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleSseTypeInfo, mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#else // SSE
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#endif // SSE
-  } else if (simd == 2) {
-#ifdef USE_AVX
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleAvxTypeInfo,mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#else // AVX
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo, mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#endif // AVX
-  } else {
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo, mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-  }
-#endif // TBB precomp
-} else { // TBB > 0
-  if (simd == 1) {
-#ifdef USE_SSE
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleSseTypeInfo, mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#else // SSE
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo,mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#endif // SSE
-  } else if (simd == 2) {
-#ifdef USE_AVX
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleAvxTypeInfo,mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#else // AVX
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo, mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-#endif // AVX
-  } else {
-    EnginePtr engine(
-        new mds::NewMultiDimensionalScaling<mds::DoubleNoSimdTypeInfo, mds::CpuAccumulate>(embeddingDimension, locationCount, flags, threads)
-    );
-  } // SIMD
-} // TBB
+ EnginePtr engine( newMdsObj );
 
   Rcpp::List list = Rcpp::List::create(
     Rcpp::Named("engine") = engine,
