@@ -78,7 +78,7 @@ test <- function(  locationCount =10,threads=0,simd=0) {
                       ncol = embeddingDimension, nrow = locationCount)
 
   cat("no trunc\n")
-  engine <- mds:::createEngine(embeddingDimension, locationCount, truncation, threads, simd)
+  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
 
@@ -142,7 +142,7 @@ timeTest <- function(  locationCount =10, maxIts=1,threads=0,simd=0) {
 
   locations <- matrix(rnorm(n = embeddingDimension * locationCount, sd = 1),
                       ncol = embeddingDimension, nrow = locationCount)
-  engine <- mds:::createEngine(embeddingDimension, locationCount, truncation, threads, simd)
+  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
   engine <- mds::setPrecision(engine, 2.0)
