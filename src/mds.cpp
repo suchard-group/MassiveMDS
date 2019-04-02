@@ -6,7 +6,7 @@
 using namespace Rcpp;
 
 
-// [[Rcpp::depends(RcppParallel,BH)]]
+// [[Rcpp::depends(RcppParallel,BH,RcppXsimd)]]
 #include <RcppParallel.h>
 
 // [[Rcpp::export]]

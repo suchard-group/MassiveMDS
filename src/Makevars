@@ -2,8 +2,9 @@ $(info The name of the shared library to be created is: $(SHLIB))
 
 CXX_STD = CXX11
 
-PKG_CXXFLAGS = -I. -I../inst/include/ \
-						   -DUSE_SIMD -DUSE_SSE -DUSE_AVX -mavx -mavx2 -mfma
+PKG_CXXFLAGS = -I. \
+						   -DUSE_SIMD -DUSE_SSE -DUSE_AVX -mavx -mavx2 -mfma # \
+						   # -I../inst/include/
 
 PKG_LIBS += $(shell ${R_HOME}/bin/Rscript -e "RcppParallel::RcppParallelLibs()")
 

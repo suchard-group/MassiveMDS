@@ -13,12 +13,15 @@ LazyData: true
 LinkingTo: 
     Rcpp,
     RcppParallel,
-    BH
+    BH,
+    RcppXsimd
 Imports: 
     Rcpp,
     devtools,
     OutbreakTools (>= 0.1-13.999),
     caper,
-    RcppParallel
+    RcppParallel,
+    RcppXsimd
 RoxygenNote: 6.1.1
 SystemRequirements: GNU make
+Remotes: github::OHDSI/RcppXsimd
