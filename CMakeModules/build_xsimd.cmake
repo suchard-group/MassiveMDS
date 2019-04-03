@@ -2,7 +2,7 @@ SET(VER 7.1.3)
 SET(URL https://github.com/QuantStack/xsimd/archive/${VER}.tar.gz)
 SET(MD5 1d831e7f6ca87aa75b09c6e88911c18f)
 
-SET(thirdPartyDir "${CMAKE_BINARY_DIR}/../inst/include")
+SET(thirdPartyDir "${CMAKE_BINARY_DIR}/third_party")
 SET(srcDir "${thirdPartyDir}/xsimd-${VER}")
 SET(archive ${srcDir}.tar.gz)
 SET(inflated ${srcDir}-inflated)
