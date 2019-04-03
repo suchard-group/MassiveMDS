@@ -1,9 +1,13 @@
+*.o
+*.so
 *.dylib
 CMakeCache.txt
 CMakeFiles
 Makefile
 cmake_install.cmake
 build/
+analysis/
 *~
-
 .Rproj.user
+.Rhistory
+.idea

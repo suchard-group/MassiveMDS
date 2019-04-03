@@ -17,11 +17,12 @@ LinkingTo:
     RcppXsimd
 Imports: 
     Rcpp,
-    devtools,
-    OutbreakTools (>= 0.1-13.999),
-    caper,
     RcppParallel,
     RcppXsimd
+Suggests:
+    OutbreakTools,
+    caper
 RoxygenNote: 6.1.1
-SystemRequirements: GNU make
-Remotes: github::OHDSI/RcppXsimd
+Remotes: 
+    github::OHDSI/RcppXsimd,
+    github::thibautjombart/OutbreakTools

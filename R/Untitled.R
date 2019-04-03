@@ -160,6 +160,7 @@ timeTest <- function(  locationCount =10, maxIts=1,threads=0,simd=0) {
 install_dependencies <- function() {
   # We require the development version of OutbreakTools from github
   devtools::install_github("thibautjombart/OutbreakTools")
+  # TODO: remove dependence on no longer maintained package
 }
 
 # example <- function() {
