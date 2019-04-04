@@ -1,5 +1,9 @@
 
-computeLoglikelihood <- function(data, locations, precision, truncation = FALSE, gradient = FALSE) {
+computeLoglikelihood <- function(data, locations, precision, truncation = TRUE, gradient = FALSE) {
+  # serially computed MDS log likelihood and log likelihood gradient
+  # data is distance matrix
+  # locations are positions in latent space
+
   locationCount <- dim(data)[1]
   sd <- 1 / sqrt(precision)
   logLikelihood <- 0
@@ -38,6 +42,11 @@ computeLoglikelihood <- function(data, locations, precision, truncation = FALSE,
 
 
 dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
+  # log density and its gradient for matrix normal prior on latent locations (X)
+  # n is number of objects
+  # p is latent dimension
+  # U is nxn covariance
+  # V is pxp covariance
   n <- dim(X)[1]
   p <- dim(X)[2]
 
@@ -64,7 +73,10 @@ dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
 }
 
 test <- function(  locationCount =10,threads=0,simd=0) {
-
+  # function compares serially and parallel-ly computed log likelihoods and gradients,
+  # returns log likelihoods (should be equal) and distance between gradients (should be 0)
+  # threads is number of CPU cores used
+  # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
   embeddingDimension <- 2
   truncation <- FALSE
 
@@ -95,8 +107,6 @@ test <- function(  locationCount =10,threads=0,simd=0) {
   engine <- mds::setPrecision(engine, 2.0)
   print(max(abs(mds::getGradient(engine) -
                   computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
-  #print(mds::getGradient(engine))
-  #print(computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))
 
   engine <- mds::setPrecision(engine, 0.5)
   print(max(abs(mds::getGradient(engine) -
@@ -121,7 +131,6 @@ test <- function(  locationCount =10,threads=0,simd=0) {
   engine <- mds::setPrecision(engine, 2.0)
   print(max(abs(mds::getGradient(engine) -
                   computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
-  #print(mds::getGradient(engine))
 
   engine <- mds::setPrecision(engine, 0.5)
   print(max(abs(mds::getGradient(engine) -
@@ -129,8 +138,10 @@ test <- function(  locationCount =10,threads=0,simd=0) {
 }
 
 
-timeTest <- function(  locationCount =10, maxIts=1,threads=0,simd=0) {
-
+timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0) {
+  # function returns length of time to compute log likelihood and gradient
+  # threads is number of CPU cores used
+  # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
   embeddingDimension <- 2
   truncation <- TRUE
 
@@ -320,7 +331,9 @@ engineInitial <- function(data,locations,N,P,
 }
 
 Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradient=FALSE) {
-
+    # HMC potential (log posterior) and gradient
+    # treeVcv is n locations x n locations
+    # traitVcv is n latent dimensions x n latent dimensions
     if (gradient) {
     logPriorGrad <- dmatrixnorm(X = locations, U = treeVcv, V = traitVcv,
                                 Uinv=treePrec,Vinv=traitPrec,gradient=gradient)
@@ -338,20 +351,25 @@ Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradi
 }
 
 
-hmcsampler <- function(n_iter, BurnIn, file = "large",
-                       learnPrec=FALSE, learnTraitPrec=FALSE,
-                       Trajectory = 0.2, traitInvWeight = 1,
+hmcsampler <- function(n_iter,
+                       BurnIn,
+                       file = "large",
+                       learnPrec=FALSE,               # learn MDS likelihood precision?
+                       learnTraitPrec=FALSE,          # learn pxp latent precision?
+                       Trajectory = 0.2,              # length of HMC proposal trajectory
+                       traitInvWeight = 1,
                        randomizeInitialState = FALSE,
                        priorRootSampleSize = 0.001,
-                       mdsPrecision = 1.470222,
-                       threads=1,simd=0,
+                       mdsPrecision = 1.470222,       # if learnPrec=FALSE then mdsPrecision=1.47
+                       threads=1,                     # number of CPU cores
+                       simd=0,                        # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
+                       treeCov=FALSE,                 # if treeCov=TRUE, tree-based nxn precision used
                        truncation=TRUE) {
 
   # Set up the parameters
   NumOfIterations = n_iter
-  # BurnIn = floor(0.2*NumOfIterations)
-  #Trajectory = 0.2      # HMC tuning parameters
-  NumOfLeapfrog = 10
+  # HMC tuning parameters
+  NumOfLeapfrog = 20
   StepSize = Trajectory/NumOfLeapfrog
 
   # Allocate output space
@@ -393,10 +411,15 @@ hmcsampler <- function(n_iter, BurnIn, file = "large",
     precision <- rep(engine$precision, n_iter)
   }
 
-  # Need inverse Vcovs
-  treePrec <- solve(beast$treeVcv)
+  # Incorporate tree structure into nxn covariance?
+  if (treeCov) { # if yes
+    treePrec <- solve(beast$treeVcv)   # Need inverse Vcovs
+  } else {       # if not
+    beast$treeVcv <- diag(N)           # set Vcov and precision to identity
+    treePrec      <- diag(N)
+  }
 
-  # if we want to learn 2-dim precision (traitPrec)
+  # if we want to learn P-dim precision (traitPrec)
   if(learnTraitPrec){
     traitPrec <- array(0,dim=c(n_iter,P,P))
     traitPrec[1,,] <- solve(beast$traitVcv) #rWishart(1, beast$d0 + N,solve(beast$traitT0 + t(locations)%*%treePrec%*%locations))
@@ -494,11 +517,9 @@ hmcsampler <- function(n_iter, BurnIn, file = "large",
       timer = proc.time()
     }
 
-    # MH step for residual precision (eventually needs to be HMC)
+    # MH step for residual precision
     if (learnPrec) {
       prec_star <- abs(runif(1, precision[Iteration] - .01, precision[Iteration] + .01)) # draw from uniform
-      # eng_star  <- engine
-      # eng_star$precision <- prec_star
       engine <- mds::setPrecision(engine, prec_star)
       ProposedU = Potential(engine,CurrentLocation,beast$treeVcv,solve(traitPrec[Iteration,,]),
                             treePrec = treePrec, traitPrec = traitPrec[Iteration,,])
@@ -529,9 +550,6 @@ hmcsampler <- function(n_iter, BurnIn, file = "large",
       } else {
         traitPrec[Iteration + 1,,] <- traitPrec[Iteration,,]
       }
-      #print(beast$traitVcv)
-      #print(solve(traitPrec[Iteration + 1,,]))
-      #print("Skip")
     }
   }
 
@@ -688,53 +706,53 @@ eSliceSampler <- function(n_iter, BurnIn, mdsPrecision = 1.470222, randomizeInit
 
 }
 
-check_initial_state <- function(file = "large",
-                                priorRootSampleSize = 0.001,
-                                mdsPrecision = 1.470222) {
-  beast <- readbeast(file = file, priorRootSampleSize)
+# check_initial_state <- function(file = "large",
+#                                 priorRootSampleSize = 0.001,
+#                                 mdsPrecision = 1.470222) {
+#   beast <- readbeast(file = file, priorRootSampleSize)
+# browser()
+#   x <- dmatrixnorm(X = beast$locations, U = beast$treeVcv, V = beast$traitVcv,
+#                    Uinv = solve(beast$treeVcv), Vinv = solve(beast$traitVcv), gradient = FALSE)
+#
+#   x_gradient <- dmatrixnorm(X = beast$locations, U = beast$treeVcv, V = beast$traitVcv,
+#                             Uinv = solve(beast$treeVcv), Vinv = solve(beast$traitVcv), gradient = TRUE)
+#
+#   locations <- beast$locations
+#   N <- dim(locations)[1]
+#   P <- dim(locations)[2]
+#
+#   # Read data for MDS likelihood
+#   data <- getdata(N, locations)
+#   inverse_permutation <- attr(data, "inverse_permutation")
+#
+#   # Build reusable object to compute Loglikelihood (gradient)
+#   engine <- engineInitial(data,locations,N,P, mdsPrecision)
+#
+#   y <- mds::getLogLikelihood(engine)
+#   y_gradient <- mds::getGradient(engine)
+#
+#   return(list(estimates = c(x,beast$log$loc.traitLikelihood, y, beast$log$mdsLikelihood),
+#               x_gradient = x_gradient[inverse_permutation,],
+#               y_gradient = y_gradient[inverse_permutation,]))
+# }
 
-  x <- dmatrixnorm(X = beast$locations, U = beast$treeVcv, V = beast$traitVcv,
-                   Uinv = solve(beast$treeVcv), Vinv = solve(beast$traitVcv), gradient = FALSE)
-
-  x_gradient <- dmatrixnorm(X = beast$locations, U = beast$treeVcv, V = beast$traitVcv,
-                            Uinv = solve(beast$treeVcv), Vinv = solve(beast$traitVcv), gradient = TRUE)
-
-  locations <- beast$locations
-  N <- dim(locations)[1]
-  P <- dim(locations)[2]
-
-  # Read data for MDS likelihood
-  data <- getdata(N, locations)
-  inverse_permutation <- attr(data, "inverse_permutation")
-
-  # Build reusable object to compute Loglikelihood (gradient)
-  engine <- engineInitial(data,locations,N,P, mdsPrecision)
-
-  y <- mds::getLogLikelihood(engine)
-  y_gradient <- mds::getGradient(engine)
-
-  return(list(estimates = c(x,beast$log$loc.traitLikelihood, y, beast$log$mdsLikelihood),
-              x_gradient = x_gradient[inverse_permutation,],
-              y_gradient = y_gradient[inverse_permutation,]))
-}
-
-printRandomPrecisionForBEAST <- function() {
-  set.seed(666)
-
-  Sigma <- rWishart(1, 10, diag(nrow = 10))
-  P <- solve(Sigma[,,1])
-
-  apply(P, MARGIN = 1, function(x) {
-    line <- paste0("\t\t<parameter value=\"",
-           paste(as.list(x), collapse = " "), "\"/>\n")
-    cat(line, sep = "")
-    line
-    })
-}
-
-.hide <- function() {
-  chk <- check_initial_state("h3_large_geo_BMDS_Country_HMC")
-  chk$estimates
-  chk$y_gradient[1:4,]
-  chk$x_gradient[1:4,]
-}
+# printRandomPrecisionForBEAST <- function() {
+#   set.seed(666)
+#
+#   Sigma <- rWishart(1, 10, diag(nrow = 10))
+#   P <- solve(Sigma[,,1])
+#
+#   apply(P, MARGIN = 1, function(x) {
+#     line <- paste0("\t\t<parameter value=\"",
+#            paste(as.list(x), collapse = " "), "\"/>\n")
+#     cat(line, sep = "")
+#     line
+#     })
+# }
+#
+# .hide <- function() {
+#   chk <- check_initial_state("h3_large_geo_BMDS_Country_HMC")
+#   chk$estimates
+#   chk$y_gradient[1:4,]
+#   chk$x_gradient[1:4,]
+# }
