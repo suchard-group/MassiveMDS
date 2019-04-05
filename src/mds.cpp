@@ -42,7 +42,7 @@ MdsSharedPtr& parsePtr(SEXP sexp) {
 }
 
 // [[Rcpp::export(createEngine)]]
-Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd) {
+Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd, int gpu) {
 
   long flags = 0L;
   if (truncation) {
@@ -50,8 +50,15 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
   }
 
   int deviceNumber = -1;
-
   int threads = 0;
+  if (gpu > 0) {
+    std::cout << "Running on GPU" << std::endl;
+    //flags |= mds::Flags::FLOAT;
+    flags |= mds::Flags::OPENCL;
+    deviceNumber = gpu;
+  } else {
+    std::cout << "Running on CPU" << std::endl;
+
 #if RCPP_PARALLEL_USE_TBB
   if (tbb > 0) {
     threads = tbb;
@@ -65,6 +72,8 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
     flags |= mds::Flags::SSE;
   } else if (simd == 2) {
     flags |= mds::Flags::AVX;
+  }
+
   }
 
   auto mds = new MdsWrapper(mds::factory(embeddingDimension, locationCount,

@@ -72,7 +72,7 @@ dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
   }
 }
 
-test <- function(  locationCount =10,threads=0,simd=0) {
+test <- function(  locationCount =10,threads=0,simd=0,gpu=0) {
   # function compares serially and parallel-ly computed log likelihoods and gradients,
   # returns log likelihoods (should be equal) and distance between gradients (should be 0)
   # threads is number of CPU cores used
@@ -90,7 +90,7 @@ test <- function(  locationCount =10,threads=0,simd=0) {
                       ncol = embeddingDimension, nrow = locationCount)
 
   cat("no trunc\n")
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd)
+  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
 
@@ -114,7 +114,7 @@ test <- function(  locationCount =10,threads=0,simd=0) {
 
   truncation <- TRUE
 
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd)
+  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd,gpu)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
 
@@ -138,7 +138,7 @@ test <- function(  locationCount =10,threads=0,simd=0) {
 }
 
 
-timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0) {
+timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0) {
   # function returns length of time to compute log likelihood and gradient
   # threads is number of CPU cores used
   # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
@@ -153,7 +153,7 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0) {
 
   locations <- matrix(rnorm(n = embeddingDimension * locationCount, sd = 1),
                       ncol = embeddingDimension, nrow = locationCount)
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd)
+  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
   engine <- mds::setPrecision(engine, 2.0)
@@ -313,11 +313,11 @@ getdata <- function(N, locations) { # TEMP EDIT: ADD locations param
 
 
 engineInitial <- function(data,locations,N,P,
-                          precision = 1.470222,threads,simd,truncation) {
+                          precision = 1.470222,threads,simd,truncation,gpu) {
 
   # Build reusable object
   engine <- mds::createEngine(embeddingDimension = P,
-                                    locationCount = N, truncation = truncation, tbb = threads, simd=simd)
+                                    locationCount = N, truncation = truncation, tbb = threads, simd=simd, gpu=gpu)
   # Set data once
   engine <- mds::setPairwiseData(engine, as.matrix(data))
 
@@ -364,7 +364,8 @@ hmcsampler <- function(n_iter,
                        threads=1,                     # number of CPU cores
                        simd=0,                        # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
                        treeCov=FALSE,                 # if treeCov=TRUE, tree-based nxn precision used
-                       truncation=TRUE) {
+                       truncation=TRUE,
+                       gpu=0) {
 
   # Set up the parameters
   NumOfIterations = n_iter
@@ -394,7 +395,7 @@ hmcsampler <- function(n_iter,
   data <- getdata(N, locations)   # TEMP EDIT: ADD locations param
 
   # Build reusable object to compute Loglikelihood (gradient)
-  engine <- engineInitial(data,locations,N,P, mdsPrecision,threads,simd,truncation)
+  engine <- engineInitial(data,locations,N,P, mdsPrecision,threads,simd,truncation,gpu)
 
   Accepted = 0;
   Proposed = 0;
