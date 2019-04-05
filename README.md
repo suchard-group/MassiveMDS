@@ -89,3 +89,61 @@ Even faster should be a combination of AVX and a 4 core approach.
 timeTest(locationCount=1000, simd=2, threads=4) 
 ```
 
+The GPU implementation should be fastest of all.
+
+```
+timeTest(locationCount=1000, gpu=1) 
+```
+
+Not all GPUs have double precision capabilities. You might need to set `single=1` to use your GPU. If you have an eGPU connected, try fixing `gpu=2`.
+
+Speed computing the log likelihood and its gradient should translate directly to faster HMC times. Compare these implementations of HMC:
+
+```
+hmc_1_0 <- hmcsampler(n_iter=100, learnPrec=FALSE, learnTraitPrec=FALSE)
+
+hmc_3_2 <- hmcsampler(n_iter=100, learnPrec=FALSE, learnTraitPrec=FALSE, threads=3, simd=2)
+
+hmc_gpu <- hmcsampler(n_iter=100, learnPrec=FALSE, learnTraitPrec=FALSE, gpu=1)
+
+hmc_1_0$Time
+hmc_3_2$Time
+hmc_gpu$Time
+```
+Again, you might need to set `single=1` to get the GPU implementation working.  Hopefully, the elapsed times are fastest for the GPU implementation and slowest for the single threaded, no SIMD implementation.
+
+### Example 1: user specified distance matrix
+
+First, we randomly generate a distance matrix and use HMC to learn the Bayesian MDS posterior.  We use AVX and 4 CPU cores.  We also choose to learn the MDS likelihood precision (`learnPrec=TRUE`) and the `P` dimensional latent precision matrix (`learnTraitPrec=TRUE`). 
+
+```
+# generate high dimensional data
+x       <- matrix(rnorm(5000),500,10)
+data    <- as.matrix(dist(x))
+
+# run HMC
+hmc <- hmcsampler(n_iter=100, burnIn=0, data=data, learnPrec=TRUE, learnTraitPrec=TRUE, threads=3, simd=2, treeCov=FALSE, trajectory=0.1)
+```
+Look at trace plot of MDS precision.
+```
+plot(hmc$precision, type="l")
+```
+
+Hmmm, needs more samples. Let's speed it up with the GPU.
+
+```
+hmc <- hmcsampler(n_iter=200, burnIn=0, data=data, learnPrec=TRUE, learnTraitPrec=TRUE, gpu=1, single=1,  treeCov=FALSE, trajectory=0.1)
+
+plot(hmc$target, type="l") # plot the negative log likelihood
+
+```
+
+Still not enough samples. Run the chain for 2000 iterations.
+
+### Example 2: phylogenetic inference
+
+```
+beast <- readbeast()
+hmc <- hmcsampler(n_iter=1000, burnIn=500, beast=beast, learnPrec=TRUE, learnTraitPrec=TRUE, threads=3, simd=2, treeCov=FALSE, trajectory=0.01)
+```
+

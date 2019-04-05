@@ -5,8 +5,8 @@ rcpp_hello <- function() {
     .Call('_mds_rcpp_hello', PACKAGE = 'mds')
 }
 
-createEngine <- function(embeddingDimension, locationCount, truncation, tbb, simd, gpu) {
-    .Call('_mds_createEngine', PACKAGE = 'mds', embeddingDimension, locationCount, truncation, tbb, simd, gpu)
+createEngine <- function(embeddingDimension, locationCount, truncation, tbb, simd, gpu, single) {
+    .Call('_mds_createEngine', PACKAGE = 'mds', embeddingDimension, locationCount, truncation, tbb, simd, gpu, single)
 }
 
 .setPairwiseData <- function(sexp, data) {

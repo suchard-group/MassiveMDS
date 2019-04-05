@@ -72,7 +72,7 @@ dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
   }
 }
 
-test <- function(  locationCount =10,threads=0,simd=0,gpu=0) {
+test <- function(  locationCount =10,threads=0,simd=0,gpu=0,single=0) {
   # function compares serially and parallel-ly computed log likelihoods and gradients,
   # returns log likelihoods (should be equal) and distance between gradients (should be 0)
   # threads is number of CPU cores used
@@ -90,7 +90,7 @@ test <- function(  locationCount =10,threads=0,simd=0,gpu=0) {
                       ncol = embeddingDimension, nrow = locationCount)
 
   cat("no trunc\n")
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu)
+  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu,single)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
 
@@ -114,7 +114,7 @@ test <- function(  locationCount =10,threads=0,simd=0,gpu=0) {
 
   truncation <- TRUE
 
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd,gpu)
+  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd,gpu,single)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
 
@@ -138,7 +138,7 @@ test <- function(  locationCount =10,threads=0,simd=0,gpu=0) {
 }
 
 
-timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0) {
+timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,single=0) {
   # function returns length of time to compute log likelihood and gradient
   # threads is number of CPU cores used
   # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
@@ -153,7 +153,7 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0) {
 
   locations <- matrix(rnorm(n = embeddingDimension * locationCount, sd = 1),
                       ncol = embeddingDimension, nrow = locationCount)
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu)
+  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu, single)
   engine <- mds::setPairwiseData(engine, data)
   engine <- mds::updateLocations(engine, locations)
   engine <- mds::setPrecision(engine, 2.0)
@@ -313,11 +313,11 @@ getdata <- function(N, locations) { # TEMP EDIT: ADD locations param
 
 
 engineInitial <- function(data,locations,N,P,
-                          precision = 1.470222,threads,simd,truncation,gpu) {
+                          precision = 1.470222,threads,simd,truncation,gpu,single) {
 
   # Build reusable object
   engine <- mds::createEngine(embeddingDimension = P,
-                                    locationCount = N, truncation = truncation, tbb = threads, simd=simd, gpu=gpu)
+                                    locationCount = N, truncation = truncation, tbb = threads, simd=simd, gpu=gpu, single=single)
   # Set data once
   engine <- mds::setPairwiseData(engine, as.matrix(data))
 
@@ -352,50 +352,70 @@ Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradi
 
 
 hmcsampler <- function(n_iter,
-                       BurnIn,
+                       burnIn=0,
+                       data=NULL,
+                       beast=NULL,
+                       latentDimension=2,
                        file = "large",
                        learnPrec=FALSE,               # learn MDS likelihood precision?
                        learnTraitPrec=FALSE,          # learn pxp latent precision?
-                       Trajectory = 0.2,              # length of HMC proposal trajectory
+                       trajectory = 0.2,              # length of HMC proposal trajectory
                        traitInvWeight = 1,
-                       randomizeInitialState = FALSE,
                        priorRootSampleSize = 0.001,
                        mdsPrecision = 1.470222,       # if learnPrec=FALSE then mdsPrecision=1.47
                        threads=1,                     # number of CPU cores
                        simd=0,                        # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
                        treeCov=FALSE,                 # if treeCov=TRUE, tree-based nxn precision used
                        truncation=TRUE,
-                       gpu=0) {
+                       gpu=0,
+                       single=0) {
 
   # Set up the parameters
   NumOfIterations = n_iter
-  # HMC tuning parameters
   NumOfLeapfrog = 20
-  StepSize = Trajectory/NumOfLeapfrog
+  StepSize = trajectory/NumOfLeapfrog
 
   # Allocate output space
   LocationSaved = list()
   Target = vector()
   savedLikEvals <- rep(0,n_iter)
+  P <- latentDimension
 
-  # Read BEAST tree
-  beast <- readbeast(file = file, priorRootSampleSize)
-  locations <- beast$locations
-  N <- dim(locations)[1]
-  P <- dim(locations)[2]
+  if (!is.null(beast)) {
 
-  if (randomizeInitialState) {
+    locations <- beast$locations
+    N <- dim(locations)[1]
     set.seed(666)
     saveNames <- rownames(locations)
     locations <- matrix(rnorm(N * P, 0, 1), nrow = N, ncol = P)
     rownames(locations) <- saveNames
+    data <- getdata(N, locations)
+    if (treeCov) { # if want tree based NxN covariance
+      treePrec <- solve(beast$treeVcv)   # Need inverse Vcovs
+    } else {       # if not
+      beast$treeVcv <- diag(N)           # set Vcov and precision to identity
+      treePrec      <- diag(N)
+    }
+
+  } else {
+
+    if(is.null(data)){
+      stop("No data found.")
+    }
+    beast <- list()
+    N              <- dim(data)[1]
+    beast$treeVcv  <- diag(N)
+    treePrec       <- diag(N)
+    beast$traitVcv <- diag(P)
+    beast$d0       <- P
+    beast$traitT0  <- diag(P)
+    set.seed(666)
+    locations <- matrix(rnorm(N * P, 0, 1), nrow = N, ncol = P)
+
   }
 
-  # Read data for MDS likelihood
-  data <- getdata(N, locations)   # TEMP EDIT: ADD locations param
-
   # Build reusable object to compute Loglikelihood (gradient)
-  engine <- engineInitial(data,locations,N,P, mdsPrecision,threads,simd,truncation,gpu)
+  engine <- engineInitial(data,locations,N,P, mdsPrecision,threads,simd,truncation,gpu,single)
 
   Accepted = 0;
   Proposed = 0;
@@ -410,14 +430,6 @@ hmcsampler <- function(n_iter,
     proposePrec <- 0
   } else {
     precision <- rep(engine$precision, n_iter)
-  }
-
-  # Incorporate tree structure into nxn covariance?
-  if (treeCov) { # if yes
-    treePrec <- solve(beast$treeVcv)   # Need inverse Vcovs
-  } else {       # if not
-    beast$treeVcv <- diag(N)           # set Vcov and precision to identity
-    treePrec      <- diag(N)
   }
 
   # if we want to learn P-dim precision (traitPrec)
@@ -494,10 +506,10 @@ hmcsampler <- function(n_iter,
     }
 
     # Save if sample is required
-    if (Iteration > BurnIn) {
-      LocationSaved[[Iteration-BurnIn]] = CurrentLocation
-      Target[Iteration-BurnIn] = CurrentU
-      savedLikEvals[Iteration-BurnIn] = likEvals
+    if (Iteration > burnIn) {
+      LocationSaved[[Iteration-burnIn]] = CurrentLocation
+      Target[Iteration-burnIn] = CurrentU
+      savedLikEvals[Iteration-burnIn] = likEvals
     }
 
     # Show acceptance rate every 20 iterations
@@ -509,12 +521,12 @@ hmcsampler <- function(n_iter,
     }
 
     # Start timer after burn-in
-    if (Iteration == BurnIn) { # If BurnIn > 0
-      cat("Burn-in complete, now drawing samples ...\n")
+    if (Iteration == burnIn) { # If burnIn > 0
+      cat("burn-in complete, now drawing samples ...\n")
       timer = proc.time()
     }
-    if (BurnIn==0 & Iteration==1) { # If BurnIn = 0
-      cat("Burn-in complete, now drawing samples ...\n")
+    if (burnIn==0 & Iteration==1) { # If burnIn = 0
+      cat("burn-in complete, now drawing samples ...\n")
       timer = proc.time()
     }
 
@@ -555,7 +567,7 @@ hmcsampler <- function(n_iter,
   }
 
   time = proc.time() - timer
-  acprat = dim(LocationSaved[!duplicated(LocationSaved)])[1]/(NumOfIterations-BurnIn)
+  acprat = dim(LocationSaved[!duplicated(LocationSaved)])[1]/(NumOfIterations-burnIn)
 
   # if learn everything, return ...
   if(learnPrec & learnTraitPrec){
@@ -583,129 +595,129 @@ hmcsampler <- function(n_iter,
 }
 
 
-eSliceSampler <- function(n_iter, BurnIn, mdsPrecision = 1.470222, randomizeInitialState = FALSE){
-  # Set up the parameters
-  NumOfIterations = n_iter
-  # BurnIn = floor(0.2*NumOfIterations)
-
-  # Allocate output space
-  LocationSaved = list()
-  Target = vector()
-  savedLikEvals <- rep(0,n_iter)
-
-  # Read BEAST tree
-  beast <- readbeast()
-  locations <- beast$locations
-  N <- dim(locations)[1]
-  P <- dim(locations)[2]
-
-  if (randomizeInitialState) {
-    set.seed(666)
-    saveNames <- rownames(locations)
-    locations <- matrix(rnorm(N * P, 0, 1), nrow = N, ncol = P)
-    rownames(locations) <- saveNames
-  }
-
-  # Read data for MDS likelihood
-  data <- getdata(N, locations)   # TEMP EDIT: ADD locations param
-  cat('Data generated\n')
-
-  # Build reusable object to compute Loglikelihood (gradient)
-  engine <- engineInitial(data,locations,N,P, mdsPrecision)
-  cat('Initial engine built\n')
-
-  # Initialize the location
-  likEvals <- 0;
-  CurrentLocation <- locations # QUESTION: is this an initialization at truth?
-  CurrentLogLik <- mds::getLogLikelihood(engine)
-  likEvals = likEvals + 1;
-
-  cat(paste0('Initial log-likelihood: ', CurrentLogLik, '\n'))
-
-  # Need inverse Vcovs for efficient computation of potential
-  treePrec  <- solve(beast$treeVcv)
-  traitPrec <- solve(beast$traitVcv)
-
-  # Get Vcv matrix Cholesky factors (nec. for drawing from prior)
-  Chol_treeVcv  <- chol(beast$treeVcv)
-  Chol_traitVcv <- chol(beast$traitVcv)
-
-  # Perform elliptical slice sampling
-  for (Iteration in 1:NumOfIterations) {
-
-    # Random draw from prior
-    nu <- matrix(rnorm(N*P),N,P)
-    nu <- t(Chol_treeVcv) %*% nu %*% Chol_traitVcv
-
-    # Log likelihood threshold
-    u <- runif(1)
-    threshold <- CurrentLogLik + log(u)
-
-    # Draw bracket
-    theta <- runif(n=1,min=0,max=2*pi)
-    thetaMax <- theta
-    thetaMin <- thetaMax - 2*pi
-
-    # While proposed state not accepted
-    flag <- TRUE
-    while (flag == TRUE) {
-      # Get proposal and evaluate logLik
-      ProposedLocation <- CurrentLocation*cos(thetaMax) +
-        nu*sin(thetaMax)
-      engine <- mds::updateLocations(engine, ProposedLocation)
-      ProposedLogLik <- mds::getLogLikelihood(engine)
-      likEvals = likEvals + 1;
-
-      if (ProposedLogLik > threshold) {
-        # Accept ProposedLocation
-        CurrentLocation <- ProposedLocation # Update
-        CurrentLogLik <- ProposedLogLik
-        CurrentU <- Potential(engine,CurrentLocation,beast$treeVcv,beast$traitVcv,
-                              treePrec = treePrec, traitPrec = traitPrec) # Get log probability for comparison to HMC
-
-        flag <- FALSE
-      } else {
-        # Shrink the bracket and try a new point
-        if (theta < 0){
-          thetaMin <- theta
-        } else {
-          thetaMax <- theta
-        }
-        theta <- runif(1, thetaMin, thetaMax)
-      }
-    }
-
-    # Save if sample is required
-    if (Iteration > BurnIn) {
-      LocationSaved[[Iteration-BurnIn]] = CurrentLocation
-      Target[Iteration-BurnIn] = CurrentU
-      savedLikEvals[Iteration-BurnIn] = likEvals
-    }
-
-    # Show acceptance rate every 100 iterations
-    if (Iteration%%20 == 0) {
-      cat(Iteration, " iterations completed\n")
-    }
-
-    # Start timer after burn-in
-    if (Iteration == BurnIn) { # If BurnIn > 0
-      cat("Burn-in complete, now drawing samples ...\n")
-      timer = proc.time()
-    }
-    if (BurnIn==0 & Iteration==1) { # If BurnIn = 0
-      cat("Burn-in complete, now drawing samples ...\n")
-      timer = proc.time()
-    }
-
-
-  }
-
-  time = proc.time() - timer
-  acprat = dim(LocationSaved[!duplicated(LocationSaved)])[1]/(NumOfIterations-BurnIn)
-  return(list(samples = LocationSaved, target = Target, Time = time, acprat = acprat,
-              likEvals = savedLikEvals))
-
-}
+# eSliceSampler <- function(n_iter, burnIn, mdsPrecision = 1.470222, randomizeInitialState = FALSE){
+#   # Set up the parameters
+#   NumOfIterations = n_iter
+#   # burnIn = floor(0.2*NumOfIterations)
+#
+#   # Allocate output space
+#   LocationSaved = list()
+#   Target = vector()
+#   savedLikEvals <- rep(0,n_iter)
+#
+#   # Read BEAST tree
+#   beast <- readbeast()
+#   locations <- beast$locations
+#   N <- dim(locations)[1]
+#   P <- dim(locations)[2]
+#
+#   if (randomizeInitialState) {
+#     set.seed(666)
+#     saveNames <- rownames(locations)
+#     locations <- matrix(rnorm(N * P, 0, 1), nrow = N, ncol = P)
+#     rownames(locations) <- saveNames
+#   }
+#
+#   # Read data for MDS likelihood
+#   data <- getdata(N, locations)   # TEMP EDIT: ADD locations param
+#   cat('Data generated\n')
+#
+#   # Build reusable object to compute Loglikelihood (gradient)
+#   engine <- engineInitial(data,locations,N,P, mdsPrecision)
+#   cat('Initial engine built\n')
+#
+#   # Initialize the location
+#   likEvals <- 0;
+#   CurrentLocation <- locations # QUESTION: is this an initialization at truth?
+#   CurrentLogLik <- mds::getLogLikelihood(engine)
+#   likEvals = likEvals + 1;
+#
+#   cat(paste0('Initial log-likelihood: ', CurrentLogLik, '\n'))
+#
+#   # Need inverse Vcovs for efficient computation of potential
+#   treePrec  <- solve(beast$treeVcv)
+#   traitPrec <- solve(beast$traitVcv)
+#
+#   # Get Vcv matrix Cholesky factors (nec. for drawing from prior)
+#   Chol_treeVcv  <- chol(beast$treeVcv)
+#   Chol_traitVcv <- chol(beast$traitVcv)
+#
+#   # Perform elliptical slice sampling
+#   for (Iteration in 1:NumOfIterations) {
+#
+#     # Random draw from prior
+#     nu <- matrix(rnorm(N*P),N,P)
+#     nu <- t(Chol_treeVcv) %*% nu %*% Chol_traitVcv
+#
+#     # Log likelihood threshold
+#     u <- runif(1)
+#     threshold <- CurrentLogLik + log(u)
+#
+#     # Draw bracket
+#     theta <- runif(n=1,min=0,max=2*pi)
+#     thetaMax <- theta
+#     thetaMin <- thetaMax - 2*pi
+#
+#     # While proposed state not accepted
+#     flag <- TRUE
+#     while (flag == TRUE) {
+#       # Get proposal and evaluate logLik
+#       ProposedLocation <- CurrentLocation*cos(thetaMax) +
+#         nu*sin(thetaMax)
+#       engine <- mds::updateLocations(engine, ProposedLocation)
+#       ProposedLogLik <- mds::getLogLikelihood(engine)
+#       likEvals = likEvals + 1;
+#
+#       if (ProposedLogLik > threshold) {
+#         # Accept ProposedLocation
+#         CurrentLocation <- ProposedLocation # Update
+#         CurrentLogLik <- ProposedLogLik
+#         CurrentU <- Potential(engine,CurrentLocation,beast$treeVcv,beast$traitVcv,
+#                               treePrec = treePrec, traitPrec = traitPrec) # Get log probability for comparison to HMC
+#
+#         flag <- FALSE
+#       } else {
+#         # Shrink the bracket and try a new point
+#         if (theta < 0){
+#           thetaMin <- theta
+#         } else {
+#           thetaMax <- theta
+#         }
+#         theta <- runif(1, thetaMin, thetaMax)
+#       }
+#     }
+#
+#     # Save if sample is required
+#     if (Iteration > burnIn) {
+#       LocationSaved[[Iteration-burnIn]] = CurrentLocation
+#       Target[Iteration-burnIn] = CurrentU
+#       savedLikEvals[Iteration-burnIn] = likEvals
+#     }
+#
+#     # Show acceptance rate every 100 iterations
+#     if (Iteration%%20 == 0) {
+#       cat(Iteration, " iterations completed\n")
+#     }
+#
+#     # Start timer after burn-in
+#     if (Iteration == burnIn) { # If burnIn > 0
+#       cat("burn-in complete, now drawing samples ...\n")
+#       timer = proc.time()
+#     }
+#     if (burnIn==0 & Iteration==1) { # If burnIn = 0
+#       cat("burn-in complete, now drawing samples ...\n")
+#       timer = proc.time()
+#     }
+#
+#
+#   }
+#
+#   time = proc.time() - timer
+#   acprat = dim(LocationSaved[!duplicated(LocationSaved)])[1]/(NumOfIterations-burnIn)
+#   return(list(samples = LocationSaved, target = Target, Time = time, acprat = acprat,
+#               likEvals = savedLikEvals))
+#
+# }
 
 # check_initial_state <- function(file = "large",
 #                                 priorRootSampleSize = 0.001,
