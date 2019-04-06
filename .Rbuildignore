@@ -5,3 +5,17 @@ config.log
 config.status
 autom4te.cache/
 configure.ac
+CMakeLists.txt
+CPack.txt
+CMakeModules
+analysis
+README.md
+include
+src/backend/nosimd
+src/backend/cuda
+*.o$
+*.so$
+.travis.yml
+.idea
+.travis
+patch_cmd.txt
