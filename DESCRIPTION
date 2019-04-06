@@ -1,9 +1,10 @@
 Package: mds
 Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
-Authors@R:
+Authors@R: c(
     person("Marc A.", "Suchard", email = "msuchard@ucla.edu", role = c("aut","cre")),
     person("Andrew J.", "Holbrook", role = "aut")
+    )
 Description: What the package does (one paragraph).
 License: MIT + file LICENSE
 Encoding: UTF-8
