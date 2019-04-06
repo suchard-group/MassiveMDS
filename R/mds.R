@@ -1,4 +1,4 @@
-
+#' @export
 getLogLikelihood <- function(engine) {
 
   if (!engine$dataInitialized) {
@@ -22,6 +22,7 @@ getLogLikelihood <- function(engine) {
   return(logLikelihood)
 }
 
+#' @export
 getGradient <- function(engine) {
 
   if (!engine$dataInitialized) {
@@ -40,12 +41,14 @@ getGradient <- function(engine) {
          nrow = engine$locationCount, byrow = TRUE)
 }
 
+#' @export
 setPrecision <- function(engine, precision) {
   .setPrecision(engine$engine, precision)
   engine$precision <- precision
   return(engine)
 }
 
+#' @export
 setPairwiseData <- function(engine, data) {
   data <- as.vector(data)
   if (length(data) != engine$locationCount * engine$locationCount) {
@@ -56,6 +59,7 @@ setPairwiseData <- function(engine, data) {
   return(engine)
 }
 
+#' @export
 updateLocations <- function(engine, locations) {
   locations <- as.vector(t(locations)) # C++ code assumes row-major
   if (length(locations) != engine$locationCount * engine$embeddingDimension) {

@@ -1,4 +1,8 @@
+#' @importFrom Rcpp sourceCpp
+#' @importFrom RcppParallel RcppParallelLibs
+#' @useDynLib mds
 
+#' @export
 computeLoglikelihood <- function(data, locations, precision, truncation = TRUE, gradient = FALSE) {
   # serially computed MDS log likelihood and log likelihood gradient
   # data is distance matrix
@@ -40,7 +44,7 @@ computeLoglikelihood <- function(data, locations, precision, truncation = TRUE, 
   }
 }
 
-
+#' @export
 dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
   # log density and its gradient for matrix normal prior on latent locations (X)
   # n is number of objects
@@ -72,6 +76,7 @@ dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
   }
 }
 
+#' @export
 test <- function(  locationCount =10,threads=0,simd=0,gpu=0,single=0) {
   # function compares serially and parallel-ly computed log likelihoods and gradients,
   # returns log likelihoods (should be equal) and distance between gradients (should be 0)
@@ -137,7 +142,7 @@ test <- function(  locationCount =10,threads=0,simd=0,gpu=0,single=0) {
                   computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
 }
 
-
+#' @export
 timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,single=0) {
   # function returns length of time to compute log likelihood and gradient
   # threads is number of CPU cores used
@@ -167,7 +172,7 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,singl
 }
 
 
-
+#' @export
 install_dependencies <- function() {
   # We require the development version of OutbreakTools from github
   devtools::install_github("thibautjombart/OutbreakTools")
@@ -253,7 +258,7 @@ install_dependencies <- function() {
 #   )
 # }
 
-
+#' @export
 readbeast <- function(file = "large", priorRootSampleSize = 0.001) {
   # Read BEAST tree
   tree <- OutbreakTools::read.annotated.nexus(
@@ -292,7 +297,7 @@ readbeast <- function(file = "large", priorRootSampleSize = 0.001) {
               log = log))
 }
 
-
+#' @export
 getdata <- function(N, locations) { # TEMP EDIT: ADD locations param
   # Read data for MDS likelihood
   data <- read.table("inst/extdata/h3_Deff.txt", sep = "\t", header = TRUE, row.names = 1)
@@ -311,7 +316,7 @@ getdata <- function(N, locations) { # TEMP EDIT: ADD locations param
   return(data)
 }
 
-
+#' @export
 engineInitial <- function(data,locations,N,P,
                           precision = 1.470222,threads,simd,truncation,gpu,single) {
 
@@ -330,6 +335,7 @@ engineInitial <- function(data,locations,N,P,
   return(engine)
 }
 
+#' @export
 Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradient=FALSE) {
     # HMC potential (log posterior) and gradient
     # treeVcv is n locations x n locations
@@ -350,7 +356,7 @@ Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradi
   }
 }
 
-
+#' @export
 hmcsampler <- function(n_iter,
                        burnIn=0,
                        data=NULL,

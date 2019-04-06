@@ -9,6 +9,7 @@ using namespace Rcpp;
 // [[Rcpp::depends(RcppParallel,BH,RcppXsimd)]]
 #include <RcppParallel.h>
 
+//' @export
 // [[Rcpp::export]]
 List rcpp_hello() {
   CharacterVector x = CharacterVector::create("foo", "bar");
@@ -41,6 +42,7 @@ MdsSharedPtr& parsePtr(SEXP sexp) {
   return ptr->get();
 }
 
+//' @export
 // [[Rcpp::export(createEngine)]]
 Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd, int gpu, bool single) {
 
