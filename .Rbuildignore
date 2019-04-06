@@ -13,9 +13,9 @@ README.md
 include
 src/backend/nosimd
 src/backend/cuda
-*.o$
-*.so$
-.travis.yml
-.idea
-.travis
+.o$
+.so$
+^\.travis.yml
+^\.idea
+^\.travis
 patch_cmd.txt
