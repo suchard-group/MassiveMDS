@@ -1,28 +1,27 @@
 Package: mds
 Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
-Authors@R: 
-    person(given = "First",
-           family = "Last",
-           role = c("aut", "cre"),
-           email = "first.last@example.com")
+Authors@R:
+    person("Marc A.", "Suchard", email = "msuchard@ucla.edu", role = c("aut","cre")),
+    person("Andrew J.", "Holbrook", role = "aut")
 Description: What the package does (one paragraph).
-License: What license it uses
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-LinkingTo: 
+LinkingTo:
     Rcpp,
     RcppParallel,
     BH,
     RcppXsimd
-Imports: 
+Imports:
     Rcpp,
     RcppParallel,
     RcppXsimd
 Suggests:
+    testthat,
     OutbreakTools,
     caper
 RoxygenNote: 6.1.1
-Remotes: 
+Remotes:
     github::OHDSI/RcppXsimd,
     github::thibautjombart/OutbreakTools
