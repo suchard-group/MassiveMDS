@@ -72,6 +72,8 @@ SharedPtr factory(int dim1, int dim2, long flags, int device, int threads) {
                     return constructNewMultiDimensionalScalingDoubleNoParallelAvx512(dim1, dim2, flags, threads);
                 }
             } else
+#else
+              useAvx512 = false; // stops unused variable warning when AVX512 is unavailable
 #endif // USE_AVX512
 
 #ifdef USE_AVX

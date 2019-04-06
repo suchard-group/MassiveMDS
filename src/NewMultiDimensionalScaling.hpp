@@ -81,10 +81,11 @@ public:
 		  locationsPtr(&locations0),
 		  storedLocationsPtr(&locations1),
 
-		  gradientPtr(&gradient0),
-
           increments(locationCount * locationCount),
+
           storedIncrements(locationCount),
+          gradientPtr(&gradient0),
+
 
           isStoredIncrementsEmpty(false),
 

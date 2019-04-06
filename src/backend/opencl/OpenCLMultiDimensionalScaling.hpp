@@ -535,9 +535,9 @@ public:
 	void computeSumOfSquaredResiduals() {
 
 		RealType lSumOfSquaredResiduals = 0.0;
-		RealType lSumOfTruncations = 0.0;
 
 #ifdef DOUBLE_CHECK
+	  RealType lSumOfTruncations = 0.0;
 		auto startTime1 = std::chrono::steady_clock::now();
 
 		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
@@ -1138,7 +1138,9 @@ public:
 			}
 		}
 
+#ifndef USE_VECTOR
 		bool isNvidia = false; // TODO Check device name
+#endif
 
 		code <<
 			 " __kernel void computeGradient(__global const REAL_VECTOR *locations,  \n" <<
