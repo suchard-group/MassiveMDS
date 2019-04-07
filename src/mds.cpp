@@ -54,15 +54,15 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
   int deviceNumber = -1;
   int threads = 0;
   if (gpu > 0) {
-    std::cout << "Running on GPU" << std::endl;
+    Rcout << "Running on GPU" << std::endl;
     flags |= mds::Flags::OPENCL;
     deviceNumber = gpu;
     if(single){
       flags |= mds::Flags::FLOAT;
-      std::cout << "Single precision" << std::endl;
+      Rcout << "Single precision" << std::endl;
     }
   } else {
-    std::cout << "Running on CPU" << std::endl;
+    Rcout << "Running on CPU" << std::endl;
 
 #if RCPP_PARALLEL_USE_TBB
   if (tbb > 0) {
