@@ -24,6 +24,7 @@ Suggests:
     OutbreakTools,
     caper
 RoxygenNote: 6.1.1
+SystemRequirements: GNU make
 Remotes:
     github::OHDSI/RcppXsimd,
     github::thibautjombart/OutbreakTools
