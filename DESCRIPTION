@@ -16,7 +16,9 @@ LinkingTo:
 Imports:
     Rcpp,
     RcppParallel,
-    RcppXsimd
+    RcppXsimd,
+    MASS,
+    devtools
 Suggests:
     testthat,
     OutbreakTools,

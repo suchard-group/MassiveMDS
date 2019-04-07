@@ -1,5 +1,7 @@
 #' @importFrom Rcpp sourceCpp
 #' @importFrom RcppParallel RcppParallelLibs
+#' @importFrom stats dist dnorm pnorm rWishart rnorm runif
+#' @importFrom utils read.table
 #' @useDynLib mds
 
 #' @export
