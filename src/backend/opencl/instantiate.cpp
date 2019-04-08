@@ -22,7 +22,11 @@ namespace mds {
             return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<8>>>(embeddingDimension, locationCount,
                                                                                     flags, device);
         } else {
+#ifdef RBUILD
+            Rcpp::stop("Embedding dimension > 8!\n");
+#else
             exit(-1);
+#endif
         }
     }
 
@@ -38,7 +42,11 @@ namespace mds {
             return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<8>>>(embeddingDimension, locationCount,
                                                                                    flags, device);
         } else {
+#ifdef RBUILD
+            Rcpp::stop("Embedding dimension > 8!\n");
+#else
             exit(-1);
+#endif
         }
     }
 

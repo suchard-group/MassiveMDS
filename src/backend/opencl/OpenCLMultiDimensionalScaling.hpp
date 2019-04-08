@@ -9,6 +9,10 @@
 #include <boost/compute/algorithm/reduce.hpp>
 #include "reduce_fast.hpp"
 
+#ifdef RBUILD
+#include <Rcpp.h>
+#endif
+
 #define SSE
 //#undef SSE
 
@@ -66,38 +70,74 @@ public:
 
 //           , nThreads(4) //, pool(nThreads)
     {
-		std::cerr << "ctor OpenCLMultiDimensionalScaling" << std::endl;
+#ifdef RBUILD
+      Rcpp::Rcout << "ctor OpenCLMultiDimensionalScaling" << std::endl;
 
-		std::cerr << "All devices:" << std::endl;
+      Rcpp::Rcout << "All devices:" << std::endl;
 
-        const auto devices = boost::compute::system::devices();
+      const auto devices = boost::compute::system::devices();
 
-		for(const auto &device : devices){
-		    std::cerr << "\t" << device.name() << std::endl;
-		}
+      for(const auto &device : devices){
+        Rcpp::Rcout << "\t" << device.name() << std::endl;
+      }
 
-		if(flags & Flags::EGPU){
-			deviceNumber = 2;
-		}
+      if(flags & Flags::EGPU){
+        deviceNumber = 2;
+      }
 
-		if (deviceNumber < 0 || deviceNumber >= devices.size()) {
-			device = boost::compute::system::default_device();
-		} else {
-			device = devices[deviceNumber];
-		}
+      if (deviceNumber < 0 || deviceNumber >= devices.size()) {
+        device = boost::compute::system::default_device();
+      } else {
+        device = devices[deviceNumber];
+      }
 
-        //device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
+      //device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
 
-        std::cerr << "Using: " << device.name() << std::endl;
+      Rcpp::Rcout << "Using: " << device.name() << std::endl;
 
-		ctx = boost::compute::context(device, 0);
-		queue = boost::compute::command_queue{ctx, device
-		    , boost::compute::command_queue::enable_profiling
-		    };
+      ctx = boost::compute::context(device, 0);
+      queue = boost::compute::command_queue{ctx, device
+        , boost::compute::command_queue::enable_profiling
+      };
 
-		dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
+      dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
 
-        std::cerr << "\twith vector-dim = " << OpenCLRealType::dim << std::endl;
+      Rcpp::Rcout << "\twith vector-dim = " << OpenCLRealType::dim << std::endl;
+
+#else //RBUILD
+      std::cerr << "ctor OpenCLMultiDimensionalScaling" << std::endl;
+
+      std::cerr << "All devices:" << std::endl;
+
+      const auto devices = boost::compute::system::devices();
+
+      for(const auto &device : devices){
+        std::cerr << "\t" << device.name() << std::endl;
+      }
+
+      if(flags & Flags::EGPU){
+        deviceNumber = 2;
+      }
+
+      if (deviceNumber < 0 || deviceNumber >= devices.size()) {
+        device = boost::compute::system::default_device();
+      } else {
+        device = devices[deviceNumber];
+      }
+
+      //device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
+
+      std::cerr << "Using: " << device.name() << std::endl;
+
+      ctx = boost::compute::context(device, 0);
+      queue = boost::compute::command_queue{ctx, device
+        , boost::compute::command_queue::enable_profiling
+      };
+
+      dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
+
+      std::cerr << "\twith vector-dim = " << OpenCLRealType::dim << std::endl;
+#endif //RBUILD
 
 //		if (embeddingDimension != OpenCLRealType::dim) {
 //			std::cerr << "Currently only implemented for embedding dimension == VectorDimension" << std::endl;
@@ -121,7 +161,11 @@ public:
 
     	if (flags & Flags::LEFT_TRUNCATION) {
     		isLeftTruncated = true;
+#ifdef RBUILD
+    	  Rcpp::Rcout << "Using left truncation" << std::endl;
+#else
     		std::cout << "Using left truncation" << std::endl;
+#endif
 
     		truncations.resize(locationCount * locationCount);
     		storedTruncations.resize(locationCount);
@@ -134,9 +178,15 @@ public:
     }
 
     virtual ~OpenCLMultiDimensionalScaling() override {
+#ifdef RBUILD
+      Rcpp::Rcout << "timer1 = " << timer1 << std::endl;
+      Rcpp::Rcout << "timer2 = " << timer2 << std::endl;
+      Rcpp::Rcout << "timer3 = " << timer3 << std::endl;
+#else
     	std::cout << "timer1 = " << timer1 << std::endl;
     	std::cout << "timer2 = " << timer2 << std::endl;
     	std::cout << "timer3 = " << timer3 << std::endl;
+#endif
     }
 
     void updateLocations(int locationIndex, double* location, size_t length) override {
