@@ -369,6 +369,31 @@ public:
             testGradient11.push_back(doubleBuffer[i]);
         }
 
+#ifdef RBUILD
+        Rcpp::Rcout << "cpu0: ";
+        for (auto x : testGradient0) {
+          Rcpp::Rcout << " " << x;
+        }
+        Rcpp::Rcout << std::endl;
+
+        Rcpp::Rcout << "cpu1: ";
+        for (auto x : testGradient00) {
+          Rcpp::Rcout << " " << x;
+        }
+        Rcpp::Rcout << std::endl;
+
+        Rcpp::Rcout << "gpu0: ";
+        for (auto x : testGradient1) {
+          Rcpp::Rcout << " " << x;
+        }
+        Rcpp::Rcout << std::endl;
+
+        Rcpp::Rcout << "gpu1: ";
+        for (auto x : testGradient11) {
+          Rcpp::Rcout << " " << x;
+        }
+        Rcpp::Rcout << std::endl;
+#else //RBUILD
         std::cerr << "cpu0: ";
         for (auto x : testGradient0) {
             std::cerr << " " << x;
@@ -392,6 +417,7 @@ public:
             std::cerr << " " << x;
         }
         std::cerr << std::endl;
+#endif //RBUILD
 #endif
 
  	}
@@ -406,7 +432,11 @@ public:
 			}
 			incrementsKnown = true;
 		} else {
+#ifdef RBUILD
+		  Rcpp::Rcout << "SHOULD NOT BE HERE" << std::endl;
+#else
 			std::cerr << "SHOULD NOT BE HERE" << std::endl;
+#endif
 			if (isLeftTruncated) {
 				updateSumOfSquaredResidualsAndTruncations();
 			} else {
@@ -553,7 +583,11 @@ public:
 		RealType sum = 0.0;
 		boost::compute::reduce(dObservations.begin(), dObservations.end(), &sum, queue);
 		RealType sum2 = std::accumulate(begin(observations), end(observations), RealType(0.0));
+#ifdef RBUILD
+		Rcpp::Rcout << sum << " ?= " << sum2 << std::endl;
+#else
 		std::cerr << sum << " ?= " << sum2 << std::endl;
+#endif
 #endif
 
     }
@@ -680,7 +714,11 @@ public:
 
 
 #ifdef DOUBLE_CHECK
+#ifdef RBUILD
+      Rcpp::Rcout << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
+#else
   		std::cerr << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
+#endif
 #endif
 
 //  		using namespace boost::compute;
@@ -1095,18 +1133,30 @@ public:
 		);
 
 #ifdef DEBUG_KERNELS
+#ifdef RBUILD
+		    Rcpp::Rcout << "Likelihood kernel\n" << code.str() << std::endl;
+#else
         std::cerr << "Likelihood kernel\n" << code.str() << std::endl;
+#endif
 #endif
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
 	    	kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
 
 #ifdef DEBUG_KERNELS
+#ifdef RBUILD
+        Rcpp:Rcout << "Successful build." << std::endl;
+#else
         std::cerr << "Successful build." << std::endl;
+#endif
 #endif
 
 #ifdef DOUBLE_CHECK
-		std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
+#ifdef RBUILD
+        Rcpp::Rcout << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
+#else
+        std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
+#endif
 //        exit(-1);
 #endif // DOUBLE_CHECK
 
@@ -1283,19 +1333,25 @@ public:
 			 " }                                                                     \n ";
 
 #ifdef DOUBLE_CHECK_GRADIENT
+#ifndef RBUILD
 		std::cerr << code.str() << std::endl;
+#endif
 //        exit(-1);
 #endif
 
 #ifdef DEBUG_KERNELS
+#ifndef RBUILD
         std::cerr << "Build gradient\n" << code.str() << std::endl;
+#endif
 #endif
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
 		kernelGradientVector = boost::compute::kernel(program, "computeGradient");
 
 #ifdef DEBUG_KERNELS
+#ifndef RBUILD
         std::cerr << "Success" << std::endl;
+#endif
 #endif
 
 		kernelGradientVector.set_arg(0, dLocations0); // Must update
@@ -1318,18 +1374,22 @@ public:
 		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
 
 		auto programInfo = *begin(cache->get_keys());
+#ifndef RBUILD
 		std::cerr << "Try " << programInfo.first << " : " << programInfo.second << std::endl;
-
+#endif
         boost::compute::program programReduce = *cache->get(programInfo.first, programInfo.second);
         auto kernelReduce = kernel(programReduce, "reduce");
+#ifndef RBUILD
         std::cerr << programReduce.source() << std::endl;
-
+#endif
 
         const auto &device2 = queue.get_device();
+#ifndef RBUILD
         std::cerr << "nvidia? " << detail::is_nvidia_device(device) << " " << device.name() << " " << device.vendor() << std::endl;
         std::cerr << "nvidia? " << detail::is_nvidia_device(device2) << " " << device2.name() << " " << device.vendor() << std::endl;
 
 		std::cerr << "Done compile VECTOR." << std::endl;
+#endif
 #endif
 
 	}
