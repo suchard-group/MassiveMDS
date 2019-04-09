@@ -1,4 +1,5 @@
 
+
 #' Serially computed MDS log likelihood and gradient
 #'
 #' Called by \code{MassiveMDS::test()} to compare output with parallel implementations.
