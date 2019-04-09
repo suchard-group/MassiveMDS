@@ -1,14 +1,18 @@
-#' @importFrom Rcpp sourceCpp
-#' @importFrom RcppParallel RcppParallelLibs
-#' @importFrom stats dist dnorm pnorm rWishart rnorm runif
-#' @importFrom utils read.table
-#' @useDynLib mds
 
+#' Serially computed MDS log likelihood and gradient
+#'
+#' Called by \code{MassiveMDS::test()} to compare output with parallel implementations.
+#' Slow. Not recommended for use.
+#'
+#' @param data A distance matrix.
+#' @param locations Object positions in latent space.
+#' @param precision Precision for MDS likelihood.
+#' @param truncation Should truncation term be included? Defaults to TRUE.
+#' @param gradient Return gradient (or log likelihood)? Defaults to FALSE.
+#' @return MDS log likelihood or its gradient.
+#'
 #' @export
 computeLoglikelihood <- function(data, locations, precision, truncation = TRUE, gradient = FALSE) {
-  # serially computed MDS log likelihood and log likelihood gradient
-  # data is distance matrix
-  # locations are positions in latent space
 
   locationCount <- dim(data)[1]
   sd <- 1 / sqrt(precision)
@@ -46,13 +50,24 @@ computeLoglikelihood <- function(data, locations, precision, truncation = TRUE, 
   }
 }
 
+#' Matrix normal log density and gradient
+#'
+#' Default prior for latent locations.  Called by \code{MassiveMDS::hmcsampler()}.
+#'
+#' @param X An n by p matrix of n p-dimensional latent locations.
+#' @param Mu The n by p mean of the matrix normal.
+#' @param U The n by n covariance matrix.
+#' @param V The p by p covariance matrix.
+#' @param Uinv The inverse of U.
+#' @param Vinv The inverse of V.
+#' @param gradient Return gradient (or log likelihood)? Defaults to FALSE.
+#' @return Matrix normal log density or its gradient.
+#'
 #' @export
 dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
-  # log density and its gradient for matrix normal prior on latent locations (X)
   # n is number of objects
   # p is latent dimension
-  # U is nxn covariance
-  # V is pxp covariance
+
   n <- dim(X)[1]
   p <- dim(X)[2]
 
@@ -78,12 +93,22 @@ dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
   }
 }
 
+#' Compare serially and parallel-ly computed log likelihoods and gradients
+#'
+#' Compare outputs for serially and parallel-ly computed MDS log likelihoods and gradients across
+#' a range of implementations for both truncated and non-truncated likelihoods. Randomly generates
+#' distance matrix and latent locations.
+#'
+#' @param locationCount Size of distance matrix or number of latent locations.
+#' @param threads Number of CPU cores to be used.
+#' @param simd For CPU implementation: no SIMD (\code{0}), SSE (\code{1}) or AVX (\code{2}).
+#' @param gpu Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.
+#' @param single Set \code{single=1} if your GPU does not accommodate doubles.
+#' @return Returns MDS log likelihoods (should be equal) and distance between gradients (should be 0).
+#'
 #' @export
-test <- function(  locationCount =10,threads=0,simd=0,gpu=0,single=0) {
-  # function compares serially and parallel-ly computed log likelihoods and gradients,
-  # returns log likelihoods (should be equal) and distance between gradients (should be 0)
-  # threads is number of CPU cores used
-  # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
+test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0) {
+
   embeddingDimension <- 2
   truncation <- FALSE
 
@@ -144,6 +169,18 @@ test <- function(  locationCount =10,threads=0,simd=0,gpu=0,single=0) {
                   computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
 }
 
+#' Time log likelihood and gradient calculations
+#'
+#' Time log likelihood and gradient calculations for serial and parallel implementations.
+#'
+#' @param locationCount Size of distance matrix or number of latent locations.
+#' @param maxIts Number of times to compute the log likelihood and gradient.
+#' @param threads Number of CPU cores to be used.
+#' @param simd For CPU implementation: no SIMD (\code{0}), SSE (\code{1}) or AVX (\code{2}).
+#' @param gpu Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.
+#' @param single Set \code{single=1} if your GPU does not accommodate doubles.
+#' @return User, system and elapsed time. Elapsed time is most important.
+#'
 #' @export
 timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,single=0) {
   # function returns length of time to compute log likelihood and gradient
@@ -174,12 +211,12 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,singl
 }
 
 
-#' @export
-install_dependencies <- function() {
-  # We require the development version of OutbreakTools from github
-  devtools::install_github("thibautjombart/OutbreakTools")
-  # TODO: remove dependence on no longer maintained package
-}
+
+# install_dependencies <- function() {
+#   # We require the development version of OutbreakTools from github
+#   devtools::install_github("thibautjombart/OutbreakTools")
+#   # TODO: remove dependence on no longer maintained package
+# }
 
 # example <- function() {
 #   # Read BEAST tree
@@ -260,6 +297,14 @@ install_dependencies <- function() {
 #   )
 # }
 
+#' Read BEAST file
+#'
+#' Reads BEAST \code{.trees} file and returns various quantities useful for Bayesian MDS with HMC.
+#'
+#' @param file Name of \code{.trees} file stored in \code{inst/extdata/}.
+#' @param priorRootSampleSize Prior precision on root.
+#' @return List with initial locations, nxn and pxp covariances, and degrees of freedom on Wishart prior.
+#'
 #' @export
 readbeast <- function(file = "large", priorRootSampleSize = 0.001) {
   # Read BEAST tree
