@@ -345,10 +345,19 @@ readbeast <- function(file = "large", priorRootSampleSize = 0.001) {
               log = log))
 }
 
+#' Read distance matrix data from file
+#'
+#' For BEAST applications, reads N dimensional distance matrix with names matched to location names.
+#'
+#' @param N Number of locations and size of distance matrix.
+#' @param locations Latent locations with names to be matched to file entries.
+#' @param file Text file located in \code{inst/extdata} containing distance matrix.
+#' @return Distance matrix.
+#'
 #' @export
-getdata <- function(N, locations) { # TEMP EDIT: ADD locations param
+getdata <- function(N, locations, file="h3_Deff") { # TEMP EDIT: ADD locations param
   # Read data for MDS likelihood
-  data <- read.table("inst/extdata/h3_Deff.txt", sep = "\t", header = TRUE, row.names = 1)
+  data <- read.table(paste0("inst/extdata/",file,".txt"), sep = "\t", header = TRUE, row.names = 1)
   stopifnot(dim(data)[1] == N)
   permutation <- sapply(1:N,
                         function(i) {
@@ -364,9 +373,26 @@ getdata <- function(N, locations) { # TEMP EDIT: ADD locations param
   return(data)
 }
 
+#' Initialize MDS engine object
+#'
+#' Takes data, parameters and implementation details and returns MDS engine object. Used within
+#' \code{MassiveMDS::hmcsampler()}.
+#'
+#' @param data N by N distance matrix.
+#' @param locations N by P latent locations.
+#' @param N Number of locations and size of distance matrix.
+#' @param P Dimension of latent locations.
+#' @param precision MDS likelihood precision.
+#' @param threads Number of CPU cores to be used.
+#' @param simd For CPU implementation: no SIMD (\code{0}), SSE (\code{1}) or AVX (\code{2}).
+#' @param truncation Likelihood includes truncation term? Defaults to \code{TRUE}.
+#' @param gpu Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.
+#' @param single Set \code{single=1} if your GPU does not accommodate doubles.
+#' @return MDS engine object.
+#'
 #' @export
 engineInitial <- function(data,locations,N,P,
-                          precision = 1.470222,threads,simd,truncation,gpu,single) {
+                          precision = 1,threads,simd,truncation,gpu,single) {
 
   # Build reusable object
   engine <- mds::createEngine(embeddingDimension = P,
@@ -383,6 +409,20 @@ engineInitial <- function(data,locations,N,P,
   return(engine)
 }
 
+#' Potential function and gradient for HMC
+#'
+#' Takes MDS engine object, latent locations and other model parameters. Returns
+#' potential (proportional to log posterior) function or its gradient.
+#'
+#' @param engine MDS engine object.
+#' @param locations N by P matrix of N P-dimensional latent locations.
+#' @param treeVcv N by N covariance.
+#' @param traitVcv P by P covariance.
+#' @param treePrec N by N precision.
+#' @param traitPrec P by P precision.
+#' @param gradient Return gradient (instead of potential)? Defaults \code{FALSE}.
+#' @return Potential or its gradient.
+#'
 #' @export
 Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradient=FALSE) {
     # HMC potential (log posterior) and gradient
@@ -404,22 +444,49 @@ Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradi
   }
 }
 
+#' HMC based Gibbs sampler for Bayesian MDS
+#'
+#' Takes a number of settings and returns posterior samples for Bayesian MDS model. Uses HMC
+#' for inference with respect to latent locations.  Performs Gibbs and metropolis within
+#' Gibbs updates for latent covariances and MDS precision.
+#'
+#' @param n_iter Number of MCMC iterations.
+#' @param burnIn Number of initial samples to throw away.
+#' @param data Distance matrix.
+#' @param beast \code{beast} object created by \code{MassiveMDS::readbeast()}. Only used for phylogenetic MDS.
+#' @param latentDimension Dimension of latent space. Integer ranging from 2 to 8.
+#' @param distFile For phylogenetic MDS. File contains distance matrix matching \code{.trees} file
+#'        used to build \code{beast} object.
+#' @param learnPrec Should we perform inference on MDS likelihood precision? Defaults \code{FALSE}.
+#' @param learnTraitPrec Should we perform inference on latent (\code{latentDimension}-al) precision? Defaults \code{FALSE}.
+#' @param trajectory HMC trajectory length.
+#' @param priorRootSampleSize For phylogenetic MDS. Hyperprior denoting how much tree should dictate covariance.
+#' @param traitInvWeight How often to update \code{TraitPrec}. Defaults to 1 or once for every HMC iteration.
+#' @param mdsPrecision Value of fixed MDS likelihood precision. Ignored when \code{learnPrec=TRUE}.
+#' @param threads Number of CPU cores to be used.
+#' @param simd For CPU implementation: no SIMD (\code{0}), SSE (\code{1}) or AVX (\code{2}).
+#' @param treeCov For phylogenetic MDS.  Should we use N by N latent covariance based on tree file? Defaults \code{TRUE}.
+#' @param truncation Likelihood includes truncation term? Defaults to \code{TRUE}.
+#' @param gpu Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.
+#' @param single Set \code{single=1} if your GPU does not accommodate doubles.
+#' @return List containing posterior samples, negative log likelihood values (\code{target}) and time to compute (\code{Time}).
+#'
 #' @export
 hmcsampler <- function(n_iter,
                        burnIn=0,
                        data=NULL,
                        beast=NULL,
                        latentDimension=2,
-                       file = "large",
+                       distFile = "h3_Deff",
                        learnPrec=FALSE,               # learn MDS likelihood precision?
                        learnTraitPrec=FALSE,          # learn pxp latent precision?
                        trajectory = 0.2,              # length of HMC proposal trajectory
                        traitInvWeight = 1,
                        priorRootSampleSize = 0.001,
-                       mdsPrecision = 1.470222,       # if learnPrec=FALSE then mdsPrecision=1.47
+                       mdsPrecision = 1,       # if learnPrec=FALSE then mdsPrecision=1.47
                        threads=1,                     # number of CPU cores
                        simd=0,                        # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
-                       treeCov=FALSE,                 # if treeCov=TRUE, tree-based nxn precision used
+                       treeCov=TRUE,                 # if treeCov=TRUE, tree-based nxn precision used
                        truncation=TRUE,
                        gpu=0,
                        single=0) {
@@ -443,7 +510,7 @@ hmcsampler <- function(n_iter,
     saveNames <- rownames(locations)
     locations <- matrix(rnorm(N * P, 0, 1), nrow = N, ncol = P)
     rownames(locations) <- saveNames
-    data <- getdata(N, locations)
+    data <- getdata(N, locations, distFile)
     if (treeCov) { # if want tree based NxN covariance
       treePrec <- solve(beast$treeVcv)   # Need inverse Vcovs
     } else {       # if not
