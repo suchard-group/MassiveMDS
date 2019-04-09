@@ -81,9 +81,6 @@ public:
         Rcpp::Rcout << "\t" << device.name() << std::endl;
       }
 
-      if(flags & Flags::EGPU){
-        deviceNumber = 2;
-      }
 
       if (deviceNumber < 0 || deviceNumber >= devices.size()) {
         device = boost::compute::system::default_device();
@@ -115,9 +112,6 @@ public:
         std::cerr << "\t" << device.name() << std::endl;
       }
 
-      if(flags & Flags::EGPU){
-        deviceNumber = 2;
-      }
 
       if (deviceNumber < 0 || deviceNumber >= devices.size()) {
         device = boost::compute::system::default_device();

@@ -8,7 +8,6 @@ enum Flags {
 	TBB = 1 << 3,
 	OPENCL = 1 << 4,
     LEFT_TRUNCATION = 1 << 5,
-    EGPU = 1 << 6,
     SSE = 1 << 7,
     AVX = 1 << 8,
 	AVX512 = 1 << 9
