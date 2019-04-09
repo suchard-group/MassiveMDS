@@ -586,6 +586,7 @@ PACKAGE_URL=''
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+RCPPPAR_LIB
 SIMD_FLAGS
 OPENCL_FLAGS
 OPENCL_LIB
@@ -1786,6 +1787,9 @@ fi
 # platform check
 RHOST=`"${R_HOME}/bin/Rscript" -e 'cat(Sys.info()["sysname"])'`
 
+# get RcppParallel directory
+RCPPPAR_LIB=`"${R_HOME}/bin/Rscript" -e "RcppParallel::RcppParallelLibs()"`
+
 # Check for which host we are on and setup a few things
 # specifically based on the host
 
@@ -2660,6 +2664,7 @@ fi
         as_fn_error $? "Your platform is not currently supported" "$LINENO" 5
         ;;
 esac
+
 
 
 

@@ -4,14 +4,17 @@ CXX_STD = CXX11
 
 PKG_CXXFLAGS = -I. @OPENCL_FLAGS@ @SIMD_FLAGS@ -DRBUILD
 
-PKG_LIBS += $(shell ${R_HOME}/bin/Rscript -e "RcppParallel::RcppParallelLibs()") @OPENCL_LIB@
+PKG_LIBS = @RCPPPAR_LIB@ @OPENCL_LIB@
 
 SOURCES = mds.cpp \
 	        RcppExports.cpp \
 	        factory.cpp \
 	        backend/opencl/instantiate.cpp
 
-OBJECTS = $(SOURCES:.cpp=.o)
+OBJECTS = mds.o \
+	        RcppExports.o \
+	        factory.o \
+	        backend/opencl/instantiate.o
 
 all: $(SHLIB)
 $(SHLIB): mds.o

@@ -11,6 +11,9 @@ fi
 # platform check
 RHOST=`"${R_HOME}/bin/Rscript" -e 'cat(Sys.info()[["sysname"]])'`
 
+# get RcppParallel directory
+RCPPPAR_LIB=`"${R_HOME}/bin/Rscript" -e "RcppParallel::RcppParallelLibs()"`
+
 # Check for which host we are on and setup a few things
 # specifically based on the host
 
@@ -46,6 +49,7 @@ esac
 AC_SUBST(OPENCL_LIB)
 AC_SUBST(OPENCL_FLAGS)
 AC_SUBST(SIMD_FLAGS)
+AC_SUBST(RCPPPAR_LIB)
 
 AC_CONFIG_FILES([src/Makevars])
 AC_OUTPUT
