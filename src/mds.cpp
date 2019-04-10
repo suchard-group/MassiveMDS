@@ -9,7 +9,6 @@ using namespace Rcpp;
 // [[Rcpp::depends(RcppParallel,BH,RcppXsimd)]]
 #include <RcppParallel.h>
 
-//' @export
 // [[Rcpp::export]]
 List rcpp_hello() {
   CharacterVector x = CharacterVector::create("foo", "bar");
@@ -42,6 +41,20 @@ MdsSharedPtr& parsePtr(SEXP sexp) {
   return ptr->get();
 }
 
+//' Create MDS engine object
+//'
+//' Helper function creates MDS engine object with given latent dimension, location count and various
+//' implementation details. Called by \code{MassiveMDS::engineInitial()}.
+//'
+//' @param embeddingDimension Dimension of latent locations.
+//' @param locationCount Number of locations and size of distance matrix.
+//' @param tbb Number of CPU cores to be used.
+//' @param simd For CPU implementation: no SIMD (\code{0}), SSE (\code{1}) or AVX (\code{2}).
+//' @param truncation Likelihood includes truncation term? Defaults to \code{TRUE}.
+//' @param gpu Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.
+//' @param single Set \code{single=1} if your GPU does not accommodate doubles.
+//' @return MDS engine object.
+//'
 //' @export
 // [[Rcpp::export(createEngine)]]
 Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd, int gpu, bool single) {

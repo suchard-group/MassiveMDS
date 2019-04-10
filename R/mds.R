@@ -1,3 +1,11 @@
+
+#' Helper MDS log likelihood function
+#'
+#' Takes MDS engine object and returns log likelihood.
+#'
+#' @param engine An MDS engine object.
+#' @return MDS log likelihood
+#'
 #' @export
 getLogLikelihood <- function(engine) {
 
@@ -22,6 +30,13 @@ getLogLikelihood <- function(engine) {
   return(logLikelihood)
 }
 
+#' Helper MDS log likelihood gradient function
+#'
+#' Takes MDS engine object and returns log likelihood gradient.
+#'
+#' @param engine An MDS engine object.
+#' @return MDS log likelihood gradient.
+#'
 #' @export
 getGradient <- function(engine) {
 
@@ -41,6 +56,14 @@ getGradient <- function(engine) {
          nrow = engine$locationCount, byrow = TRUE)
 }
 
+#' Deliver precision variable to MDS engine object
+#'
+#' Helper function delivers MDS likelihood precision to MDS engine object.
+#'
+#' @param engine MDS engine object.
+#' @param precision MDS likelihood precision.
+#' @return MDS engine object.
+#'
 #' @export
 setPrecision <- function(engine, precision) {
   .setPrecision(engine$engine, precision)
@@ -48,6 +71,15 @@ setPrecision <- function(engine, precision) {
   return(engine)
 }
 
+
+#' Deliver distance matrix to MDS engine object
+#'
+#' Helper function delivers distance matrix to MDS engine object.
+#'
+#' @param engine MDS engine object.
+#' @param data Distance matrix.
+#' @return MDS engine object.
+#'
 #' @export
 setPairwiseData <- function(engine, data) {
   data <- as.vector(data)
@@ -59,6 +91,14 @@ setPairwiseData <- function(engine, data) {
   return(engine)
 }
 
+#' Deliver latent locations matrix to MDS engine object
+#'
+#' Helper function delivers latent locations matrix to MDS engine object.
+#'
+#' @param engine MDS engine object.
+#' @param locations N by P matrix of N P-dimensional latent locations.
+#' @return MDS engine object.
+#'
 #' @export
 updateLocations <- function(engine, locations) {
   locations <- as.vector(t(locations)) # C++ code assumes row-major
