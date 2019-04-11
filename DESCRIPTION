@@ -1,9 +1,9 @@
-Package: mds
+Package: MassiveMDS
 Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
 Authors@R:
-    c(person("Marc A.", "Suchard", email = "msuchard@ucla.edu", role = c("aut","cre")),
-    person("Andrew J.", "Holbrook", role = "aut"))
+    c(person("Marc A.", "Suchard", email = "msuchard@ucla.edu", role = "aut"),
+    person("Andrew J.", "Holbrook", email = "aholbroo@g.ucla.edu", role = c("aut","cre")))
 Description: What the package does (one paragraph).
 License: MIT + file LICENSE
 Encoding: UTF-8

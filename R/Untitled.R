@@ -123,50 +123,50 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0) {
                       ncol = embeddingDimension, nrow = locationCount)
 
   cat("no trunc\n")
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu,single)
-  engine <- mds::setPairwiseData(engine, data)
-  engine <- mds::updateLocations(engine, locations)
+  engine <- MassiveMDS::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu,single)
+  engine <- MassiveMDS::setPairwiseData(engine, data)
+  engine <- MassiveMDS::updateLocations(engine, locations)
 
   cat("logliks\n")
-  engine <- mds::setPrecision(engine, 2.0)
-  print(mds::getLogLikelihood(engine))
+  engine <- MassiveMDS::setPrecision(engine, 2.0)
+  print(MassiveMDS::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 2.0, truncation))
 
-  engine <- mds::setPrecision(engine, 0.5)
-  print(mds::getLogLikelihood(engine))
+  engine <- MassiveMDS::setPrecision(engine, 0.5)
+  print(MassiveMDS::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 0.5, truncation))
 
   cat("grads (max error)\n")
-  engine <- mds::setPrecision(engine, 2.0)
-  print(max(abs(mds::getGradient(engine) -
+  engine <- MassiveMDS::setPrecision(engine, 2.0)
+  print(max(abs(MassiveMDS::getGradient(engine) -
                   computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
 
-  engine <- mds::setPrecision(engine, 0.5)
-  print(max(abs(mds::getGradient(engine) -
+  engine <- MassiveMDS::setPrecision(engine, 0.5)
+  print(max(abs(MassiveMDS::getGradient(engine) -
                   computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
 
   truncation <- TRUE
 
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd,gpu,single)
-  engine <- mds::setPairwiseData(engine, data)
-  engine <- mds::updateLocations(engine, locations)
+  engine <- MassiveMDS::createEngine(embeddingDimension, locationCount, truncation, threads, simd,gpu,single)
+  engine <- MassiveMDS::setPairwiseData(engine, data)
+  engine <- MassiveMDS::updateLocations(engine, locations)
 
   cat("logliks\n")
-  engine <- mds::setPrecision(engine, 2.0)
-  print(mds::getLogLikelihood(engine))
+  engine <- MassiveMDS::setPrecision(engine, 2.0)
+  print(MassiveMDS::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 2.0, truncation))
 
-  engine <- mds::setPrecision(engine, 0.5)
-  print(mds::getLogLikelihood(engine))
+  engine <- MassiveMDS::setPrecision(engine, 0.5)
+  print(MassiveMDS::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 0.5, truncation))
 
   cat("grads (max error)\n")
-  engine <- mds::setPrecision(engine, 2.0)
-  print(max(abs(mds::getGradient(engine) -
+  engine <- MassiveMDS::setPrecision(engine, 2.0)
+  print(max(abs(MassiveMDS::getGradient(engine) -
                   computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
 
-  engine <- mds::setPrecision(engine, 0.5)
-  print(max(abs(mds::getGradient(engine) -
+  engine <- MassiveMDS::setPrecision(engine, 0.5)
+  print(max(abs(MassiveMDS::getGradient(engine) -
                   computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
 }
 
@@ -198,15 +198,15 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,singl
 
   locations <- matrix(rnorm(n = embeddingDimension * locationCount, sd = 1),
                       ncol = embeddingDimension, nrow = locationCount)
-  engine <- mds::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu, single)
-  engine <- mds::setPairwiseData(engine, data)
-  engine <- mds::updateLocations(engine, locations)
-  engine <- mds::setPrecision(engine, 2.0)
+  engine <- MassiveMDS::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu, single)
+  engine <- MassiveMDS::setPairwiseData(engine, data)
+  engine <- MassiveMDS::updateLocations(engine, locations)
+  engine <- MassiveMDS::setPrecision(engine, 2.0)
 
   ptm <- proc.time()
   for(i in 1:maxIts){
-    mds::getLogLikelihood(engine)
-    mds::getGradient(engine)
+    MassiveMDS::getLogLikelihood(engine)
+    MassiveMDS::getGradient(engine)
   }
   proc.time() - ptm
 }
@@ -276,25 +276,25 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,singl
 #
 #   # Build reusable object
 #   truncation <- FALSE
-#   engine <- mds::createEngine(embeddingDimension = P,
+#   engine <- MassiveMDS::createEngine(embeddingDimension = P,
 #                                     locationCount = N, truncation = truncation)
 #   # Set data once
-#   engine <- mds::setPairwiseData(engine, as.matrix(data))
+#   engine <- MassiveMDS::setPairwiseData(engine, as.matrix(data))
 #
 #   # Call every time locations change
-#   engine <- mds::updateLocations(engine, locations)
+#   engine <- MassiveMDS::updateLocations(engine, locations)
 #
 #   # Call every time precision changes
-#   engine <- mds::setPrecision(engine, precision = precision)
+#   engine <- MassiveMDS::setPrecision(engine, precision = precision)
 #
 #   # Compute the log likelihood (faster, cached)
 #   system.time(
-#     logLikelihood2 <- mds::getLogLikelihood(engine)
+#     logLikelihood2 <- MassiveMDS::getLogLikelihood(engine)
 #   )
 #
 #   # Compute gradient (faster, but not yet cached)
 #   system.time(
-#     gradient2 <- mds::getGradient(engine)
+#     gradient2 <- MassiveMDS::getGradient(engine)
 #   )
 # }
 
@@ -395,16 +395,16 @@ engineInitial <- function(data,locations,N,P,
                           precision = 1,threads,simd,truncation,gpu,single) {
 
   # Build reusable object
-  engine <- mds::createEngine(embeddingDimension = P,
+  engine <- MassiveMDS::createEngine(embeddingDimension = P,
                                     locationCount = N, truncation = truncation, tbb = threads, simd=simd, gpu=gpu, single=single)
   # Set data once
-  engine <- mds::setPairwiseData(engine, as.matrix(data))
+  engine <- MassiveMDS::setPairwiseData(engine, as.matrix(data))
 
   # Call every time locations change
-  engine <- mds::updateLocations(engine, locations)
+  engine <- MassiveMDS::updateLocations(engine, locations)
 
   # Call every time precision changes
-  engine <- mds::setPrecision(engine, precision = precision)
+  engine <- MassiveMDS::setPrecision(engine, precision = precision)
 
   return(engine)
 }
@@ -431,14 +431,14 @@ Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradi
     if (gradient) {
     logPriorGrad <- dmatrixnorm(X = locations, U = treeVcv, V = traitVcv,
                                 Uinv=treePrec,Vinv=traitPrec,gradient=gradient)
-    logLikelihoodGrad <- mds::getGradient(engine)
+    logLikelihoodGrad <- MassiveMDS::getGradient(engine)
 
     return(-(logPriorGrad + logLikelihoodGrad))
   }
   else {
     logPrior <- dmatrixnorm(X = locations, U = treeVcv, V = traitVcv,
                             Uinv=treePrec, Vinv=traitPrec)
-    logLikelihood <- mds::getLogLikelihood(engine)
+    logLikelihood <- MassiveMDS::getLogLikelihood(engine)
 
     return(-(logPrior+logLikelihood))
   }
@@ -570,13 +570,13 @@ hmcsampler <- function(n_iter,
 
   # if we want to learn traitPrec use iterate else use fixed matrix
   # to evaluate potential
-  engine <- mds::updateLocations(engine, CurrentLocation)
-  engine <- mds::setPrecision(engine, precision[1])
+  engine <- MassiveMDS::updateLocations(engine, CurrentLocation)
+  engine <- MassiveMDS::setPrecision(engine, precision[1])
   CurrentU = Potential(engine,locations,treeVcv=beast$treeVcv,
                       traitVcv = solve(traitPrec[1,,]),
                       treePrec = treePrec, traitPrec = traitPrec[1,,])
 
-  cat(paste0('Initial log-likelihood: ', mds::getLogLikelihood(engine), '\n'))
+  cat(paste0('Initial log-likelihood: ', MassiveMDS::getLogLikelihood(engine), '\n'))
 
   # track number of likelihood evaluations
   likEvals = likEvals + 1;
@@ -585,8 +585,8 @@ hmcsampler <- function(n_iter,
   for (Iteration in 1:NumOfIterations) {
 
     ProposedLocation = CurrentLocation
-    engine <- mds::updateLocations(engine, ProposedLocation)
-    engine <- mds::setPrecision(engine, precision[Iteration])
+    engine <- MassiveMDS::updateLocations(engine, ProposedLocation)
+    engine <- MassiveMDS::setPrecision(engine, precision[Iteration])
 
     # Sample the marginal momentum
     CurrentMomentum = MASS::mvrnorm(N,rep(0,P),matrix(c(1,0,0,1),2,2))
@@ -601,7 +601,7 @@ hmcsampler <- function(n_iter,
       likEvals = likEvals + 1;
 
       ProposedLocation = ProposedLocation + StepSize * ProposedMomentum
-      engine <- mds::updateLocations(engine, ProposedLocation)
+      engine <- MassiveMDS::updateLocations(engine, ProposedLocation)
       ProposedMomentum = ProposedMomentum - StepSize/2 * Potential(engine,ProposedLocation,beast$treeVcv,solve(traitPrec[Iteration,,]),
                                                                    treePrec=treePrec, traitPrec=traitPrec[Iteration,,], gradient=T)
       likEvals = likEvals + 1;
@@ -654,7 +654,7 @@ hmcsampler <- function(n_iter,
     # MH step for residual precision
     if (learnPrec) {
       prec_star <- abs(runif(1, precision[Iteration] - .01, precision[Iteration] + .01)) # draw from uniform
-      engine <- mds::setPrecision(engine, prec_star)
+      engine <- MassiveMDS::setPrecision(engine, prec_star)
       ProposedU = Potential(engine,CurrentLocation,beast$treeVcv,solve(traitPrec[Iteration,,]),
                             treePrec = treePrec, traitPrec = traitPrec[Iteration,,])
 
@@ -666,7 +666,7 @@ hmcsampler <- function(n_iter,
         acceptPrec <- acceptPrec + 1
       } else {
         precision[Iteration + 1] <- precision[Iteration]
-        engine <- mds::setPrecision(engine, precision[Iteration])
+        engine <- MassiveMDS::setPrecision(engine, precision[Iteration])
       }
 
       if (Iteration %% 20 == 0) { # print MH acceptances
@@ -750,7 +750,7 @@ hmcsampler <- function(n_iter,
 #   # Initialize the location
 #   likEvals <- 0;
 #   CurrentLocation <- locations # QUESTION: is this an initialization at truth?
-#   CurrentLogLik <- mds::getLogLikelihood(engine)
+#   CurrentLogLik <- MassiveMDS::getLogLikelihood(engine)
 #   likEvals = likEvals + 1;
 #
 #   cat(paste0('Initial log-likelihood: ', CurrentLogLik, '\n'))
@@ -785,8 +785,8 @@ hmcsampler <- function(n_iter,
 #       # Get proposal and evaluate logLik
 #       ProposedLocation <- CurrentLocation*cos(thetaMax) +
 #         nu*sin(thetaMax)
-#       engine <- mds::updateLocations(engine, ProposedLocation)
-#       ProposedLogLik <- mds::getLogLikelihood(engine)
+#       engine <- MassiveMDS::updateLocations(engine, ProposedLocation)
+#       ProposedLogLik <- MassiveMDS::getLogLikelihood(engine)
 #       likEvals = likEvals + 1;
 #
 #       if (ProposedLogLik > threshold) {
@@ -862,8 +862,8 @@ hmcsampler <- function(n_iter,
 #   # Build reusable object to compute Loglikelihood (gradient)
 #   engine <- engineInitial(data,locations,N,P, mdsPrecision)
 #
-#   y <- mds::getLogLikelihood(engine)
-#   y_gradient <- mds::getGradient(engine)
+#   y <- MassiveMDS::getLogLikelihood(engine)
+#   y_gradient <- MassiveMDS::getGradient(engine)
 #
 #   return(list(estimates = c(x,beast$log$loc.traitLikelihood, y, beast$log$mdsLikelihood),
 #               x_gradient = x_gradient[inverse_permutation,],

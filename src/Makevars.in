@@ -6,16 +6,16 @@ PKG_CXXFLAGS = -I. @OPENCL_FLAGS@ @SIMD_FLAGS@ -DRBUILD
 
 PKG_LIBS = @RCPPPAR_LIB@ @OPENCL_LIB@
 
-SOURCES = mds.cpp \
+SOURCES = MassiveMDS.cpp \
 	        RcppExports.cpp \
 	        factory.cpp \
 	        backend/opencl/instantiate.cpp
 
-OBJECTS = mds.o \
+OBJECTS = MassiveMDS.o \
 	        RcppExports.o \
 	        factory.o \
 	        backend/opencl/instantiate.o
 
 all: $(SHLIB)
-$(SHLIB): mds.o
+$(SHLIB): MassiveMDS.o
 

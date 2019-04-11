@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // rcpp_hello
 List rcpp_hello();
-RcppExport SEXP _mds_rcpp_hello() {
+RcppExport SEXP _MassiveMDS_rcpp_hello() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -17,7 +17,7 @@ END_RCPP
 }
 // createEngine
 Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd, int gpu, bool single);
-RcppExport SEXP _mds_createEngine(SEXP embeddingDimensionSEXP, SEXP locationCountSEXP, SEXP truncationSEXP, SEXP tbbSEXP, SEXP simdSEXP, SEXP gpuSEXP, SEXP singleSEXP) {
+RcppExport SEXP _MassiveMDS_createEngine(SEXP embeddingDimensionSEXP, SEXP locationCountSEXP, SEXP truncationSEXP, SEXP tbbSEXP, SEXP simdSEXP, SEXP gpuSEXP, SEXP singleSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -34,7 +34,7 @@ END_RCPP
 }
 // setPairwiseData
 void setPairwiseData(SEXP sexp, std::vector<double>& data);
-RcppExport SEXP _mds_setPairwiseData(SEXP sexpSEXP, SEXP dataSEXP) {
+RcppExport SEXP _MassiveMDS_setPairwiseData(SEXP sexpSEXP, SEXP dataSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type sexp(sexpSEXP);
@@ -45,7 +45,7 @@ END_RCPP
 }
 // updateLocations
 void updateLocations(SEXP sexp, std::vector<double>& locations);
-RcppExport SEXP _mds_updateLocations(SEXP sexpSEXP, SEXP locationsSEXP) {
+RcppExport SEXP _MassiveMDS_updateLocations(SEXP sexpSEXP, SEXP locationsSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type sexp(sexpSEXP);
@@ -56,7 +56,7 @@ END_RCPP
 }
 // setPrecision
 void setPrecision(SEXP sexp, double precision);
-RcppExport SEXP _mds_setPrecision(SEXP sexpSEXP, SEXP precisionSEXP) {
+RcppExport SEXP _MassiveMDS_setPrecision(SEXP sexpSEXP, SEXP precisionSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type sexp(sexpSEXP);
@@ -67,7 +67,7 @@ END_RCPP
 }
 // getLogLikelihoodGradient
 std::vector<double> getLogLikelihoodGradient(SEXP sexp, size_t len);
-RcppExport SEXP _mds_getLogLikelihoodGradient(SEXP sexpSEXP, SEXP lenSEXP) {
+RcppExport SEXP _MassiveMDS_getLogLikelihoodGradient(SEXP sexpSEXP, SEXP lenSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -79,7 +79,7 @@ END_RCPP
 }
 // getSumOfIncrements
 double getSumOfIncrements(SEXP sexp);
-RcppExport SEXP _mds_getSumOfIncrements(SEXP sexpSEXP) {
+RcppExport SEXP _MassiveMDS_getSumOfIncrements(SEXP sexpSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -90,17 +90,17 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_mds_rcpp_hello", (DL_FUNC) &_mds_rcpp_hello, 0},
-    {"_mds_createEngine", (DL_FUNC) &_mds_createEngine, 7},
-    {"_mds_setPairwiseData", (DL_FUNC) &_mds_setPairwiseData, 2},
-    {"_mds_updateLocations", (DL_FUNC) &_mds_updateLocations, 2},
-    {"_mds_setPrecision", (DL_FUNC) &_mds_setPrecision, 2},
-    {"_mds_getLogLikelihoodGradient", (DL_FUNC) &_mds_getLogLikelihoodGradient, 2},
-    {"_mds_getSumOfIncrements", (DL_FUNC) &_mds_getSumOfIncrements, 1},
+    {"_MassiveMDS_rcpp_hello", (DL_FUNC) &_MassiveMDS_rcpp_hello, 0},
+    {"_MassiveMDS_createEngine", (DL_FUNC) &_MassiveMDS_createEngine, 7},
+    {"_MassiveMDS_setPairwiseData", (DL_FUNC) &_MassiveMDS_setPairwiseData, 2},
+    {"_MassiveMDS_updateLocations", (DL_FUNC) &_MassiveMDS_updateLocations, 2},
+    {"_MassiveMDS_setPrecision", (DL_FUNC) &_MassiveMDS_setPrecision, 2},
+    {"_MassiveMDS_getLogLikelihoodGradient", (DL_FUNC) &_MassiveMDS_getLogLikelihoodGradient, 2},
+    {"_MassiveMDS_getSumOfIncrements", (DL_FUNC) &_MassiveMDS_getSumOfIncrements, 1},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_mds(DllInfo *dll) {
+RcppExport void R_init_MassiveMDS(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

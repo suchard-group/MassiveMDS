@@ -2,7 +2,7 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 rcpp_hello <- function() {
-    .Call('_mds_rcpp_hello', PACKAGE = 'mds')
+    .Call('_MassiveMDS_rcpp_hello', PACKAGE = 'MassiveMDS')
 }
 
 #' Create MDS engine object
@@ -21,26 +21,26 @@ rcpp_hello <- function() {
 #'
 #' @export
 createEngine <- function(embeddingDimension, locationCount, truncation, tbb, simd, gpu, single) {
-    .Call('_mds_createEngine', PACKAGE = 'mds', embeddingDimension, locationCount, truncation, tbb, simd, gpu, single)
+    .Call('_MassiveMDS_createEngine', PACKAGE = 'MassiveMDS', embeddingDimension, locationCount, truncation, tbb, simd, gpu, single)
 }
 
 .setPairwiseData <- function(sexp, data) {
-    invisible(.Call('_mds_setPairwiseData', PACKAGE = 'mds', sexp, data))
+    invisible(.Call('_MassiveMDS_setPairwiseData', PACKAGE = 'MassiveMDS', sexp, data))
 }
 
 .updateLocations <- function(sexp, locations) {
-    invisible(.Call('_mds_updateLocations', PACKAGE = 'mds', sexp, locations))
+    invisible(.Call('_MassiveMDS_updateLocations', PACKAGE = 'MassiveMDS', sexp, locations))
 }
 
 .setPrecision <- function(sexp, precision) {
-    invisible(.Call('_mds_setPrecision', PACKAGE = 'mds', sexp, precision))
+    invisible(.Call('_MassiveMDS_setPrecision', PACKAGE = 'MassiveMDS', sexp, precision))
 }
 
 .getLogLikelihoodGradient <- function(sexp, len) {
-    .Call('_mds_getLogLikelihoodGradient', PACKAGE = 'mds', sexp, len)
+    .Call('_MassiveMDS_getLogLikelihoodGradient', PACKAGE = 'MassiveMDS', sexp, len)
 }
 
 .getSumOfIncrements <- function(sexp) {
-    .Call('_mds_getSumOfIncrements', PACKAGE = 'mds', sexp)
+    .Call('_MassiveMDS_getSumOfIncrements', PACKAGE = 'MassiveMDS', sexp)
 }
 
