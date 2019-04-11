@@ -309,11 +309,11 @@ public:
         std::fill(std::begin(*gradientPtr), std::end(*gradientPtr),
                   static_cast<RealType>(0.0));
 
-        const auto dim = embeddingDimension;
-        RealType* gradient = gradientPtr->data();
+        //const auto dim = embeddingDimension;
+        //RealType* gradient = gradientPtr->data();
         const RealType scale = precision;
 
-        for_each(0, locationCount, [this, gradient, scale, dim](const int i) {
+        for_each(0, locationCount, [this, scale](const int i) { // [gradient,dim]
 
 			const int vectorCount = locationCount - locationCount % SimdSize;
 
@@ -566,14 +566,14 @@ public:
 		const int i = updatedLocation;
 		isStoredIncrementsEmpty = false;
 
-		auto start  = begin(*locationsPtr) + i * embeddingDimension;
-		auto offset = begin(*locationsPtr);
+		//auto start  = begin(*locationsPtr) + i * embeddingDimension;
+		//auto offset = begin(*locationsPtr);
 
 		RealType delta =
  		accumulate(0, locationCount, RealType(0),
 
-			[this, i, &offset, scale,
-			&start](const int j) {
+			[this, i, // , &offset, &start]
+      scale](const int j) {
                 const auto distance = 0.0; // TODO
 //                        calculateDistance<mm::MemoryManager<RealType>>(
 //                    start,
