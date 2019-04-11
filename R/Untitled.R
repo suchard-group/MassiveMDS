@@ -309,7 +309,7 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,singl
 #' @export
 readbeast <- function(file = "large", priorRootSampleSize = 0.001) {
   # Read BEAST tree
-  tree <- OutbreakTools::read.annotated.nexus(
+  tree <- read.annotated.nexus( # OutbreakTools::
     paste0("inst/extdata/", file, ".trees"))
   N <- length(tree$tip.label)
 

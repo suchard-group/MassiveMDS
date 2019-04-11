@@ -16,12 +16,11 @@ LinkingTo:
 Imports:
     Rcpp,
     RcppParallel,
-    MASS
+    MASS,
+    ape
 Suggests:
     testthat,
-    OutbreakTools,
     caper
 RoxygenNote: 6.1.1
 Remotes:
-    github::OHDSI/RcppXsimd,
-    github::thibautjombart/OutbreakTools
+    github::OHDSI/RcppXsimd
