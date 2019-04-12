@@ -100,11 +100,15 @@ Not all GPUs have double precision capabilities. You might need to set `single=1
 Speed computing the log likelihood and its gradient should translate directly to faster HMC times. Compare these implementations of HMC:
 
 ```
-hmc_1_0 <- hmcsampler(n_iter=100, learnPrec=FALSE, learnTraitPrec=FALSE)
+# generate high dimensional data
+x       <- matrix(rnorm(5000),500,10)
+data    <- as.matrix(dist(x))
 
-hmc_3_2 <- hmcsampler(n_iter=100, learnPrec=FALSE, learnTraitPrec=FALSE, threads=3, simd=2)
+hmc_1_0 <- hmcsampler(n_iter=100, data=data, learnPrec=FALSE, learnTraitPrec=FALSE)
 
-hmc_gpu <- hmcsampler(n_iter=100, learnPrec=FALSE, learnTraitPrec=FALSE, gpu=1)
+hmc_3_2 <- hmcsampler(n_iter=100, data=data, learnPrec=FALSE, learnTraitPrec=FALSE, threads=3, simd=2)
+
+hmc_gpu <- hmcsampler(n_iter=100, data=data, learnPrec=FALSE, learnTraitPrec=FALSE, gpu=1)
 
 hmc_1_0$Time
 hmc_3_2$Time
