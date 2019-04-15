@@ -1,3 +1,4 @@
+#ifdef HAVE_OPENCL
 #ifndef _OPENCL_INSTANTIATE_CPP
 #define _OPENCL_INSTANTIATE_CPP
 
@@ -53,3 +54,4 @@ namespace mds {
 } // namespace mds
 
 #endif // _OPENCL_INSTANTIATE_CPP
+#endif

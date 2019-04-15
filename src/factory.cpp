@@ -2,10 +2,10 @@
 
 // forward reference
 namespace mds {
-
+#ifdef HAVE_OPENCL
     SharedPtr constructOpenCLMultiDimensionalScalingDouble(int, int, long, int);
     SharedPtr constructOpenCLMultiDimensionalScalingFloat(int, int, long, int);
-
+#endif
     SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int, int, long, int);
     SharedPtr constructNewMultiDimensionalScalingDoubleTbbNoSimd(int, int, long, int);
 
@@ -39,7 +39,11 @@ SharedPtr factory(int dim1, int dim2, long flags, int device, int threads) {
 
 	if (useFloat) {
 		if (useOpenCL) {
+#ifdef HAVE_OPENCL
 			return constructOpenCLMultiDimensionalScalingFloat(dim1, dim2, flags, device);
+#else
+		  return constructNewMultiDimensionalScalingFloatNoParallelNoSimd(dim1, dim2, flags, threads);
+#endif
 		} else {
 #ifdef USE_SSE
 		    if (useSse) {
@@ -61,7 +65,11 @@ SharedPtr factory(int dim1, int dim2, long flags, int device, int threads) {
 		}
 	} else {
 		if (useOpenCL) {
+#ifdef HAVE_OPENCL
 			return constructOpenCLMultiDimensionalScalingDouble(dim1, dim2, flags, device);
+#else
+		  return constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(dim1, dim2, flags, threads);
+#endif
 		} else {
 
 #ifdef USE_AVX512
