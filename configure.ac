@@ -19,7 +19,7 @@ RCPPPAR_LIB=`"${R_HOME}/bin/Rscript" -e "RcppParallel::RcppParallelLibs()"`
 
 OPENCL_FLAGS=
 OPENCL_LIB=
-SIMD_FLAGS="-DUSE_SIMD -DUSE_SSE -DUSE_AVX -mavx -mavx2 -mfma"
+SIMD_FLAGS="-DUSE_SIMD -DUSE_SSE" #-DUSE_AVX -mavx -mavx2 -mfma"
 
 case $RHOST in
   Darwin* )
