@@ -98,8 +98,8 @@ private:
         auto b = _mm_loadu_ps(y); // TODO second call is not aligned without padding
         auto c = a - b;
 
-        const int mask = 0x31;
-        __m128 d = _mm_dp_ps(c, c, mask);
+       // const int mask = 0x31;
+        __m128 d = _mm_dp_ps(c, c, 0x31);
         return  _mm_cvtss_f32(_mm_sqrt_ps(d));
     }
 
@@ -116,8 +116,8 @@ private:
 
        __m128d diff = _mm_sub_pd(xv, yv);
 
-	   const int mask = 0x31;
-	   __m128d d = _mm_dp_pd(diff, diff, mask);
+	   //const int mask = 0x31;
+	   __m128d d = _mm_dp_pd(diff, diff, 0x31);
 	   return  std::sqrt(_mm_cvtsd_f64(d));
     }
 #endif // USE_SIMD
