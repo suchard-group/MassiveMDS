@@ -47,7 +47,7 @@ Test the different methods by increasing `iterations` and `locations`.
 
 ### Build status
 
-[![Build Status](https://travis-ci.com/suchard-group/mds.svg?token=hAQxdsJP3XZzS5QwgS3M&branch=master)](https://travis-ci.com/suchard-group/mds)
+[![Build Status](https://travis-ci.com/suchard-group/MassiveMDS.svg?token=hAQxdsJP3XZzS5QwgS3M&branch=master)](https://travis-ci.com/suchard-group/MassiveMDS)
 
 
 # R package
