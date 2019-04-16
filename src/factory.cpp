@@ -92,6 +92,8 @@ SharedPtr factory(int dim1, int dim2, long flags, int device, int threads) {
                     return constructNewMultiDimensionalScalingDoubleNoParallelAvx(dim1, dim2, flags, threads);
                 }
             } else
+#else
+              useAvx = false;
 #endif // USE_AVX
 
 #ifdef USE_SSE
