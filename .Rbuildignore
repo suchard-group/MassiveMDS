@@ -4,7 +4,6 @@ build
 config.log
 config.status
 autom4te.cache/
-configure.ac
 CMakeLists.txt
 CPack.txt
 CMakeModules

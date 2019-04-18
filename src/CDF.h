@@ -77,6 +77,10 @@ namespace math {
 #define M_SQRT_32	5.656854249492380195206754896838	/* sqrt(32) */
 #endif
 
+#ifndef M_SQRT1_2
+#define M_SQRT1_2 0.707106781186547524401
+#endif
+
 #define SIXTEN	16 /* Cutoff allowing exact "*" and "/" */
 
 #define MIN_OPS
