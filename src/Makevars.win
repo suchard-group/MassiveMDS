@@ -1,15 +1,22 @@
 $(info The name of the shared library to be created is: $(SHLIB))
 
-CXX_STD = CXX11
+CXX_STD = CXX14
 
-PKG_CXXFLAGS = -I../inst/include/
-PKG_CXXFLAGS += -DRCPP_PARALLEL_USE_TBB=1 -DUSE_SIMD -DUSE_SSE
+PKG_CXXFLAGS = -I. -DRBUILD
+PKG_CXXFLAGS += -DRCPP_PARALLEL_USE_TBB=1 -DUSE_SIMD -DUSE_SSE -msse4.1
 
 PKG_LIBS += $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" \
               -e "RcppParallel::RcppParallelLibs()")
 
-SOURCES = mds.cpp RcppExports.cpp
-OBJECTS = $(SOURCES:.cpp=.o)
+SOURCES = MassiveMDS.cpp \
+	        RcppExports.cpp \
+	        factory.cpp \
+	        backend/opencl/instantiate.cpp
+
+OBJECTS = MassiveMDS.o \
+	        RcppExports.o \
+	        factory.o \
+	        backend/opencl/instantiate.o
 
 all: $(SHLIB)
-$(SHLIB): mds.o
+$(SHLIB): MassiveMDS.o
