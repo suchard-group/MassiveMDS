@@ -90,7 +90,11 @@ public:
 
       //device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
 
-      Rcpp::Rcout << "Using: " << device.name() << std::endl;
+      if (device.type()!=CL_DEVICE_TYPE_GPU){
+          Rcpp::stop("Error: selected device not GPU.");
+      } else {
+          Rcpp::Rcout << "Using: " << device.name() << std::endl;
+      }
 
       ctx = boost::compute::context(device, 0);
       queue = boost::compute::command_queue{ctx, device
@@ -121,7 +125,12 @@ public:
 
       //device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
 
-      std::cerr << "Using: " << device.name() << std::endl;
+      if (device.type()!=CL_DEVICE_TYPE_GPU){
+          std::cerr << "Error: selected device not GPU." << std::endl;
+          exit(-1);
+      } else {
+          std::cerr << "Using: " << device.name() << std::endl;
+      }
 
       ctx = boost::compute::context(device, 0);
       queue = boost::compute::command_queue{ctx, device
