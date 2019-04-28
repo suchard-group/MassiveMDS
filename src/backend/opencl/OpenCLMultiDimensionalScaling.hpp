@@ -171,17 +171,17 @@ public:
 		createOpenCLKernels();
     }
 
-    virtual ~OpenCLMultiDimensionalScaling() override {
-#ifdef RBUILD
-      Rcpp::Rcout << "timer1 = " << timer1 << std::endl;
-      Rcpp::Rcout << "timer2 = " << timer2 << std::endl;
-      Rcpp::Rcout << "timer3 = " << timer3 << std::endl;
-#else
-    	std::cout << "timer1 = " << timer1 << std::endl;
-    	std::cout << "timer2 = " << timer2 << std::endl;
-    	std::cout << "timer3 = " << timer3 << std::endl;
-#endif
-    }
+//    virtual ~OpenCLMultiDimensionalScaling() override {
+//#ifdef RBUILD
+//      Rcpp::Rcout << "timer1 = " << timer1 << std::endl;
+//      Rcpp::Rcout << "timer2 = " << timer2 << std::endl;
+//      Rcpp::Rcout << "timer3 = " << timer3 << std::endl;
+//#else
+//    	std::cout << "timer1 = " << timer1 << std::endl;
+//    	std::cout << "timer2 = " << timer2 << std::endl;
+//    	std::cout << "timer3 = " << timer3 << std::endl;
+//#endif
+//    }
 
     void updateLocations(int locationIndex, double* location, size_t length) override {
 
