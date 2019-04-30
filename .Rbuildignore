@@ -1,5 +1,6 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+extra
 build
 config.log
 config.status
