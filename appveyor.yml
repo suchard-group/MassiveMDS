@@ -18,8 +18,10 @@ cache:
 platform: x64
 
 environment:
-  R_VERSION: release, devel
-  R_ARCH: x64
+  R_VERSION: release
+  RTOOLS_VERSION: 35
+  USE_RTOOLS: true
+  GCC_PATH: mingw_64
 
 build_script:
   - travis-tool.sh install_deps
