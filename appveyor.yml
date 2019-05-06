@@ -15,6 +15,9 @@ cache:
 
 # Adapt as necessary starting from here
 
+environment:
+  R_VERSION: release, devel
+
 build_script:
   - travis-tool.sh install_deps
 
