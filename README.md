@@ -45,12 +45,12 @@ The GPU implementation should be fastest of all. Make sure that your GPU can han
 
 Test the different methods by increasing `iterations` and `locations`.
 
-### Build status
+
+# R package
 
 [![Build Status](https://travis-ci.com/suchard-group/MassiveMDS.svg?token=hAQxdsJP3XZzS5QwgS3M&branch=master)](https://travis-ci.com/suchard-group/MassiveMDS)
 
-
-# R package
+[![AppVeyor build status](https://ci.appveyor.com/api/projects/status/github/suchard-group/MassiveMDS?branch=master&svg=true)](https://ci.appveyor.com/project/suchard-group/MassiveMDS)
 
 ### Compilation
 
