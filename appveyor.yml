@@ -15,13 +15,20 @@ cache:
 
 # Adapt as necessary starting from here
 
-platform: x64
-
 environment:
-  R_VERSION: release
-  RTOOLS_VERSION: 35
-  USE_RTOOLS: true
-  GCC_PATH: mingw_64
+  global:
+    WARNINGS_ARE_ERRORS: 1
+
+  matrix:
+  - R_VERSION: devel
+    GCC_PATH: mingw_32
+
+  - R_VERSION: devel
+    R_ARCH: x64
+    GCC_PATH: mingw_64
+
+  - R_VERSION: release
+    R_ARCH: x64
 
 build_script:
   - travis-tool.sh install_deps
@@ -51,3 +58,13 @@ artifacts:
 
   - path: '\*_*.zip'
     name: Bits
+
+notifications:
+ - provider: Email
+   to:
+     - aholbroo@g.ucla.edu
+   subject: 'MassiveMDS build {{status}}'
+   message: "https://ci.appveyor.com/project/andrewjholbrook/massivemds"
+   on_build_success: true
+   on_build_failure: true
+   on_build_status_changed: true
