@@ -50,7 +50,7 @@ Test the different methods by increasing `iterations` and `locations`.
 
 [![Build Status](https://travis-ci.com/suchard-group/MassiveMDS.svg?token=hAQxdsJP3XZzS5QwgS3M&branch=master)](https://travis-ci.com/suchard-group/MassiveMDS)
 
-[![AppVeyor build status](https://ci.appveyor.com/api/projects/status/github/suchard-group/MassiveMDS?branch=master&svg=true)](https://ci.appveyor.com/project/suchard-group/MassiveMDS)
+[![Build status](https://ci.appveyor.com/api/projects/status/7cr6rmeqdwmo5unx?svg=true)](https://ci.appveyor.com/project/andrewjholbrook/massivemds)
 
 ### Compilation
 
