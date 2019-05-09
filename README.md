@@ -5,7 +5,7 @@ MassiveMDS: massively parallel multidimensional scaling library
 MassiveMDS facilitates fast Bayesian MDS through GPU, multi-core CPU, and SIMD vectorization powered implementations of the Hamiltonian Monte Carlo algorithm. 
 The package may be built either as a standalone library or as an R package relying on Rcpp.
 
-GPU capabilities for either build require installation of OpenCL computing framework. See section **Miscellanea: OpenCL** below.
+GPU capabilities for either build require installation of OpenCL computing framework. See section **Configurations** below.
 
 # R package
 
@@ -151,7 +151,7 @@ Test the different methods by increasing `iterations` and `locations`.
 
 
 
-# Miscellanea
+# Configurations
 
 ### OpenCL
 
@@ -180,11 +180,31 @@ scp /C/Windows/SysWOW64/OpenCL.dll inst/lib/i386
 ```
 Finally, uncomment the indicated lines in `src/Makevars.win`.
 
+
+### C++14 on Windows
+
+Compiling with C++14 and the default Rtools Mingw64 compiler causes an error. Circumvent the error by running the following R code prior to build (cf. [RStan for Windows](https://github.com/stan-dev/rstan/wiki/Installing-RStan-from-source-on-Windows#configuration)).
+
+```
+dotR <- file.path(Sys.getenv("HOME"), ".R")
+if (!file.exists(dotR))
+  dir.create(dotR)
+M <- file.path(dotR, "Makevars.win")
+if (!file.exists(M))
+  file.create(M) 
+cat("\nCXX14FLAGS=-O3",
+  "CXX14 = $(BINPREF)g++ -m$(WIN) -std=c++1y",
+  "CXX11FLAGS=-O3", file = M, sep = "\n", append = TRUE)
+```
+
 ### eGPU
 
+External GPUs can be difficult to set up. For OSX, we have had success with `macOS-eGPU.sh`
 
+<https://github.com/learex/macOS-eGPU> .
 
-### AVX
+For Windows 10 on Mac (using bootcamp), we have had success with the `automate-eGPU EFI`
 
+<https://egpu.io/forums/mac-setup/automate-egpu-efi-egpu-boot-manager-for-macos-and-windows/> .
 
-### CXX14
+The online community <https://egpu.io/> is helpful for other builds.
