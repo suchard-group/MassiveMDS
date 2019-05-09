@@ -5,7 +5,7 @@ MassiveMDS: massively parallel multidimensional scaling library
 MassiveMDS facilitates fast Bayesian MDS through GPU, multi-core CPU, and SIMD vectorization powered implementations of the Hamiltonian Monte Carlo algorithm. 
 The package may be built either as a standalone library or as an R package relying on Rcpp.
 
-GPU capabilities for either build require installation of OpenCL computing framework. See section **Installing OpenCL** below.
+GPU capabilities for either build require installation of OpenCL computing framework. See section **Miscellanea: OpenCL** below.
 
 # R package
 
@@ -149,11 +149,9 @@ The GPU implementation should be fastest of all. Make sure that your GPU can han
 
 Test the different methods by increasing `iterations` and `locations`.
 
-_______________
-_______________
-_______________
 
-# Installation 
+
+# Miscellanea
 
 ### OpenCL
 
@@ -168,7 +166,8 @@ Intel <https://downloadcenter.intel.com/product/80939/Graphics-Drivers> .
 
 Another approach is to download vendor specific SDKs, which also include the shared libraries. <https://github.com/cdeterman/gpuR/wiki/Installing-OpenCL> has more details on this approach.
 
-Finally, building the MassiveMDS R package on Windows requires copying (once installed) `OpenCl.dll` to the MassiveMDS library.  For a 64 bit machine use
+#### OpenCL on Windows
+Building the MassiveMDS R package on Windows with OpenCL requires copying (once installed) `OpenCl.dll` to the MassiveMDS library.  For a 64 bit machine use
 
 ```
 cd MassiveMDS
@@ -179,9 +178,13 @@ and for a 32 bit machine use the following.
 cd MassiveMDS
 scp /C/Windows/SysWOW64/OpenCL.dll inst/lib/i386
 ```
+Finally, uncomment the indicated lines in `src/Makevars.win`.
 
 ### eGPU
 
 
 
 ### AVX
+
+
+### CXX14

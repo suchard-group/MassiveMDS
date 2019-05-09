@@ -8,10 +8,18 @@ endif
 
 CXX_STD = CXX14
 
-PKG_CXXFLAGS = -I. -I../inst/include -DRBUILD # -DHAVE_OPENCL -DCL_TARGET_OPENCL_VERSION=120
-PKG_CXXFLAGS += -DRCPP_PARALLEL_USE_TBB=1 -DUSE_SIMD -DUSE_SSE -msse4.1 # -DUSE_AVX -mavx -mavx2 -mfma -mfpmath=both
+PKG_CXXFLAGS = -I. -I../inst/include -DRBUILD -DRCPP_PARALLEL_USE_TBB=1 -DUSE_SIMD -DUSE_SSE -msse4.1
+
+# Uncomment the following line for OpenCL use
+# PKG_CXXFLAGS += -DHAVE_OPENCL -DCL_TARGET_OPENCL_VERSION=120
+
+# Uncomment the following line for AVX use
+# PKG_CXXFLAGS += -DUSE_AVX -mavx -mavx2 -mfma -mfpmath=both
+
 PKG_LIBS += $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" \
               -e "RcppParallel::RcppParallelLibs()")
+
+# Uncomment the following line for OpenCL use
 # PKG_LIBS += -L../inst/lib/$(ARCH_DIR) -lOpenCL
 
 SOURCES = MassiveMDS.cpp \
