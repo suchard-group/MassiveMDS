@@ -3,48 +3,9 @@ MassiveMDS: massively parallel multidimensional scaling library
 ===
 
 MassiveMDS facilitates fast Bayesian MDS through GPU, multi-core CPU, and SIMD vectorization powered implementations of the Hamiltonian Monte Carlo algorithm. 
-The package may be built either as a standalone library or as an R package relying on Rcpp. 
+The package may be built either as a standalone library or as an R package relying on Rcpp.
 
-# Standalone library
-
-### Compilation
-
-The standalone build requires CMake Version $\ge$ 2.8. Use the terminal to navigate to directory `mds/build`.
-
-```
-cd build
-cmake ..
-make
-```
-
-### Testing
-
-Once the library is built, test the various implementation settings. The `benchmark` program computes the MDS log likelihood and its gradient for a given number of iterations and returns the time taken for each. First check the serial implementation for 1000 locations.
-
-```
-./benchmark --truncation --locations 1000 
-```
-
-The following implementation using AVX SIMD should be roughly twice as fast.
-
-```
-./benchmark --truncation --locations 1000 --avx
-```
-
-Even faster should be a combination of AVX and a 4 core approach.
-
-```
-./benchmark --truncation --locations 1000 --avx --tbb 4
-```
-
-The GPU implementation should be fastest of all. Make sure that your GPU can handle double precision floating points.  If not, make sure to toggle `--float`.  
-
-```
-./benchmark --truncation --locations 1000 --gpu 2
-```
-
-Test the different methods by increasing `iterations` and `locations`.
-
+GPU capabilities for either build require installation of OpenCL computing framework. See section **Installing OpenCL** below.
 
 # R package
 
@@ -91,7 +52,7 @@ The GPU implementation should be fastest of all.
 timeTest(locationCount=1000, gpu=1) 
 ```
 
-Not all GPUs have double precision capabilities. You might need to set `single=1` to use your GPU. If you have an eGPU connected, try fixing `gpu=2`.
+Not all GPUs have double precision capabilities. You might need to set `single=1` to use your GPU. If you have an eGPU connected, try fixing `gpu=2`. 
 
 Speed computing the log likelihood and its gradient should translate directly to faster HMC times. Compare these implementations of HMC:
 
@@ -147,3 +108,80 @@ beast <- readbeast()
 hmc <- hmcsampler(n_iter=1000, burnIn=500, beast=beast, learnPrec=TRUE, learnTraitPrec=TRUE, threads=3, simd=2, treeCov=FALSE, trajectory=0.01)
 ```
 
+
+# Standalone library
+
+### Compilation
+
+The standalone build requires CMake Version $\ge$ 2.8. Use the terminal to navigate to directory `mds/build`.
+
+```
+cd build
+cmake ..
+make
+```
+
+### Testing
+
+Once the library is built, test the various implementation settings. The `benchmark` program computes the MDS log likelihood and its gradient for a given number of iterations and returns the time taken for each. First check the serial implementation for 1000 locations.
+
+```
+./benchmark --truncation --locations 1000 
+```
+
+The following implementation using AVX SIMD should be roughly twice as fast.
+
+```
+./benchmark --truncation --locations 1000 --avx
+```
+
+Even faster should be a combination of AVX and a 4 core approach.
+
+```
+./benchmark --truncation --locations 1000 --avx --tbb 4
+```
+
+The GPU implementation should be fastest of all. Make sure that your GPU can handle double precision floating points.  If not, make sure to toggle `--float`.  
+
+```
+./benchmark --truncation --locations 1000 --gpu 2
+```
+
+Test the different methods by increasing `iterations` and `locations`.
+
+_______________
+_______________
+_______________
+
+# Installation 
+
+### OpenCL
+
+Both builds of MassiveMDS rely on the OpenCL framework for their GPU capabilities. Builds using OpenCL generally require access to the OpenCL headers <https://github.com/KhronosGroup/OpenCL-Headers> and the shared library `OpenCL.so` (or dynamically linked library `OpenCL.dll` for Windows).  Since we have included the headers in the package, one only needs acquire the shared library. Vendor specific drivers include the OpenCL shared library and are available here:
+
+NVIDIA <https://www.nvidia.com/Download/index.aspx?lang=en-us>
+
+AMD <https://www.amd.com/en/support>
+
+Intel <https://downloadcenter.intel.com/product/80939/Graphics-Drivers> .
+
+
+Another approach is to download vendor specific SDKs, which also include the shared libraries. <https://github.com/cdeterman/gpuR/wiki/Installing-OpenCL> has more details on this approach.
+
+Finally, building the MassiveMDS R package on Windows requires copying (once installed) `OpenCl.dll` to the MassiveMDS library.  For a 64 bit machine use
+
+```
+cd MassiveMDS
+scp /C/Windows/System32/OpenCL.dll inst/lib/x64
+```
+and for a 32 bit machine use the following.
+```
+cd MassiveMDS
+scp /C/Windows/SysWOW64/OpenCL.dll inst/lib/i386
+```
+
+### eGPU
+
+
+
+### AVX
