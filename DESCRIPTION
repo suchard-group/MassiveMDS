@@ -17,10 +17,9 @@ Imports:
     Rcpp,
     RcppParallel,
     MASS,
-    ape
+    ape,
+    RcppXsimd
 Suggests:
     testthat,
     caper
 RoxygenNote: 6.1.1
-Remotes:
-    github::OHDSI/RcppXsimd

@@ -15,13 +15,7 @@ GPU capabilities for either build require installation of OpenCL computing frame
 
 ### Compilation
 
-The R package requires Rcpp, RcppParallel, and RcppXsimd. First, open the MassiveMDS project located in `mds/src`. In R, install RcppXsimd with the following code.
-
-```
-devtools::install_github("OHDSI/RcppXsimd")
-```
-
-Then build the package.
+Open the MassiveMDS project located in `mds/src` and build the package.
 
 ```
 devtools::load_all(".")
