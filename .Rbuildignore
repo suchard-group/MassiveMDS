@@ -1,7 +1,7 @@
 ^appveyor\.yml$
 ^.*\.Rproj$
 ^\.Rproj\.user$
-extra
+extras
 build
 config.log
 config.status

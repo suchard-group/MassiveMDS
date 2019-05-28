@@ -107,7 +107,7 @@ hmc <- hmcsampler(n_iter=1000, burnIn=500, beast=beast, learnPrec=TRUE, learnTra
 
 ### Compilation
 
-The standalone build requires CMake Version $\ge$ 2.8. Use the terminal to navigate to directory `mds/build`.
+The standalone build requires CMake Version ≥ 2.8. Use the terminal to navigate to directory `mds/build`.
 
 ```
 cd build
