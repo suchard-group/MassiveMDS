@@ -1,6 +1,6 @@
 Package: MassiveMDS
 Title: Massively Parallel Multidimensional Scaling Library
-Version: 0.10
+Version: 0.1.0
 Authors@R:
     c(person("Marc A.", "Suchard", email = "msuchard@ucla.edu", role = "aut"),
     person("Andrew J.", "Holbrook", email = "aholbroo@g.ucla.edu", role = c("aut","cre")))
