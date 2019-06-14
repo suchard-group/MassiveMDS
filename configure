@@ -586,6 +586,8 @@ PACKAGE_URL=''
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+AVX_FLAGS
+SSE_FLAGS
 RCPPPAR_LIB
 SIMD_FLAGS
 OPENCL_FLAGS
@@ -1790,12 +1792,16 @@ RHOST=`"${R_HOME}/bin/Rscript" -e 'cat(Sys.info()["sysname"])'`
 # get RcppParallel directory
 RCPPPAR_LIB=`"${R_HOME}/bin/Rscript" -e "RcppParallel::RcppParallelLibs()"`
 
+SSE_FLAGS=`"${R_HOME}/bin/Rscript" -e 'if(RcppXsimd::supportsSSE()) cat("-DUSE_SSE -msse4.2")'`
+
+AVX_FLAGS=`"${R_HOME}/bin/Rscript" -e 'if(RcppXsimd::supportsAVX()) cat("-DUSE_AVX -mavx -mavx2 -mfma")'`
+
 # Check for which host we are on and setup a few things
 # specifically based on the host
 
 OPENCL_FLAGS=
 OPENCL_LIB=
-SIMD_FLAGS="-DUSE_SIMD -DUSE_SSE -msse4.2 -DUSE_AVX -mavx -mavx2 -mfma"
+SIMD_FLAGS="-DUSE_SIMD"
 
 case $RHOST in
   Darwin* )
@@ -2664,6 +2670,8 @@ fi
         as_fn_error $? "Your platform is not currently supported" "$LINENO" 5
         ;;
 esac
+
+
 
 
 

@@ -14,12 +14,16 @@ RHOST=`"${R_HOME}/bin/Rscript" -e 'cat(Sys.info()[["sysname"]])'`
 # get RcppParallel directory
 RCPPPAR_LIB=`"${R_HOME}/bin/Rscript" -e "RcppParallel::RcppParallelLibs()"`
 
+SSE_FLAGS=`"${R_HOME}/bin/Rscript" -e 'if(RcppXsimd::supportsSSE()) cat("-DUSE_SSE -msse4.2")'`
+
+AVX_FLAGS=`"${R_HOME}/bin/Rscript" -e 'if(RcppXsimd::supportsAVX()) cat("-DUSE_AVX -mavx -mavx2 -mfma")'`
+
 # Check for which host we are on and setup a few things
 # specifically based on the host
 
 OPENCL_FLAGS=
 OPENCL_LIB=
-SIMD_FLAGS="-DUSE_SIMD -DUSE_SSE -msse4.2 -DUSE_AVX -mavx -mavx2 -mfma"
+SIMD_FLAGS="-DUSE_SIMD"
 
 case $RHOST in
   Darwin* )
@@ -50,6 +54,8 @@ AC_SUBST(OPENCL_LIB)
 AC_SUBST(OPENCL_FLAGS)
 AC_SUBST(SIMD_FLAGS)
 AC_SUBST(RCPPPAR_LIB)
+AC_SUBST(SSE_FLAGS)
+AC_SUBST(AVX_FLAGS)
 
 AC_CONFIG_FILES([src/Makevars])
 AC_OUTPUT
