@@ -471,6 +471,8 @@ Potential <- function(engine,locations,treeVcv,traitVcv,treePrec,traitPrec,gradi
 #' @param single Set \code{single=1} if your GPU does not accommodate doubles.
 #' @return List containing posterior samples, negative log likelihood values (\code{target}) and time to compute (\code{Time}).
 #'
+#' @importFrom RcppXsimd supportsSSE supportsAVX supportsAVX512
+#'
 #' @export
 hmcsampler <- function(n_iter,
                        burnIn=0,
@@ -490,6 +492,17 @@ hmcsampler <- function(n_iter,
                        truncation=TRUE,
                        gpu=0,
                        single=0) {
+
+  # Check availability of SIMD  TODO Move into hidden function
+  if (simd > 0) {
+    if (simd == 1 && !RcppXsimd::supportsSSE()) {
+      stop("CPU does not support SSE")
+    } else if (simd == 2 && !RcppXsimd::supportsAVX()) {
+      stop("CPU does not support AVX")
+    } else if (simd == 3 && !RcppXsimd::supportsAVX512()) {
+      stop("CPU does not support AVX512")
+    }
+  }
 
   # Set up the parameters
   NumOfIterations = n_iter
