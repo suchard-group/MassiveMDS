@@ -14,9 +14,9 @@ RHOST=`"${R_HOME}/bin/Rscript" -e 'cat(Sys.info()[["sysname"]])'`
 # get RcppParallel directory
 RCPPPAR_LIB=`"${R_HOME}/bin/Rscript" -e "RcppParallel::RcppParallelLibs()"`
 
-SSE_FLAGS=`"${R_HOME}/bin/Rscript" -e 'if(RcppXsimd::supportsSSE()) cat("-DUSE_SSE -msse4.2")'`
+SSE_FLAGS=`"${R_HOME}/bin/Rscript" -e 'if(RcppXsimd::supportsSSE()) cat(RcppXsimd::getSSEFlags(),"-DUSE_SSE")'`
 
-AVX_FLAGS=`"${R_HOME}/bin/Rscript" -e 'if(RcppXsimd::supportsAVX()) cat("-DUSE_AVX -mavx -mavx2 -mfma")'`
+AVX_FLAGS=`"${R_HOME}/bin/Rscript" -e 'if(RcppXsimd::supportsAVX()) cat(RcppXsimd::getAVXFlags(),"-DUSE_AVX","-mfma")'`
 
 # Check for which host we are on and setup a few things
 # specifically based on the host

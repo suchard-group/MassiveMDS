@@ -20,3 +20,4 @@ src/backend/cuda
 ^\.idea
 ^\.travis
 patch_cmd.txt
+cran-comments.md
