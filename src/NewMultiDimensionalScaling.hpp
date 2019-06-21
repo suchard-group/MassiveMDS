@@ -328,7 +328,7 @@ public:
 				innerGradientLoop<withTruncation, RealType, 1>(dispatch, scale, i, vectorCount, locationCount);
 			}
         }, ParallelType());
-    };
+    }
 
 #ifdef USE_SIMD
 
@@ -455,7 +455,7 @@ public:
                 }
 			}
 		}
-	};
+	}
 
 	double getScalar(double x, int i) {
 		return x;
@@ -516,7 +516,7 @@ public:
         }
 
         return reduce(sum);
-    };
+    }
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeSumOfIncrementsGeneric() {
@@ -737,7 +737,7 @@ public:
 					}
 				}
 		);
-	};
+	}
 #endif
 
 private:
