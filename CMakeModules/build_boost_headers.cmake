@@ -1,7 +1,7 @@
-SET(VER 1.58.0)
-SET(VER2 1_58_0)
+SET(VER 1.70.0)
+SET(VER2 1_70_0)
 SET(URL http://sourceforge.net/projects/boost/files/boost/${VER}/boost_${VER2}.tar.gz/download)
-SET(MD5 5a5d5614d9a07672e1ab2a250b5defc5)
+SET(MD5 fea771fe8176828fabf9c09242ee8c26)
 
 SET(thirdPartyDir "${CMAKE_BINARY_DIR}/third_party")
 SET(srcDir "${thirdPartyDir}/boost_${VER2}")
