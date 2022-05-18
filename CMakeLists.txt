@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 PROJECT(mds)
 
 OPTION(BUILD_NOSIMD "Build MDS without SIMD" OFF)
@@ -160,7 +160,11 @@ set(JNI_SOURCE_FILES
 
 add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
 set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
-target_link_libraries(mds_jni mds_opencl)
+
+if(BUILD_OPENCL)
+	target_link_libraries(mds_jni mds_opencl)
+endif(BUILD_OPENCL)
+
 target_link_libraries(mds_jni ${TBB_LIBRARIES})
 
 ##
