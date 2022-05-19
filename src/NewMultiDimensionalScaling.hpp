@@ -11,13 +11,16 @@
 #include <Rcpp.h>
 #endif
 
-
 //#define XSIMD_ENABLE_FALLBACK
 
 #include "xsimd/xsimd.hpp"
 #include "AbstractMultiDimensionalScaling.hpp"
 #include "Distance.hpp"
 
+#if defined(__ARM64_ARCH_8__)
+  #undef USE_AVX
+  #undef USE_AVX512
+#endif
 
 namespace mds {
 
@@ -109,7 +112,7 @@ public:
 #ifdef USE_TBB
         if (flags & mds::Flags::TBB) {
     		if (nThreads <= 0) {
-                nThreads = tbb::task_scheduler_init::default_num_threads();
+    		  nThreads = tbb::this_task_arena::max_concurrency();
     		}
 #ifdef RBUILD
     		    Rcpp::Rcout << "Using " << nThreads << " threads" << std::endl;

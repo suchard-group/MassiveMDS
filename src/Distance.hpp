@@ -7,7 +7,12 @@
 //#define XSIMD_ENABLE_FALLBACK
 
 #ifdef USE_SIMD
-#include "xsimd/xsimd.hpp"
+  #if defined(__ARM64_ARCH_8__)
+    #include "sse2neon.h"
+    #undef USE_AVX
+    #undef USE_AVX512
+  #endif
+  #include "xsimd/xsimd.hpp"
 #endif
 
 #include "MemoryManagement.hpp"

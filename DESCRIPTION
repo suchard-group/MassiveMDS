@@ -1,9 +1,11 @@
 Package: MassiveMDS
 Title: Massively Parallel Multidimensional Scaling Library
-Version: 0.1.0
+Version: 0.2.0
 Authors@R:
     c(person("Marc A.", "Suchard", email = "msuchard@ucla.edu", role = "aut"),
-    person("Andrew J.", "Holbrook", email = "aholbroo@g.ucla.edu", role = c("aut","cre")))
+    person("Andrew J.", "Holbrook", email = "aholbroo@g.ucla.edu", role = c("aut","cre")),
+    person("John W.", "Ratcliff et al.", role = c("cph", "ctb"),
+      comment = "authors and copyright holders of see2neon.h under an MIT license"))
 Description: Facilitates fast Bayesian MDS through GPU, multi-core CPU, and SIMD vectorization powered implementations of the Hamiltonian Monte Carlo algorithm. The package may be built either as a standalone library or as an R package relying on Rcpp.
 License: MIT + file LICENSE
 Encoding: UTF-8

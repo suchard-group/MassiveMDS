@@ -8,9 +8,16 @@
 #include <complex>
 #include <future>
 
+
 #ifdef USE_SIMD
-#include <emmintrin.h>
-#include <smmintrin.h>
+  #if defined(__ARM64_ARCH_8__)
+    #include "sse2neon.h"
+    #undef USE_AVX
+    #undef USE_AVX512
+  #else
+    #include <emmintrin.h>
+    #include <smmintrin.h>
+  #endif
 #endif
 
 #define USE_TBB
@@ -19,7 +26,6 @@
     #include "tbb/parallel_reduce.h"
     #include "tbb/blocked_range.h"
     #include "tbb/parallel_for.h"
-    #include "tbb/task_scheduler_init.h"
 #endif
 
 #include "MemoryManagement.hpp"

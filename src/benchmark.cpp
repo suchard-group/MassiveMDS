@@ -5,7 +5,9 @@
 #include <fstream>
 
 #include <boost/program_options.hpp>
-#include <tbb/task_scheduler_init.h>
+
+#define TBB_PREVIEW_GLOBAL_CONTROL 1
+#include "tbb/global_control.h"
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
@@ -67,7 +69,7 @@ int main(int argc, char* argv[]) {
 
 	int embeddingDimension = vm["dimension"].as<int>();
 	int locationCount = vm["locations"].as<int>();
-	
+
 	bool updateAllLocations = true;
 
 	long flags = 0L;
@@ -77,8 +79,10 @@ int main(int argc, char* argv[]) {
 	auto binomial = std::bernoulli_distribution(0.75);
 	auto normalData = std::normal_distribution<double>(0.0, 1.0);
 	auto toss = std::bernoulli_distribution(0.25);
-	
-	std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
+
+	//std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
+
+	std::shared_ptr<tbb::global_control> task{nullptr};
 
     int deviceNumber = -1;
     int threads = 0;
@@ -88,17 +92,17 @@ int main(int argc, char* argv[]) {
         deviceNumber = vm["gpu"].as<int>() - 1;
 	} else {
 		std::cout << "Running on CPU" << std::endl;
-		
+
 		threads = vm["tbb"].as<int>();
 		if (threads != 0) {
-			std::cout << "Using TBB with " << threads << " out of " 
-			          << tbb::task_scheduler_init::default_num_threads()
+			std::cout << "Using TBB with " << threads << " out of "
+                << tbb::this_task_arena::max_concurrency()
 			          << " threads" << std::endl;
 			flags |= mds::Flags::TBB;
-			task = std::make_shared<tbb::task_scheduler_init>(threads);
+			task = std::make_shared<tbb::global_control>(tbb::global_control::max_allowed_parallelism, threads);
 		}
 	}
-	
+
 	if (vm.count("float")) {
 		std::cout << "Running in single-precision" << std::endl;
 		flags |= mds::Flags::FLOAT;
@@ -150,11 +154,11 @@ int main(int argc, char* argv[]) {
         }
 #endif // not defined(USE_SSE) && not defined(USE_AVX) && not defined(USE_AVX512)
 	}
-	
+
 	bool truncation = false;
 	if (vm.count("truncation")) {
 		std::cout << "Enabling truncation" << std::endl;
-		flags |= mds::Flags::LEFT_TRUNCATION;		
+		flags |= mds::Flags::LEFT_TRUNCATION;
 		truncation = true;
 	}
 
@@ -239,7 +243,7 @@ int main(int argc, char* argv[]) {
 	auto startTime = std::chrono::steady_clock::now();
 
 	int iterations = vm["iterations"].as<int>();
-	
+
 	double timer = 0;
     double timer2 = 0;
 
@@ -257,17 +261,17 @@ int main(int argc, char* argv[]) {
 			generateLocation(location, normal, prng);
 			instance->updateLocations(dimension, &location[0], dataDimension);
 		}
-		
+
 		auto startTime1 = std::chrono::steady_clock::now();
 
 		double inc = instance->getSumOfIncrements();
 		logLik += inc;
-		
+
 // 		if (truncation) {
 // 			double trunc = instance->getSumOfLogTruncations();
 // 			logTrunc += trunc;
 // 		}
-		
+
 		auto duration1 = std::chrono::steady_clock::now() - startTime1;
 		timer += std::chrono::duration<double, std::milli>(duration1).count();
 
