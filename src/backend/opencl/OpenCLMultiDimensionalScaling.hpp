@@ -48,7 +48,7 @@ public:
 	typedef typename OpenCLRealType::VectorType VectorType;
 
     OpenCLMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int deviceNumber)
-        : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
+        : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags, bandwidth),
           precision(0.0), storedPrecision(0.0),
           oneOverSd(0.0), storedOneOverSd(0.0),
           sumOfSquaredResiduals(0.0), storedSumOfSquaredResiduals(0.0),

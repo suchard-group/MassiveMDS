@@ -12,7 +12,7 @@ namespace mds {
 
 // factory
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, int locationCount, long flags, int device) {
+    constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, int locationCount, long flags, int device, int bandwidth) {
         if (embeddingDimension <= 2) {
             return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<2>>>(embeddingDimension, locationCount,
                                                                                     flags, device);
@@ -32,7 +32,7 @@ namespace mds {
     }
 
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, int locationCount, long flags, int device) {
+    constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, int locationCount, long flags, int device, int bandwidth) {
         if (embeddingDimension <= 2) {
             return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<2>>>(embeddingDimension, locationCount,
                                                                                    flags, device);

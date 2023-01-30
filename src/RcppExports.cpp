@@ -21,8 +21,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // createEngine
-Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd, int gpu, bool single);
-RcppExport SEXP _MassiveMDS_createEngine(SEXP embeddingDimensionSEXP, SEXP locationCountSEXP, SEXP truncationSEXP, SEXP tbbSEXP, SEXP simdSEXP, SEXP gpuSEXP, SEXP singleSEXP) {
+Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd, int gpu, bool single, int bandwidth);
+RcppExport SEXP _MassiveMDS_createEngine(SEXP embeddingDimensionSEXP, SEXP locationCountSEXP, SEXP truncationSEXP, SEXP tbbSEXP, SEXP simdSEXP, SEXP gpuSEXP, SEXP singleSEXP, SEXP bandwidthSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -33,7 +33,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type simd(simdSEXP);
     Rcpp::traits::input_parameter< int >::type gpu(gpuSEXP);
     Rcpp::traits::input_parameter< bool >::type single(singleSEXP);
-    rcpp_result_gen = Rcpp::wrap(createEngine(embeddingDimension, locationCount, truncation, tbb, simd, gpu, single));
+    Rcpp::traits::input_parameter< int >::type bandwidth(bandwidthSEXP);
+    rcpp_result_gen = Rcpp::wrap(createEngine(embeddingDimension, locationCount, truncation, tbb, simd, gpu, single, bandwidth));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -96,7 +97,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_MassiveMDS_rcpp_hello", (DL_FUNC) &_MassiveMDS_rcpp_hello, 0},
-    {"_MassiveMDS_createEngine", (DL_FUNC) &_MassiveMDS_createEngine, 7},
+    {"_MassiveMDS_createEngine", (DL_FUNC) &_MassiveMDS_createEngine, 8},
     {"_MassiveMDS_setPairwiseData", (DL_FUNC) &_MassiveMDS_setPairwiseData, 2},
     {"_MassiveMDS_updateLocations", (DL_FUNC) &_MassiveMDS_updateLocations, 2},
     {"_MassiveMDS_setPrecision", (DL_FUNC) &_MassiveMDS_setPrecision, 2},

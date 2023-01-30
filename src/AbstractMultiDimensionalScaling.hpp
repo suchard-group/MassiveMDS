@@ -37,7 +37,7 @@ namespace mds {
 
 class AbstractMultiDimensionalScaling {
 public:
-    AbstractMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags)
+    AbstractMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int bandwidth)
         : embeddingDimension(embeddingDimension), locationCount(locationCount),
           observationCount(locationCount * (locationCount - 1) / 2),
           flags(flags) { }
@@ -63,6 +63,7 @@ public:
 protected:
     int embeddingDimension;
     int locationCount;
+    int bandwidth;
     int observationCount;
     long flags;
 
@@ -74,7 +75,7 @@ protected:
 
 typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> SharedPtr;
 
-SharedPtr factory(int dim1, int dim2, long flags, int device, int threads);
+SharedPtr factory(int dim1, int dim2, long flags, int device, int threads, int bandwidth);
 
 //template <typename T>
 //struct DetermineType;

@@ -76,8 +76,8 @@ public:
 
 	using RealType = typename TypeInfo::BaseType;
 
-    NewMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int threads)
-        : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
+    NewMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth)
+        : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags, bandwidth),
           precision(0.0), storedPrecision(0.0),
           oneOverSd(0.0), storedOneOverSd(0.0),
           sumOfIncrements(0.0), storedSumOfIncrements(0.0),
@@ -784,130 +784,130 @@ private:
 
 // factory
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
 	Rcpp::Rcout << "DOUBLE, NO PARALLEL, NO SIMD" << std::endl;
 #else
   std::cerr << "DOUBLE, NO PARALLEL, NO SIMD" << std::endl;
 #endif
-	return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+	return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDoubleTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+constructNewMultiDimensionalScalingDoubleTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
   Rcpp::Rcout << "DOUBLE, TBB PARALLEL, NO SIMD" << std::endl;
 #else
   std::cerr << "DOUBLE, TBB PARALLEL, NO SIMD" << std::endl;
 #endif
-  return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+  return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
   Rcpp::Rcout << "SINGLE, NO PARALLEL, NO SIMD" << std::endl;
 #else
   std::cerr << "SINGLE, NO PARALLEL, NO SIMD" << std::endl;
 #endif
-  return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+  return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
 }
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
   Rcpp::Rcout << "SINGLE, TBB PARALLEL, NO SIMD" << std::endl;
 #else
   std::cerr << "SINGLE, TBB PARALLEL, NO SIMD" << std::endl;
 #endif
-  return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+  return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
 }
 
 #ifdef USE_SIMD
 
 #ifdef USE_AVX
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleNoParallelAvx(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleNoParallelAvx(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
         Rcpp::Rcout << "DOUBLE, NO PARALLEL, AVX" << std::endl;
 #else
         std::cerr << "DOUBLE, NO PARALLEL, AVX" << std::endl;
 #endif
-        return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
     }
 
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleTbbAvx(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleTbbAvx(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, TBB PARALLEL, AVX" << std::endl;
 #else
       std::cerr << "DOUBLE, TBB PARALLEL, AVX" << std::endl;
 #endif
-        return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
     }
 #endif
 
 #ifdef USE_AVX512
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleNoParallelAvx512(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleNoParallelAvx512(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, NO PARALLEL, AVX512" << std::endl;
 #else
       std::cerr << "DOUBLE, NO PARALLEL, AVX512" << std::endl;
 #endif
-        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
     }
 
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleTbbAvx512(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleTbbAvx512(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, TBB PARALLEL, AVX512" << std::endl;
 #else
       std::cerr << "DOUBLE, TBB PARALLEL, AVX512" << std::endl;
 #endif
-        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
     }
 #endif
 
 #ifdef USE_SSE
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, NO PARALLEL, SSE" << std::endl;
 #else
       std::cerr << "DOUBLE, NO PARALLEL, SSE" << std::endl;
 #endif
-      return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+      return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
     }
 
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleTbbSse(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleTbbSse(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, TBB PARALLEL, SSE" << std::endl;
 #else
       std::cerr << "DOUBLE, TBB PARALLEL, SSE" << std::endl;
 #endif
-      return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+      return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
     }
 
 	std::shared_ptr<AbstractMultiDimensionalScaling>
-	constructNewMultiDimensionalScalingFloatNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads) {
+	constructNewMultiDimensionalScalingFloatNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
 	  Rcpp::Rcout << "SINGLE, NO PARALLEL, SSE" << std::endl;
 #else
 	  std::cerr << "SINGLE, NO PARALLEL, SSE" << std::endl;
 #endif
-	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
 	}
 
 	std::shared_ptr<AbstractMultiDimensionalScaling>
-	constructNewMultiDimensionalScalingFloatTbbSse(int embeddingDimension, int locationCount, long flags, int threads) {
+	constructNewMultiDimensionalScalingFloatTbbSse(int embeddingDimension, int locationCount, long flags, int threads, int bandwidth) {
 #ifdef RBUILD
 	  Rcpp::Rcout << "SINGLE, TBB PARALLEL, SSE" << std::endl;
 #else
 	  std::cerr << "SINGLE, TBB PARALLEL, SSE" << std::endl;
 #endif
-	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads, bandwidth);
 	}
 #endif
 

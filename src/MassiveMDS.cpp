@@ -53,11 +53,12 @@ MdsSharedPtr& parsePtr(SEXP sexp) {
 //' @param truncation Likelihood includes truncation term? Defaults to \code{TRUE}.
 //' @param gpu Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.
 //' @param single Set \code{single=1} if your GPU does not accommodate doubles.
+//' @param bandwidth Number of pairwise couplings to include.
 //' @return MDS engine object.
 //'
 //' @export
 // [[Rcpp::export(createEngine)]]
-Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd, int gpu, bool single) {
+Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncation, int tbb, int simd, int gpu, bool single, int bandwidth) {
 
   long flags = 0L;
   if (truncation) {
@@ -95,13 +96,14 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
   }
 
   auto mds = new MdsWrapper(mds::factory(embeddingDimension, locationCount,
-                                         flags, deviceNumber, threads));
+                                         flags, deviceNumber, threads, bandwidth));
   XPtrMdsWrapper engine(mds);
 
   Rcpp::List list = Rcpp::List::create(
     Rcpp::Named("engine") = engine,
     Rcpp::Named("embeddingDimension") = embeddingDimension,
     Rcpp::Named("locationCount") = locationCount,
+    Rcpp::Named("bandwidth") = bandwidth,
     Rcpp::Named("dataInitialzied") = false,
     Rcpp::Named("locationsInitialized") = false,
     Rcpp::Named("truncation") = truncation,

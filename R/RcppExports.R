@@ -17,11 +17,12 @@ rcpp_hello <- function() {
 #' @param truncation Likelihood includes truncation term? Defaults to \code{TRUE}.
 #' @param gpu Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.
 #' @param single Set \code{single=1} if your GPU does not accommodate doubles.
+#' @param bandwidth Number of pairwise couplings to include.
 #' @return MDS engine object.
 #'
 #' @export
-createEngine <- function(embeddingDimension, locationCount, truncation, tbb, simd, gpu, single) {
-    .Call('_MassiveMDS_createEngine', PACKAGE = 'MassiveMDS', embeddingDimension, locationCount, truncation, tbb, simd, gpu, single)
+createEngine <- function(embeddingDimension, locationCount, truncation, tbb, simd, gpu, single, bandwidth) {
+    .Call('_MassiveMDS_createEngine', PACKAGE = 'MassiveMDS', embeddingDimension, locationCount, truncation, tbb, simd, gpu, single, bandwidth)
 }
 
 .setPairwiseData <- function(sexp, data) {

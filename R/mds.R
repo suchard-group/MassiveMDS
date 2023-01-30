@@ -71,7 +71,6 @@ setPrecision <- function(engine, precision) {
   return(engine)
 }
 
-
 #' Deliver distance matrix to MDS engine object
 #'
 #' Helper function delivers distance matrix to MDS engine object.
