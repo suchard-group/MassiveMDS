@@ -500,7 +500,7 @@ public:
         for (int j = begin; j < end; j += SimdSize) {
 
             const auto distance = dispatch.calculate(j);
-            const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
+            const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + i + j]);
             const auto notMissing = !getMissing(i, j, observation);
 
             if (any(notMissing)) {
@@ -513,7 +513,7 @@ public:
                     squaredResidual += mask(notMissing, math::phi_new(distance * oneOverSd));
                 }
 
-                SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
+                SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + i + j]);
                 sum += squaredResidual;
             }
         }
@@ -528,8 +528,18 @@ public:
 
         RealType delta =
                 accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
+                   int bandMin = bandwidth;
 
-                    const int vectorCount = locationCount - locationCount % SimdSize;
+                   if (abs(i-locationCount) < bandwidth) {
+                      bandMin = bandwidth - (bandwidth+i) % locationCount;
+                    }
+                    const int vectorCount = bandMin - bandMin % SimdSize;
+
+
+                    //Rcpp::Rcout << "bandMin: " << bandMin << std::endl;
+                    //
+                    // Rcpp::Rcout << "VectorCount: " << vectorCount << std::endl;
+
 
                     DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
@@ -538,14 +548,14 @@ public:
                                                                                     0, vectorCount);
 
 
-                    if (vectorCount < locationCount) { // Edge-cases
+                   if (vectorCount < bandMin) { // Edge-cases
 
-                        DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+                         DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-                        sumOfSquaredResiduals +=
-                                innerLikelihoodLoop<withTruncation, RealType, 1>(dispatch, scale, i,
-                                                                                 vectorCount, locationCount);
-                    }
+                         sumOfSquaredResiduals +=
+                                 innerLikelihoodLoop<withTruncation, RealType, 1>(dispatch, scale, i,
+                                                                                  vectorCount, bandMin);
+                     }
 
                     return sumOfSquaredResiduals;
 

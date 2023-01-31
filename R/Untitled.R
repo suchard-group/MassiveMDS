@@ -105,13 +105,16 @@ dmatrixnorm <- function(X, Mu = NULL, U, V, Uinv, Vinv, gradient=FALSE) {
 #' @param simd For CPU implementation: no SIMD (\code{0}), SSE (\code{1}) or AVX (\code{2}).
 #' @param gpu Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.
 #' @param single Set \code{single=1} if your GPU does not accommodate doubles.
+#' @param bandwidth Set sparse BMDS bandwidth.
 #' @return Returns MDS log likelihoods (should be equal) and distance between gradients (should be 0).
 #'
 #' @export
-test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0) {
+test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0, bandwidth=NULL) {
 
+  set.seed(1)
+  if(is.null(bandwidth)) bandwidth <- locationCount
   embeddingDimension <- 2
-  truncation <- FALSE
+  # truncation <- FALSE
 
   data <- matrix(rnorm(n = locationCount * locationCount, sd = 2),
                  ncol = locationCount, nrow = locationCount)
@@ -122,32 +125,32 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0) {
   locations <- matrix(rnorm(n = embeddingDimension * locationCount, sd = 1),
                       ncol = embeddingDimension, nrow = locationCount)
 
-  cat("no trunc\n")
-  engine <- MassiveMDS::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu,single)
-  engine <- MassiveMDS::setPairwiseData(engine, data)
-  engine <- MassiveMDS::updateLocations(engine, locations)
-
-  cat("logliks\n")
-  engine <- MassiveMDS::setPrecision(engine, 2.0)
-  print(MassiveMDS::getLogLikelihood(engine))
-  print(computeLoglikelihood(data, locations, 2.0, truncation))
-
-  engine <- MassiveMDS::setPrecision(engine, 0.5)
-  print(MassiveMDS::getLogLikelihood(engine))
-  print(computeLoglikelihood(data, locations, 0.5, truncation))
-
-  cat("grads (max error)\n")
-  engine <- MassiveMDS::setPrecision(engine, 2.0)
-  print(max(abs(MassiveMDS::getGradient(engine) -
-                  computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
-
-  engine <- MassiveMDS::setPrecision(engine, 0.5)
-  print(max(abs(MassiveMDS::getGradient(engine) -
-                  computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
+  # cat("no trunc\n")
+  # engine <- MassiveMDS::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu,single)
+  # engine <- MassiveMDS::setPairwiseData(engine, data)
+  # engine <- MassiveMDS::updateLocations(engine, locations)
+  #
+  # cat("logliks\n")
+  # engine <- MassiveMDS::setPrecision(engine, 2.0)
+  # print(MassiveMDS::getLogLikelihood(engine))
+  # print(computeLoglikelihood(data, locations, 2.0, truncation))
+  #
+  # engine <- MassiveMDS::setPrecision(engine, 0.5)
+  # print(MassiveMDS::getLogLikelihood(engine))
+  # print(computeLoglikelihood(data, locations, 0.5, truncation))
+  #
+  # cat("grads (max error)\n")
+  # engine <- MassiveMDS::setPrecision(engine, 2.0)
+  # print(max(abs(MassiveMDS::getGradient(engine) -
+  #                 computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
+  #
+  # engine <- MassiveMDS::setPrecision(engine, 0.5)
+  # print(max(abs(MassiveMDS::getGradient(engine) -
+  #                 computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
 
   truncation <- TRUE
 
-  engine <- MassiveMDS::createEngine(embeddingDimension, locationCount, truncation, threads, simd,gpu,single)
+  engine <- MassiveMDS::createEngine(embeddingDimension, locationCount, truncation, threads, simd,gpu,single,bandwidth)
   engine <- MassiveMDS::setPairwiseData(engine, data)
   engine <- MassiveMDS::updateLocations(engine, locations)
 
@@ -160,14 +163,14 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0) {
   print(MassiveMDS::getLogLikelihood(engine))
   print(computeLoglikelihood(data, locations, 0.5, truncation))
 
-  cat("grads (max error)\n")
-  engine <- MassiveMDS::setPrecision(engine, 2.0)
-  print(max(abs(MassiveMDS::getGradient(engine) -
-                  computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
-
-  engine <- MassiveMDS::setPrecision(engine, 0.5)
-  print(max(abs(MassiveMDS::getGradient(engine) -
-                  computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
+  # cat("grads (max error)\n")
+  # engine <- MassiveMDS::setPrecision(engine, 2.0)
+  # print(max(abs(MassiveMDS::getGradient(engine) -
+  #                 computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
+  #
+  # engine <- MassiveMDS::setPrecision(engine, 0.5)
+  # print(max(abs(MassiveMDS::getGradient(engine) -
+  #                 computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
 }
 
 #' Time log likelihood and gradient calculations
@@ -183,12 +186,14 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0) {
 #' @return User, system and elapsed time. Elapsed time is most important.
 #'
 #' @export
-timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,single=0) {
+timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,single=0,bandwidth=NULL) {
   # function returns length of time to compute log likelihood and gradient
   # threads is number of CPU cores used
   # simd = 0, 1, 2 for no simd, SSE, and AVX, respectively
   embeddingDimension <- 2
   truncation <- TRUE
+  if(is.null(bandwidth)) bandwidth <- locationCount
+  cat("Bandwidth: ", bandwidth, "\n")
 
   data <- matrix(rnorm(n = locationCount * locationCount, sd = 2),
                  ncol = locationCount, nrow = locationCount)
@@ -198,7 +203,14 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,singl
 
   locations <- matrix(rnorm(n = embeddingDimension * locationCount, sd = 1),
                       ncol = embeddingDimension, nrow = locationCount)
-  engine <- MassiveMDS::createEngine(embeddingDimension, locationCount, truncation, threads, simd, gpu, single)
+  engine <- MassiveMDS::createEngine(embeddingDimension,
+                                     locationCount,
+                                     truncation,
+                                     threads,
+                                     simd,
+                                     gpu,
+                                     single,
+                                     bandwidth)
   engine <- MassiveMDS::setPairwiseData(engine, data)
   engine <- MassiveMDS::updateLocations(engine, locations)
   engine <- MassiveMDS::setPrecision(engine, 2.0)
@@ -206,7 +218,7 @@ timeTest <- function(locationCount=5000, maxIts=1, threads=0, simd=0,gpu=0,singl
   ptm <- proc.time()
   for(i in 1:maxIts){
     MassiveMDS::getLogLikelihood(engine)
-    MassiveMDS::getGradient(engine)
+    #MassiveMDS::getGradient(engine)
   }
   proc.time() - ptm
 }

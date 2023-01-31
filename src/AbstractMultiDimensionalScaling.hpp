@@ -40,7 +40,8 @@ public:
     AbstractMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int bandwidth)
         : embeddingDimension(embeddingDimension), locationCount(locationCount),
           observationCount(locationCount * (locationCount - 1) / 2),
-          flags(flags) { }
+          flags(flags),
+          bandwidth(bandwidth) { }
 
     virtual ~AbstractMultiDimensionalScaling() = default;
 
