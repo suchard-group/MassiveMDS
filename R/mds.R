@@ -24,8 +24,9 @@ getLogLikelihood <- function(engine) {
   sumOfIncrements <- .getSumOfIncrements(engine$engine)
   observationCount <- (engine$locationCount * (engine$locationCount - 1)) / 2;
 
-  logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount -
-    sumOfIncrements
+  #logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount - sumOfIncrements
+
+  logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount - 2 * sumOfIncrements
 
   return(logLikelihood)
 }
