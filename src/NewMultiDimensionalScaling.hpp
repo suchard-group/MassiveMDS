@@ -499,9 +499,9 @@ public:
 
         for (int j = begin; j < end; j += SimdSize) {
 
-            const auto distance = dispatch.calculate(j);
+            const auto distance = dispatch.calculate(i+j);
             const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + i + j]);
-            const auto notMissing = !getMissing(i, j, observation);
+            const auto notMissing = !getMissing(i, i+j, observation);
 
             if (any(notMissing)) {
 
@@ -548,14 +548,14 @@ public:
                                                                                     0, vectorCount);
 
 
-                   if (vectorCount < bandMin) { // Edge-cases
-
-                         DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
-
-                         sumOfSquaredResiduals +=
-                                 innerLikelihoodLoop<withTruncation, RealType, 1>(dispatch, scale, i,
-                                                                                  vectorCount, bandMin);
-                     }
+                   // if (vectorCount < bandMin) { // Edge-cases
+                   //
+                   //       DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+                   //
+                   //       sumOfSquaredResiduals +=
+                   //               innerLikelihoodLoop<withTruncation, RealType, 1>(dispatch, scale, i,
+                   //                                                                vectorCount, bandMin);
+                   //   }
 
                     return sumOfSquaredResiduals;
 

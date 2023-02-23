@@ -4,12 +4,26 @@
 \alias{hmcsampler}
 \title{HMC based Gibbs sampler for Bayesian MDS}
 \usage{
-hmcsampler(n_iter, burnIn = 0, data = NULL, beast = NULL,
-  latentDimension = 2, distFile = "h3_Deff", learnPrec = FALSE,
-  learnTraitPrec = FALSE, trajectory = 0.2, traitInvWeight = 1,
-  priorRootSampleSize = 0.001, mdsPrecision = 1, threads = 1,
-  simd = 0, treeCov = TRUE, truncation = TRUE, gpu = 0,
-  single = 0)
+hmcsampler(
+  n_iter,
+  burnIn = 0,
+  data = NULL,
+  beast = NULL,
+  latentDimension = 2,
+  distFile = "h3_Deff",
+  learnPrec = FALSE,
+  learnTraitPrec = FALSE,
+  trajectory = 0.2,
+  traitInvWeight = 1,
+  priorRootSampleSize = 0.001,
+  mdsPrecision = 1,
+  threads = 1,
+  simd = 0,
+  treeCov = TRUE,
+  truncation = TRUE,
+  gpu = 0,
+  single = 0
+)
 }
 \arguments{
 \item{n_iter}{Number of MCMC iterations.}

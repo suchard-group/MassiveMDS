@@ -4,8 +4,16 @@
 \alias{createEngine}
 \title{Create MDS engine object}
 \usage{
-createEngine(embeddingDimension, locationCount, truncation, tbb, simd, gpu,
-  single)
+createEngine(
+  embeddingDimension,
+  locationCount,
+  truncation,
+  tbb,
+  simd,
+  gpu,
+  single,
+  bandwidth
+)
 }
 \arguments{
 \item{embeddingDimension}{Dimension of latent locations.}
@@ -21,6 +29,8 @@ createEngine(embeddingDimension, locationCount, truncation, tbb, simd, gpu,
 \item{gpu}{Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.}
 
 \item{single}{Set \code{single=1} if your GPU does not accommodate doubles.}
+
+\item{bandwidth}{Number of pairwise couplings to include.}
 }
 \value{
 MDS engine object.

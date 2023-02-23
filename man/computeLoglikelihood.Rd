@@ -4,8 +4,13 @@
 \alias{computeLoglikelihood}
 \title{Serially computed MDS log likelihood and gradient}
 \usage{
-computeLoglikelihood(data, locations, precision, truncation = TRUE,
-  gradient = FALSE)
+computeLoglikelihood(
+  data,
+  locations,
+  precision,
+  truncation = TRUE,
+  gradient = FALSE
+)
 }
 \arguments{
 \item{data}{A distance matrix.}

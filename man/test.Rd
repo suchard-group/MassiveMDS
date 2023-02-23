@@ -4,8 +4,14 @@
 \alias{test}
 \title{Compare serially and parallel-ly computed log likelihoods and gradients}
 \usage{
-test(locationCount = 10, threads = 0, simd = 0, gpu = 0,
-  single = 0)
+test(
+  locationCount = 10,
+  threads = 0,
+  simd = 0,
+  gpu = 0,
+  single = 0,
+  bandwidth = NULL
+)
 }
 \arguments{
 \item{locationCount}{Size of distance matrix or number of latent locations.}
@@ -17,6 +23,8 @@ test(locationCount = 10, threads = 0, simd = 0, gpu = 0,
 \item{gpu}{Which GPU to use? If only 1 available, use \code{gpu=1}. Defaults to \code{0}, no GPU.}
 
 \item{single}{Set \code{single=1} if your GPU does not accommodate doubles.}
+
+\item{bandwidth}{Set sparse BMDS bandwidth.}
 }
 \value{
 Returns MDS log likelihoods (should be equal) and distance between gradients (should be 0).
