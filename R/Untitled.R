@@ -238,6 +238,7 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0, bandwidth
   cat("grads (max error)\n")
   engine <- MassiveMDS::setPrecision(engine, 2.0)
   print(MassiveMDS::getGradient(engine))
+<<<<<<< HEAD
   print(computeLoglikelihood(data, locations, 2.0, bandwidth, truncation, gradient = TRUE))
   print(max(abs(MassiveMDS::getGradient(engine) -
                   computeLoglikelihood(data, locations, 2.0, bandwidth, truncation, gradient = TRUE))))
@@ -245,6 +246,15 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0, bandwidth
   engine <- MassiveMDS::setPrecision(engine, 0.5)
   print(max(abs(MassiveMDS::getGradient(engine) -
                   computeLoglikelihood(data, locations, 0.5, bandwidth, truncation, gradient = TRUE))))
+=======
+  #print(max(abs(MassiveMDS::getGradient(engine) -
+   #              computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
+
+  engine <- MassiveMDS::setPrecision(engine, 0.5)
+  print(MassiveMDS::getGradient(engine))
+  #print(max(abs(MassiveMDS::getGradient(engine) -
+   #              computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
+>>>>>>> 4a875d1223c99a11c7a6542873e4db6c0242dd44
 }
 
 #' Time log likelihood and gradient calculations

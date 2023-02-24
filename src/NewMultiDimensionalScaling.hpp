@@ -89,7 +89,7 @@ public:
 		  locationsPtr(&locations0),
 		  storedLocationsPtr(&locations1),
 
-          increments(locationCount * locationCount),
+          increments(locationCount * bandwidth),
 
           storedIncrements(locationCount),
           gradientPtr(&gradient0),
@@ -318,18 +318,33 @@ public:
 
         for_each(0, locationCount, [this, scale](const int i) { // [gradient,dim]
 
-			const int vectorCount = locationCount - locationCount % SimdSize;
+          int upperMin = bandwidth + 1;
+
+          if (locationCount - i <= upperMin) {
+            upperMin = locationCount-i;
+          }
+
+          const int upper = upperMin - upperMin % SimdSize;
+
+
+          int lowerMin = -(bandwidth + 1);
+
+          if (-i >= lowerMin) {
+            lowerMin = -i;
+          }
+
+          const int lower = lowerMin - lowerMin % SimdSize;
 
 			DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
 
-			innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch, scale, i, 0, vectorCount);
+			innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch, scale, i, lower, upper);
 
-			if (vectorCount < locationCount) { // Edge-cases
-
-				DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
-
-				innerGradientLoop<withTruncation, RealType, 1>(dispatch, scale, i, vectorCount, locationCount);
-			}
+			// if (vectorCount < locationCount) { // Edge-cases
+			//
+			// 	DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+			//
+			// 	innerGradientLoop<withTruncation, RealType, 1>(dispatch, scale, i, vectorCount, locationCount);
+			// }
         }, ParallelType());
     }
 
@@ -426,9 +441,9 @@ public:
 
 		for (int j = begin; j < end; j += SimdSize) {
 
-			const auto distance = dispatch.calculate(j);
-			const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
-			const auto notMissing = !getMissing(i, j, observation);
+			const auto distance = dispatch.calculate(i+j);
+			const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + i + j]);
+			const auto notMissing = !getMissing(i, i+j, observation);
 
 			if (any(notMissing)) {
 
@@ -450,7 +465,7 @@ public:
 
                         const RealType update = something *
                                                 ((*locationsPtr)[i * embeddingDimension + d] -
-                                                 (*locationsPtr)[(j + k) * embeddingDimension + d]);
+                                                 (*locationsPtr)[(i + j + k) * embeddingDimension + d]);
 
 
                         (*gradientPtr)[i * embeddingDimension + d] += update;
@@ -513,7 +528,7 @@ public:
                     squaredResidual += mask(notMissing, math::phi_new(distance * oneOverSd));
                 }
 
-                SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + i + j]);
+                SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * bandwidth + j]);
                 sum += squaredResidual;
             }
         }
