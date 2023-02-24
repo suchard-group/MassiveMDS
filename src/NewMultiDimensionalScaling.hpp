@@ -327,7 +327,7 @@ public:
           const int upper = upperMin - upperMin % SimdSize;
 
 
-          int lowerMin = -(bandwidth + 1);
+          int lowerMin = -(bandwidth);
 
           if (-i >= lowerMin) {
             lowerMin = -i;
