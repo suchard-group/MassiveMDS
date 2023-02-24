@@ -240,6 +240,7 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0, bandwidth
   print(MassiveMDS::getGradient(engine))
 
     print(computeLoglikelihood(data, locations, 2.0, bandwidth, truncation, gradient = TRUE))
+
   print(max(abs(MassiveMDS::getGradient(engine) -
                   computeLoglikelihood(data, locations, 2.0, bandwidth, truncation, gradient = TRUE))))
 
