@@ -528,17 +528,19 @@ public:
 
         RealType delta =
                 accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
-                   int bandMin = bandwidth;
+                   int bandMin = bandwidth + 1;
 
-                   if (abs(i-locationCount) < bandwidth) {
-                      bandMin = bandwidth - (bandwidth+i) % locationCount;
-                    }
+                   if (locationCount - i <= bandMin) {
+                      bandMin = locationCount-i;
+                   }
+
+
                     const int vectorCount = bandMin - bandMin % SimdSize;
 
 
                     //Rcpp::Rcout << "bandMin: " << bandMin << std::endl;
                     //
-                    // Rcpp::Rcout << "VectorCount: " << vectorCount << std::endl;
+                   //  Rcpp::Rcout << "VectorCount: " << vectorCount << std::endl;
 
 
                     DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);

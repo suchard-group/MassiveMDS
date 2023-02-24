@@ -146,6 +146,7 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0, bandwidth
 
   set.seed(1)
   if(is.null(bandwidth)) bandwidth <- locationCount
+  if(bandwidth > locationCount) stop("bandwidth too big")
   embeddingDimension <- 2
   # truncation <- FALSE
 
