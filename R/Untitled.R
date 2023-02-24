@@ -13,6 +13,49 @@
 #' @return MDS log likelihood or its gradient.
 #'
 #' @export
+#'
+#' original
+# computeLoglikelihood <- function(data, locations, precision,
+#                                  truncation = TRUE, gradient = FALSE) {
+#
+#   locationCount <- dim(data)[1]
+#   sd <- 1 / sqrt(precision)
+#   logLikelihood <- 0
+#   gradlogLikelihood <- 0*locations # matrix of zeros with same dim as locations
+#
+#   for (i in 1:locationCount) {
+#     for (j in i:locationCount) {
+#       if (i != j) {
+#         mean <- as.numeric(dist(rbind(locations[i,], locations[j,])))
+#         if (gradient) {
+#           if(truncation) {
+#             gradlogLikelihood[i,] <- gradlogLikelihood[i,] - ((mean-data[i,j])*precision+dnorm(mean/sd)/(sd*pnorm(mean/sd)))*
+#               (locations[i,]-locations[j,])/mean
+#             gradlogLikelihood[j,] <- gradlogLikelihood[j,] - ((mean-data[i,j])*precision+dnorm(mean/sd)/(sd*pnorm(mean/sd)))*
+#               (locations[j,]-locations[i,])/mean
+#           } else {
+#             gradlogLikelihood[i,] <- gradlogLikelihood[i,] + (data[i,j]-mean)*precision*(locations[i,]-locations[j,])/mean
+#             gradlogLikelihood[j,] <- gradlogLikelihood[j,] + (data[i,j]-mean)*precision*(locations[j,]-locations[i,])/mean
+#           }
+#         } else {
+#           logLikelihood <- logLikelihood + dnorm(data[i, j], mean = mean, sd = sd, log = TRUE)
+#           if (truncation) {
+#             logLikelihood <- logLikelihood - log(pnorm(mean/sd))
+#           }
+#         }
+#       }
+#     }
+#   }
+#
+#   if (gradient) {
+#     return(gradlogLikelihood)
+#   }
+#   else {
+#     return(logLikelihood)
+#   }
+# }
+
+#' With bandwidth as input
 computeLoglikelihood <- function(data, locations, precision, bandwidth,
                                  truncation = TRUE, gradient = FALSE) {
 
@@ -22,28 +65,50 @@ computeLoglikelihood <- function(data, locations, precision, bandwidth,
   gradlogLikelihood <- 0*locations
   pad <- matrix(NA, nrow = bandwidth, ncol = dim(locations)[2])
   pad2 <- matrix(NA, nrow = locationCount, ncol = bandwidth)
-  locations_pad <- rbind(locations, pad)
-  data_pad <- cbind(data, pad2)
+  locations_pad <- rbind(pad, locations, pad)
+  data_pad <- cbind(pad2, data, pad2)
 
   for (i in 1:locationCount) {
-    for (j in i:(i + bandwidth)) {
-      if (i != j) {
-        mean <- as.numeric(dist(rbind(locations_pad[i,], locations_pad[j,])))
-        if (gradient) {
-          if(truncation) {
-            gradlogLikelihood[i,] <- gradlogLikelihood[i,] - ((mean-data[i,j])*precision+dnorm(mean/sd)/(sd*pnorm(mean/sd)))*
-              (locations[i,]-locations[j,])/mean
-            gradlogLikelihood[j,] <- gradlogLikelihood[j,] - ((mean-data[i,j])*precision+dnorm(mean/sd)/(sd*pnorm(mean/sd)))*
-              (locations[j,]-locations[i,])/mean
-          } else {
-            gradlogLikelihood[i,] <- gradlogLikelihood[i,] + (data[i,j]-mean)*precision*(locations[i,]-locations[j,])/mean
-            gradlogLikelihood[j,] <- gradlogLikelihood[j,] + (data[i,j]-mean)*precision*(locations[j,]-locations[i,])/mean
-          }
+    for (j in 1:bandwidth) {
+      mean <- as.numeric(dist(rbind(locations[i, ],
+                                    locations_pad[bandwidth + i + j, ])))
+      if (gradient) {
+        if(truncation) {
+          right_of_dii <- ((mean - data_pad[i, bandwidth + i + j]) * precision +
+                             dnorm(mean / sd) / (sd * pnorm(mean / sd))) *
+            (locations[i, ] - locations_pad[bandwidth + i + j, ]) / mean
+          gradlogLikelihood[i, ] <- colSums(rbind(gradlogLikelihood[i, ],
+                                                  - right_of_dii), na.rm = TRUE)
+
+          # update mean
+          mean <- as.numeric(dist(rbind(locations[i, ],
+                                        locations_pad[bandwidth + i - j, ])))
+          left_of_dii <- ((mean - data_pad[i, bandwidth + i - j]) * precision +
+                            dnorm(mean / sd) / (sd * pnorm(mean / sd))) *
+            (locations[i, ] - locations_pad[bandwidth + i - j, ]) / mean
+          gradlogLikelihood[i, ] <- colSums(rbind(gradlogLikelihood[i, ],
+                                                  - left_of_dii), na.rm = TRUE)
         } else {
-          logLikelihood <- sum(logLikelihood, dnorm(data_pad[i, j], mean = mean, sd = sd, log = TRUE), na.rm = TRUE)
-          if (truncation) {
-            logLikelihood <- sum(logLikelihood, - log(pnorm(mean/sd)), na.rm = TRUE)
-          }
+          right_of_dii <- (data_pad[i, bandwidth + i + j] - mean) * precision *
+            (locations[i, ] - locations_pad[bandwidth + i + j, ]) / mean
+          gradlogLikelihood[i, ] <- colSums(rbind(gradlogLikelihood[i, ],
+                                                  right_of_dii), na.rm = TRUE)
+
+          # update mean
+          mean <- as.numeric(dist(rbind(locations[i, ],
+                                        locations_pad[bandwidth + i - j, ])))
+          left_of_dii <- (data_pad[i, bandwidth + i - j] - mean) * precision *
+            (locations[i, ] - locations_pad[bandwidth + i - j, ]) / mean
+          gradlogLikelihood[i, ] <- colSums(rbind(gradlogLikelihood[i, ],
+                                                  left_of_dii), na.rm = TRUE)
+        }
+      } else {
+        logLikelihood <- sum(logLikelihood,
+                             dnorm(data_pad[i, bandwidth + i + j], mean = mean,
+                                   sd = sd, log = TRUE), na.rm = TRUE)
+        if (truncation) {
+          logLikelihood <- sum(logLikelihood, - log(pnorm(mean / sd)),
+                               na.rm = TRUE)
         }
       }
     }
@@ -53,36 +118,9 @@ computeLoglikelihood <- function(data, locations, precision, bandwidth,
     return(gradlogLikelihood)
   }
   else {
-    #m <- (locationCount * (locationCount - 1)) / 2
-    return(logLikelihood) #+ (m/2)*log(2*pi))
+    return(logLikelihood)
   }
 }
-
-# SparseComputeLoglikelihood <- function(data, locations, precision, bandwidth,
-#                                        truncation = TRUE, gradient = FALSE) {
-#   D_latent <- as.matrix(dist(locations, diag = TRUE, upper = TRUE))
-#   sigmasq <- 1/precision
-#   n <- dim(data)[1]
-#   SSR_val = 0
-#   logsum = 0
-#   pad <- matrix(NA, nrow = n, ncol = bandwidth)
-#   D_latent_pad <- cbind(D_latent, pad)
-#   D_pad <- cbind(data, pad)
-#
-#   for (i in 1:n){
-#     for (j in 1:bandwidth){
-#       SSR_val = sum(SSR_val, (D_pad[i, i + j] - D_latent_pad[i, i + j])^2,
-#                     na.rm = TRUE)
-#       stat = D_latent_pad[i, i + j] / sqrt(sigmasq)
-#       logsum = sum(logsum, log(pnorm(stat)), na.rm = TRUE)
-#     }
-#   }
-#   r = SSR_val/(2 * sigmasq) + logsum
-#   m <- n * bandwidth - bandwidth * (bandwidth + 1) / 2
-#   term1 <- (m / 2) * log(sigmasq)
-#   loglik <- -(term1 + r + m * log(2 * pi) / 2)
-#   return(loglik)
-# }
 
 #' Matrix normal log density and gradient
 #'
@@ -192,21 +230,21 @@ test <- function(locationCount=10, threads=0, simd=0, gpu=0, single=0, bandwidth
   engine <- MassiveMDS::setPrecision(engine, 2.0)
   print(c("C++", MassiveMDS::getLogLikelihood(engine)))
   print(c("R", computeLoglikelihood(data, locations, 2.0, bandwidth, truncation)))
-  #print(SparseComputeLoglikelihood(data, locations, 2.0, bandwidth, truncation))
 
   engine <- MassiveMDS::setPrecision(engine, 0.5)
   print(c("C++" , MassiveMDS::getLogLikelihood(engine)))
   print(c("R", computeLoglikelihood(data, locations, 0.5, bandwidth, truncation)))
-  #print(SparseComputeLoglikelihood(data, locations, 0.5, bandwidth, truncation))
 
-  # cat("grads (max error)\n")
-  # engine <- MassiveMDS::setPrecision(engine, 2.0)
-  # print(max(abs(MassiveMDS::getGradient(engine) -
-  #                 computeLoglikelihood(data, locations, 2.0, truncation,gradient = TRUE))))
-  #
-  # engine <- MassiveMDS::setPrecision(engine, 0.5)
-  # print(max(abs(MassiveMDS::getGradient(engine) -
-  #                 computeLoglikelihood(data, locations, 0.5, truncation,gradient = TRUE))))
+  cat("grads (max error)\n")
+  engine <- MassiveMDS::setPrecision(engine, 2.0)
+  print(MassiveMDS::getGradient(engine))
+  print(computeLoglikelihood(data, locations, 2.0, bandwidth, truncation, gradient = TRUE))
+  print(max(abs(MassiveMDS::getGradient(engine) -
+                  computeLoglikelihood(data, locations, 2.0, bandwidth, truncation, gradient = TRUE))))
+
+  engine <- MassiveMDS::setPrecision(engine, 0.5)
+  print(max(abs(MassiveMDS::getGradient(engine) -
+                  computeLoglikelihood(data, locations, 0.5, bandwidth, truncation, gradient = TRUE))))
 }
 
 #' Time log likelihood and gradient calculations
