@@ -20,8 +20,6 @@
   #endif
 #endif
 
-#define USE_TBB
-
 #ifdef USE_TBB
     #include "tbb/parallel_reduce.h"
     #include "tbb/blocked_range.h"

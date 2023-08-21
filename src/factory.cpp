@@ -7,25 +7,32 @@ namespace mds {
     SharedPtr constructOpenCLMultiDimensionalScalingFloat(int, int, long, int);
 #endif
     SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int, int, long, int);
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbNoSimd(int, int, long, int);
-
     SharedPtr constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int, int, long, int);
+#ifdef USE_TBB
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbNoSimd(int, int, long, int);
     SharedPtr constructNewMultiDimensionalScalingFloatTbbNoSimd(int, int, long, int);
-
-#ifdef USE_SSE
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbSse(int, int, long, int);
+#endif
+    
+#ifdef USE_SSE   
     SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelSse(int, int, long, int);
     SharedPtr constructNewMultiDimensionalScalingFloatNoParallelSse(int, int, long, int);
+#ifdef USE_TBB    
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbSse(int, int, long, int);
     SharedPtr constructNewMultiDimensionalScalingFloatTbbSse(int, int, long, int);
+#endif
 #endif
 
 #ifdef USE_AVX
+#ifdef USE_TBB
     SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx(int, int, long, int);
+#endif
     SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx(int, int, long, int);
 #endif
 
 #ifdef USE_AVX512
+#ifdef USE_TBB
     SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx512(int, int, long, int);
+#endif
     SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx512(int, int, long, int);
 #endif
 

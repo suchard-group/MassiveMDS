@@ -5,7 +5,9 @@
 #include <vector>
 
 #define TBB_PREVIEW_GLOBAL_CONTROL 1
-#include "tbb/global_control.h"
+#ifdef USE_TBB
+	#include "tbb/global_control.h"
+#endif
 
 #ifdef RBUILD
 #include <Rcpp.h>
@@ -793,6 +795,7 @@ constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int embeddingDimension
 	return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
+#ifdef USE_TBB
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingDoubleTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
 #ifdef RBUILD
@@ -802,6 +805,7 @@ constructNewMultiDimensionalScalingDoubleTbbNoSimd(int embeddingDimension, int l
 #endif
   return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
+#endif
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
@@ -813,6 +817,7 @@ constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int embeddingDimension,
   return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
 
+#ifdef USE_TBB
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
 #ifdef RBUILD
@@ -822,6 +827,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 #endif
   return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 }
+#endif
 
 #ifdef USE_SIMD
 
@@ -836,6 +842,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
         return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
     }
 
+#ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleTbbAvx(int embeddingDimension, int locationCount, long flags, int threads) {
 #ifdef RBUILD
@@ -845,6 +852,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 #endif
         return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
     }
+#endif
 #endif
 
 #ifdef USE_AVX512
@@ -858,6 +866,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
         return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
     }
 
+#ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleTbbAvx512(int embeddingDimension, int locationCount, long flags, int threads) {
 #ifdef RBUILD
@@ -867,6 +876,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 #endif
         return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
     }
+#endif
 #endif
 
 #ifdef USE_SSE
@@ -880,6 +890,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
       return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
     }
 
+#ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleTbbSse(int embeddingDimension, int locationCount, long flags, int threads) {
 #ifdef RBUILD
@@ -889,6 +900,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 #endif
       return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
     }
+#endif
 
 	std::shared_ptr<AbstractMultiDimensionalScaling>
 	constructNewMultiDimensionalScalingFloatNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads) {
@@ -900,6 +912,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
 	}
 
+#ifdef USE_TBB
 	std::shared_ptr<AbstractMultiDimensionalScaling>
 	constructNewMultiDimensionalScalingFloatTbbSse(int embeddingDimension, int locationCount, long flags, int threads) {
 #ifdef RBUILD
@@ -909,6 +922,7 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 #endif
 	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
 	}
+#endif
 #endif
 
 #endif

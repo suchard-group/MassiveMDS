@@ -1,9 +1,9 @@
 SET(VER 44_20150728oss)
-SET(URL https://www.threadingbuildingblocks.org/sites/default/files/software_releases/source/tbb${VER}_src.tgz)
-SET(MD5 d41d8cd98ddf00b204e9800998ecf8427e)
+SET(URL https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2021.5.0.tar.gz)
+SET(MD5 5e5f2ee22a0d19c0abbe7478f1c7ccf6)
 
 SET(thirdPartyDir "${CMAKE_BINARY_DIR}/third_party")
-SET(srcDir "${thirdPartyDir}/tbb${VER}")
+SET(srcDir "${thirdPartyDir}/oneTBB-2021.5.0")
 SET(archive ${srcDir}_src.tgz)
 SET(inflated ${srcDir}-inflated)
 
