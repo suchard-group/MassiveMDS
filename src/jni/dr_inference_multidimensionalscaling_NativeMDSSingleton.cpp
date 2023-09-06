@@ -3,22 +3,25 @@
 #include <iostream>
 
 // #include "MultiDimensionalScaling.hpp"
+// #include "AbstractMultiDimensionalScaling.hpp"
 #include "NewMultiDimensionalScaling.hpp"
 #include "dr_inference_multidimensionalscaling_NativeMDSSingleton.h"
 
 typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> InstancePtr;
 std::vector<InstancePtr> instances;
-
+  
 extern "C"
 JNIEXPORT jint JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_initialize
-  (JNIEnv *, jobject, jint embeddingDimension, jint elementCount, jlong flags, jint device, jint threads) {
+  (JNIEnv *, jobject, jint embeddingDimension, jint elementCount1, jint elementCount2, jlong flags, jint device, jint threads) {
+    mds::Layout layout = (elementCount1 == 0) ?
+    	mds::Layout(elementCount1) :
+    	mds::Layout(elementCount1, elementCount2);
+    
     instances.emplace_back(
-//         std::make_shared<mds::MultiDimensionalScaling<double>>(embeddingDimension, elementCount, flags));
-//         std::make_shared<mds::NewMultiDimensionalScaling<double,mds::CpuAccumulate>>(embeddingDimension, elementCount, flags)
-		mds::factory(embeddingDimension, elementCount, flags, device, threads)
+		mds::factory(embeddingDimension, layout, flags, device, threads)
     );
     return instances.size() - 1;
-  }
+  }  
 
 extern "C"
 JNIEXPORT void JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_updateLocations

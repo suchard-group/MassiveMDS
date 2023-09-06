@@ -33,12 +33,51 @@
 
 namespace mds {
 
+class Layout {
+public:
+  int rowLocationCount;
+  int columnLocationCount;
+
+  int columnLocationOffset;
+
+  int uniqueLocationCount;
+  int observationCount;
+  int observationStride;
+  int transposedObservationStride;
+
+  Layout(int locationCount) :
+    rowLocationCount(locationCount), columnLocationCount(locationCount),
+    columnLocationOffset(0),
+    uniqueLocationCount(locationCount),
+    observationCount(locationCount * locationCount),
+    observationStride(locationCount),
+    transposedObservationStride(locationCount) { }
+
+  Layout(int rowLocationCount, int columnLocationCount) :
+    rowLocationCount(rowLocationCount), columnLocationCount(columnLocationCount),
+    columnLocationOffset(rowLocationCount),
+    uniqueLocationCount(rowLocationCount + columnLocationCount),
+    observationCount(rowLocationCount * columnLocationCount),
+    observationStride(columnLocationCount),
+    transposedObservationStride(rowLocationCount) { }
+
+  virtual ~Layout() = default;
+
+  bool isSymmetric() {
+    return columnLocationOffset == 0;
+  }
+};
+
 class AbstractMultiDimensionalScaling {
 public:
-    AbstractMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags)
-        : embeddingDimension(embeddingDimension), locationCount(locationCount),
-          observationCount(locationCount * (locationCount - 1) / 2),
+    AbstractMultiDimensionalScaling(int embeddingDimension,
+                                    Layout layout, long flags)
+        : embeddingDimension(embeddingDimension), layout(layout),
           flags(flags) { }
+
+//   AbstractMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags) :
+//     AbstractMultiDimensionalScaling(embeddingDimension, Layout(locationCount, 0,
+//                                                                  locationCount, 0), flags) { }
 
     virtual ~AbstractMultiDimensionalScaling() = default;
 
@@ -60,8 +99,7 @@ public:
 
 protected:
     int embeddingDimension;
-    int locationCount;
-    int observationCount;
+    Layout layout;
     long flags;
 
     int updatedLocation = -1;
@@ -72,7 +110,7 @@ protected:
 
 typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> SharedPtr;
 
-SharedPtr factory(int dim1, int dim2, long flags, int device, int threads);
+SharedPtr factory(int dim1, Layout layout, long flags, int device, int threads);
 
 //template <typename T>
 //struct DetermineType;

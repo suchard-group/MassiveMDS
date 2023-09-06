@@ -13,15 +13,14 @@
 
 #include "AbstractMultiDimensionalScaling.hpp"
 
-
 int cnt = 0;
 
 template <typename T, typename PRNG, typename D>
 void generateLocation(T& locations, D& d, PRNG& prng) {
-    //int i = cnt++;
+  int i = 1;
 	for (auto& location : locations) {
-		location = d(prng);
-//        location = i++;
+//		location = d(prng);
+        location = i++;
 	}
 }
 
@@ -39,10 +38,11 @@ int main(int argc, char* argv[]) {
             ("float", "run in single-precision")
             ("truncation", "enable truncation")
             ("iterations", po::value<int>()->default_value(1), "number of iterations")
-            ("locations", po::value<int>()->default_value(3), "number of locations")
+            ("row_locations", po::value<int>()->default_value(4), "number of row locations")
+	          ("column_locations", po::value<int>()->default_value(3), "number of column locations")
             ("dimension", po::value<int>()->default_value(2), "number of dimensions")
-			("internal", "use internal dimension")
-			("missing", "allow for missing entries")
+			      ("internal", "use internal dimension")
+			      ("missing", "allow for missing entries")
             ("sse", "use hand-rolled SSE")
             ("avx", "use hand-rolled AVX")
             ("avx512", "use hand-rolled AVX-512")
@@ -70,26 +70,25 @@ int main(int argc, char* argv[]) {
 	std::cout << "Loading data" << std::endl;
 
 	int embeddingDimension = vm["dimension"].as<int>();
-	int locationCount = vm["locations"].as<int>();
+	int rowLocationCount = vm["row_locations"].as<int>();
+	int columnLocationCount = vm["column_locations"].as<int>();
 
 	bool updateAllLocations = true;
 
 	long flags = 0L;
 
 	auto normal = std::normal_distribution<double>(0.0, 1.0);
-	auto uniform = std::uniform_int_distribution<int>(0, locationCount - 1);
+	auto uniform = std::uniform_int_distribution<int>(0, rowLocationCount + columnLocationCount - 1);
 	auto binomial = std::bernoulli_distribution(0.75);
 	auto normalData = std::normal_distribution<double>(0.0, 1.0);
 	auto toss = std::bernoulli_distribution(0.25);
-
-	//std::shared_ptr<tbb::task_scheduler_init> task{nullptr};
 
 #ifdef USE_TBB
 	std::shared_ptr<tbb::global_control> task{nullptr};
 #endif
 
-    int deviceNumber = -1;
-    int threads = 0;
+  int deviceNumber = -1;
+  int threads = 0;
 	if (vm["gpu"].as<int>() > 0) {
 		std::cout << "Running on GPU" << std::endl;
 		flags |= mds::Flags::OPENCL;
@@ -99,13 +98,13 @@ int main(int argc, char* argv[]) {
 
 		threads = vm["tbb"].as<int>();
 		if (threads != 0) {
-#ifdef USE_TBB
+#ifdef USE_TBB		
 			std::cout << "Using TBB with " << threads << " out of "
                 << tbb::this_task_arena::max_concurrency()
 			          << " threads" << std::endl;
 			flags |= mds::Flags::TBB;
 			task = std::make_shared<tbb::global_control>(tbb::global_control::max_allowed_parallelism, threads);
-#endif			
+#endif
 		}
 	}
 
@@ -170,18 +169,24 @@ int main(int argc, char* argv[]) {
 
 	bool internalDimension = vm.count("internal");
 
-	mds::SharedPtr instance = mds::factory(embeddingDimension, locationCount, flags, deviceNumber, threads);
+	std::cerr << "dim = " << embeddingDimension << "\n" <<
+	  "row_locations = " << rowLocationCount << "\n" <<
+	    "column_locations = " << columnLocationCount << "\n";
+
+	mds::Layout layout = mds::Layout(rowLocationCount, columnLocationCount);
+
+	mds::SharedPtr instance = mds::factory(embeddingDimension, layout, flags, deviceNumber, threads);
 
 	bool missing = vm.count("missing");
 	if (missing) {
         std::cout << "Allowing for missingness" << std::endl;
 	}
 
-	auto elementCount = locationCount * locationCount;
+	auto elementCount = rowLocationCount * columnLocationCount;
 	std::vector<double> data(elementCount);
-	for (int i = 0; i < locationCount; ++i) {
-	    data[i * locationCount + i] = 0.0;
-	    for (int j = i + 1; j < locationCount; ++j) {
+	int fixed = 1;
+	for (int i = 0; i < rowLocationCount; ++i) {
+	    for (int j = 0; j < columnLocationCount; ++j) {
 
 	        const double draw = normalData(prng);
 	        double distance = draw * draw;
@@ -189,22 +194,10 @@ int main(int argc, char* argv[]) {
 	        if (missing && toss(prng2)) {
 	            distance = NAN;
 	        }
-	        data[i * locationCount + j] = distance;
-	        data[j * locationCount + i] = distance;
+	        distance = fixed++;
+	        data[i * columnLocationCount + j] = distance;
 	    }
 	}
-
-//	if (vm.count("missing")) {
-//
-//        data[2*locationCount + 3] = NAN;
-//		data[3*locationCount + 2] = NAN;
-//
-//		for (int m = 3; m < 100; ++m) {
-//		    for (int n = 5; n < 8; ++n) {
-//		        data[m * locationCount + n] = data[n * locationCount + m] = NAN;
-//		    }
-//		}
-//	}
 
 	instance->setPairwiseData(&data[0], elementCount);
 
@@ -213,18 +206,14 @@ int main(int argc, char* argv[]) {
 	std::vector<double> location(dataDimension);
 	std::vector<double> allLocations;
 	if (updateAllLocations) {
-		allLocations.resize(dataDimension * locationCount);
+		allLocations.resize(dataDimension * (rowLocationCount + columnLocationCount));
 	}
 
 	double total = 0.0;
-	for (int i = 0; i < locationCount; ++i) {
+	for (int i = 0; i < (rowLocationCount + columnLocationCount); ++i) {
 		generateLocation(location, normal, prng);
 		instance->updateLocations(i, &location[0], dataDimension);
-// 		for (int j = 0; j < embeddingDimension; ++j) {
-// 			total += location[j];
-// 		}
 	}
-// 	std::cerr << "FIND: " << total << std::endl;
 
     int gradientIndex = 1;
 
@@ -234,16 +223,12 @@ int main(int argc, char* argv[]) {
 	instance->makeDirty();
 	auto logLik = instance->getSumOfIncrements();
 
-    std::vector<double> gradient(locationCount * dataDimension);
+    std::vector<double> gradient((rowLocationCount + columnLocationCount) * dataDimension);
 
-    instance->getLogLikelihoodGradient(gradient.data(), locationCount * dataDimension);
-//    double sumGradient = std::accumulate(std::begin(gradient), std::end(gradient), 0.0);
+    instance->getLogLikelihoodGradient(gradient.data(),
+                                       (rowLocationCount + columnLocationCount) *
+                                         dataDimension);
     double sumGradient = gradient[gradientIndex];
-
-// 	double logTrunc = 0.0;
-// 	if (truncation) {
-// 		logTrunc = instance->getSumOfLogTruncations();
-// 	}
 
 	std::cout << "Starting MDS benchmark" << std::endl;
 	auto startTime = std::chrono::steady_clock::now();
@@ -252,6 +237,7 @@ int main(int argc, char* argv[]) {
 
 	double timer = 0;
     double timer2 = 0;
+    logLik = 0.0;
 
 	for (auto itr = 0; itr < iterations; ++itr) {
 
@@ -261,7 +247,7 @@ int main(int argc, char* argv[]) {
 
 		if (updateAllLocations) {
 			generateLocation(allLocations, normal, prng);
-			instance->updateLocations(-1, &allLocations[0], dataDimension * locationCount);
+			instance->updateLocations(-1, &allLocations[0], dataDimension * (rowLocationCount + columnLocationCount));
 		} else {
 			int dimension = uniform(prng);
 			generateLocation(location, normal, prng);
@@ -272,6 +258,8 @@ int main(int argc, char* argv[]) {
 
 		double inc = instance->getSumOfIncrements();
 		logLik += inc;
+
+		std::cerr << "inc = " << inc << "\n";
 
 // 		if (truncation) {
 // 			double trunc = instance->getSumOfLogTruncations();
@@ -304,7 +292,8 @@ int main(int argc, char* argv[]) {
 
         auto startTime2 = std::chrono::steady_clock::now();
 
-        instance->getLogLikelihoodGradient(gradient.data(), locationCount * dataDimension);
+        instance->getLogLikelihoodGradient(gradient.data(),
+                                           (rowLocationCount + columnLocationCount) * dataDimension);
 
         auto duration2 = std::chrono::steady_clock::now() - startTime2;
         timer2 += std::chrono::duration<double, std::milli>(duration2).count();
@@ -313,8 +302,8 @@ int main(int argc, char* argv[]) {
         sumGradient += gradient[gradientIndex];
 
 	}
-	logLik /= iterations + 1;
-    sumGradient /= iterations + 1;
+	logLik /= iterations;
+    sumGradient /= iterations;
 // 	logTrunc /= iterations + 1;
 
 	auto endTime = std::chrono::steady_clock::now();
@@ -332,7 +321,8 @@ int main(int argc, char* argv[]) {
 
 	std::ofstream outfile;
 	outfile.open("report.txt",std::ios_base::app);
-    outfile << deviceNumber << " " << threads << " " << simd << " " << locationCount << " " << embeddingDimension << " " << iterations << " " << timer << " " << timer2 << "\n" ;
+    outfile << deviceNumber << " " << threads << " " << simd << " " << rowLocationCount <<
+      " " << columnLocationCount << " " << embeddingDimension << " " << iterations << " " << timer << " " << timer2 << "\n" ;
 	outfile.close();
 
 }

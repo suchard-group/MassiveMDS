@@ -3,14 +3,14 @@ PROJECT(mds)
 
 OPTION(BUILD_NOSIMD "Build MDS without SIMD" OFF)
 OPTION(BUILD_AVX512 "Build MDS with AVX-512" OFF)
-OPTION(BUILD_AVX "Build MDS with AVX" ON)
+OPTION(BUILD_AVX "Build MDS with AVX" OFF)
 OPTION(BUILD_CUDA "Build MDS with a CUDA backend" OFF)
-OPTION(BUILD_OPENCL "Build MDS with a OpenCL backend" ON)
+OPTION(BUILD_OPENCL "Build MDS with a OpenCL backend" OFF)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
 if(APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -std=c++14")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -pedantic -std=c++14 -Wno-deprecated")
 else(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -O3 -g -pedantic -Wno-ignored-attributes -std=c++14")
 endif(APPLE)
@@ -20,11 +20,35 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++11")
 
 # -mllvm -debug-pass=loop-vectorize
 
-OPTION(USE_TBB "Use TBB" ON)
+if(APPLE)
+   if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+        execute_process(COMMAND sysctl -q hw.optional.arm64
+            OUTPUT_VARIABLE _sysctl_stdout
+            ERROR_VARIABLE _sysctl_stderr
+            RESULT_VARIABLE _sysctl_result
+            )
+        if(_sysctl_result EQUAL 0 AND _sysctl_stdout MATCHES "hw.optional.arm64:
+ 1")
+            set(CMAKE_HOST_SYSTEM_PROCESSOR "arm64")
+        endif()
+    endif()
+    set(MDS_OSX_NATIVE_ARCHITECTURE ${CMAKE_HOST_SYSTEM_PROCESSOR})
+
+    if(MDS_OSX_NATIVE_ARCHITECTURE STREQUAL "arm64")
+    	set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64")
+        message(STATUS "macOS universal (x86_64 / arm64) build")
+		# set(CMAKE_OSX_ARCHITECTURES "x86_64")
+        # message(STATUS "macOS x86_64 build")        
+    else()
+        message(STATUS "macOS x86_64 build")
+    endif()
+endif(APPLE)
+
+OPTION(USE_TBB "Use TBB" ON) # TODO does not work (need to comment out in factory.cpp)
 OPTION(USE_SYSTEM_TBB "Use system TBB" ON)
 
 if(USE_TBB)
-  ADD_DEFINITION(-DUSE_TBB)
+  ADD_DEFINITIONS(-DUSE_TBB)
 
 IF(USE_SYSTEM_TBB)
   FIND_PACKAGE(TBB REQUIRED)
@@ -183,6 +207,12 @@ target_link_libraries(benchmark mds_jni)
    set_target_properties(benchmark PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
    target_link_libraries(benchmark ${TBB_LIBRARIES})
    target_link_libraries(benchmark boost_program_options)
+
+   add_executable(benchmark2 src/benchmark2.cpp)
+   target_link_libraries(benchmark2 mds_jni)
+   set_target_properties(benchmark2 PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
+   target_link_libraries(benchmark2 ${TBB_LIBRARIES})
+   target_link_libraries(benchmark2 boost_program_options)
 
    add_executable(benchmark-san src/benchmark.cpp)
    set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "-fsanitize=address")

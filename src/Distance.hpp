@@ -49,28 +49,45 @@ using D8Bool = xsimd::batch_bool<double, 8>;
 
 template <typename SimdType, typename RealType, typename Algorithm>
 class DistanceDispatch {
+private:
+
+  const mm::MemoryManager<RealType>& locations;
+  const int i;
+  const int embeddingDimension;
+  const int rowOffset;
+  const int columnOffset;
+
+  const decltype(std::begin(locations)) iterator;
+  const decltype(std::begin(locations)) start;
 
 public:
 
 	using IteratorType = typename mm::MemoryManager<RealType>::iterator;
 
-	DistanceDispatch(const mm::MemoryManager<RealType>& locations, const int i, const int embeddingDimension) :
+	DistanceDispatch(const mm::MemoryManager<RealType>& locations, const int i, const int embeddingDimension, const int rowOffset, const int columnOffset) :
 		locations(locations), i(i), embeddingDimension(embeddingDimension),
-		iterator(locations.begin()), start(iterator + i * embeddingDimension) { }
-
+		rowOffset(rowOffset),
+		columnOffset(columnOffset),
+		iterator(locations.begin() + columnOffset * embeddingDimension), start(locations.begin() + (i + rowOffset) * embeddingDimension) { }
 
 	inline SimdType calculate(int j) const;
 
+	inline const int getRowLocationOffset() const {
+	  return rowOffset * embeddingDimension;
+	}
 
-private:
+	inline const int getRowOffset() const {
+	  return rowOffset;
+	}
 
-	const mm::MemoryManager<RealType>& locations;
-	const int i;
-	const int embeddingDimension;
+  inline const int getColumnLocationOffset() const {
+    return columnOffset * embeddingDimension;
+  }
 
-	const decltype(std::begin(locations)) iterator;
-	const decltype(std::begin(locations)) start;
- };
+	inline const int getColumnOffset() const {
+	  return columnOffset;
+	}
+};
 
  namespace impl {
 
@@ -360,7 +377,6 @@ inline D2 DistanceDispatch<D2, D2::value_type, NonGeneric>::calculate(int j) con
 
 template <>
 inline double DistanceDispatch<double, double, Generic>::calculate(int j) const {
-
 	return
 						impl::calculateDistanceGeneric2(
 								start,

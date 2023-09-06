@@ -10,11 +10,11 @@ extern "C" {
 /*
  * Class:     dr_inference_multidimensionalscaling_NativeMDSSingleton
  * Method:    initialize
- * Signature: (IIJ)I
+ * Signature: (IIIJ)I
  */
 JNIEXPORT jint JNICALL Java_dr_inference_multidimensionalscaling_NativeMDSSingleton_initialize
-  (JNIEnv *, jobject, jint, jint, jlong, jint, jint);
-
+  (JNIEnv *, jobject, jint, jint, jint, jlong, jint, jint);
+  
 /*
  * Class:     dr_inference_multidimensionalscaling_NativeMDSSingleton
  * Method:    updateLocations

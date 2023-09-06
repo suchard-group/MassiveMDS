@@ -78,22 +78,23 @@ public:
 
 	using RealType = typename TypeInfo::BaseType;
 
-    NewMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int threads)
-        : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
+    NewMultiDimensionalScaling(int embeddingDimension, Layout layout, long flags, int threads)
+        : AbstractMultiDimensionalScaling(embeddingDimension, layout, flags),
           precision(0.0), storedPrecision(0.0),
           oneOverSd(0.0), storedOneOverSd(0.0),
           sumOfIncrements(0.0), storedSumOfIncrements(0.0),
 
-          observations(locationCount * locationCount),
+          observations(layout.observationCount),
+          transposedObservations(layout.isSymmetric() ? 0 : layout.observationCount),
 
-          locations0(locationCount * embeddingDimension),
-		  locations1(locationCount * embeddingDimension),
+          locations0(layout.uniqueLocationCount * embeddingDimension),
+		  locations1(layout.uniqueLocationCount * embeddingDimension),
 		  locationsPtr(&locations0),
 		  storedLocationsPtr(&locations1),
 
-          increments(locationCount * locationCount),
+          increments(layout.observationCount),
 
-          storedIncrements(locationCount),
+          storedIncrements(layout.observationCount),
           gradientPtr(&gradient0),
 
 
@@ -127,8 +128,6 @@ public:
 #endif
     }
 
-
-
     virtual ~NewMultiDimensionalScaling() { }
 
 	int getInternalDimension() { return embeddingDimension; }
@@ -139,7 +138,7 @@ public:
 
 		if (locationIndex == -1) {
 			// Update all locations
-			assert(length == embeddingDimension * locationCount);
+			assert(length == embeddingDimension * layout.uniqueLocationCount);
 
 			incrementsKnown = false;
 			isStoredIncrementsEmpty = true;
@@ -197,6 +196,7 @@ public:
 			computeIncrements();
 			sumOfIncrementsKnown = true;
 		}
+//    	std::cerr << "sumOfInc = " << sumOfIncrements << "\n";
 		if (isLeftTruncated) {
 			return sumOfIncrements;
 		} else {
@@ -227,8 +227,9 @@ public:
 
     void acceptState() {
         if (!isStoredIncrementsEmpty) {
-    		for (int j = 0; j < locationCount; ++j) {
-    			increments[j * locationCount + updatedLocation] = increments[updatedLocation * locationCount + j];
+            const int count = layout.uniqueLocationCount;
+    		for (int j = 0; j < count; ++j) {
+    			increments[j * count + updatedLocation] = increments[updatedLocation * count + j];
     		}
     	}
     }
@@ -238,10 +239,11 @@ public:
     	sumOfIncrementsKnown = true;
 
 		if (!isStoredIncrementsEmpty) {
+		    const int count = layout.uniqueLocationCount;
     		std::copy(
     			begin(storedIncrements),
     			end(storedIncrements),
-    			begin(increments) + updatedLocation * locationCount
+    			begin(increments) + updatedLocation * count
     		);
     		incrementsKnown = true;
     	} else {
@@ -256,9 +258,27 @@ public:
     	locationsPtr = tmp1;
     }
 
+    //template <typename T>
+    //void maskOutDiagonal()
+
     void setPairwiseData(double* data, size_t length) {
 		assert(length == observations.size());
 		mm::bufferedCopy(data, data + length, begin(observations), buffer);
+
+		if (layout.isSymmetric()) {
+		  for (int i = 0; i < layout.rowLocationCount; ++i) {
+		    observations[i * layout.observationStride + i] = std::nan("");
+		  }
+		} else {
+		  for (int i = 0; i < layout.rowLocationCount; ++i) {
+		    for (int j = 0; j < layout.columnLocationCount; ++j) {
+		      // TODO benchmark, then lazy update or SIMD
+		      transposedObservations[j * layout.rowLocationCount + i] = observations[i * layout.columnLocationCount +j];
+		    }
+		  }
+		}
+
+		makeDirty();
     }
 
     void setParameters(double* data, size_t length) {
@@ -282,7 +302,9 @@ public:
 
 	void getLogLikelihoodGradient(double* result, size_t length) {
 
-		assert (length == locationCount * embeddingDimension);
+		const auto count = layout.uniqueLocationCount;
+
+		assert (length == count * embeddingDimension);
 
         // TODO Cache values
 
@@ -306,7 +328,8 @@ public:
 	template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeLogLikelihoodGradientGeneric() {
 
-        const auto length = locationCount * embeddingDimension;
+		const auto count = layout.uniqueLocationCount;
+        const auto length = count * embeddingDimension;
         if (length != gradientPtr->size()) {
             gradientPtr->resize(length);
         }
@@ -314,25 +337,45 @@ public:
         std::fill(std::begin(*gradientPtr), std::end(*gradientPtr),
                   static_cast<RealType>(0.0));
 
-        //const auto dim = embeddingDimension;
-        //RealType* gradient = gradientPtr->data();
         const RealType scale = precision;
 
-        for_each(0, locationCount, [this, scale](const int i) { // [gradient,dim]
+        const auto rowLocationCount = layout.rowLocationCount;
+        const auto columnLocationCount = layout.columnLocationCount;
+        const auto columnLocationOffset = layout.columnLocationOffset;
 
-			const int vectorCount = locationCount - locationCount % SimdSize;
+        for_each(0, rowLocationCount,
+                 [this, scale, rowLocationCount, columnLocationCount, columnLocationOffset](const int i) {
 
-			DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+                   const int vectorCount = columnLocationCount - columnLocationCount % SimdSize;
 
-			innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch, scale, i, 0, vectorCount);
+                   DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension, 0, columnLocationOffset);
 
-			if (vectorCount < locationCount) { // Edge-cases
+                   innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch, observations, layout.observationStride, scale, i, 0, vectorCount);
 
-				DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+                   if (vectorCount < columnLocationCount) { // Edge-cases
 
-				innerGradientLoop<withTruncation, RealType, 1>(dispatch, scale, i, vectorCount, locationCount);
-			}
-        }, ParallelType());
+                     DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension,0, columnLocationOffset);
+
+                     innerGradientLoop<withTruncation, RealType, 1>(dispatch, observations, layout.observationStride, scale, i, vectorCount, columnLocationCount);
+                   }
+                 }, ParallelType());
+
+        for_each(0, columnLocationCount,
+                 [this, scale, rowLocationCount, columnLocationCount, columnLocationOffset](const int i) {
+
+                   const int vectorCount = rowLocationCount - rowLocationCount % SimdSize;
+
+                   DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension, columnLocationOffset, 0); // ABCD
+
+                   innerGradientLoop<withTruncation, SimdType, SimdSize>(dispatch, transposedObservations, layout.transposedObservationStride, scale, i, 0, vectorCount);
+
+                   if (vectorCount < rowLocationCount) { // Edge-cases
+
+                     DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension, columnLocationOffset, 0);
+
+                     innerGradientLoop<withTruncation, RealType, 1>(dispatch, transposedObservations, layout.transposedObservationStride, scale, i, vectorCount, rowLocationCount);
+                   }
+                 }, ParallelType());
     }
 
 #ifdef USE_SIMD
@@ -360,7 +403,8 @@ public:
 
 	template <typename T, size_t N>
 	SimdBatchBool<T, N> getMissing(int i, int j, SimdBatch<T, N> x) {
-        return SimdBatch<T, N>(i) == (SimdBatch<T, N>(j) + getIota(SimdBatch<T, N>())) || xsimd::isnan(x);
+        // return SimdBatch<T, N>(i) == (SimdBatch<T, N>(j) + getIota(SimdBatch<T, N>())) || xsimd::isnan(x);
+	      return xsimd::isnan(x);
 	}
 #endif
 
@@ -403,7 +447,8 @@ public:
 
     template <typename T>
     bool getMissing(int i, int j, T x) {
-        return i == j || std::isnan(x);
+        // return i == j || std::isnan(x);
+        return std::isnan(x);
     }
 
     template <typename T>
@@ -421,15 +466,19 @@ public:
 	}
 
 	template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
-	void innerGradientLoop(const DispatchType& dispatch, const RealType scale, const int i,
+	void innerGradientLoop(const DispatchType& dispatch,
+                        mm::MemoryManager<RealType>& observations, const int stride,
+                        const RealType scale, const int i,
 								 const int begin, const int end) {
 
         const SimdType sqrtScale(std::sqrt(scale));
 
+        //const auto stride = layout.observationStride; // TODO UPDATE
+
 		for (int j = begin; j < end; j += SimdSize) {
 
 			const auto distance = dispatch.calculate(j);
-			const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
+			const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * stride + j]);
 			const auto notMissing = !getMissing(i, j, observation);
 
 			if (any(notMissing)) {
@@ -444,6 +493,9 @@ public:
 				}
 
 				auto dataContribution = mask(notMissing, residual * scale / distance);
+				const auto rowLocationOffset = dispatch.getRowLocationOffset();
+				const auto columnLocationOffset = dispatch.getColumnLocationOffset();
+				// const auto rowOffset = dispatch.getRowOffset();
 
                 for (int k = 0; k < SimdSize; ++k) {
                     for (int d = 0; d < embeddingDimension; ++d) {
@@ -451,15 +503,16 @@ public:
                         const RealType something = getScalar(dataContribution, k);
 
                         const RealType update = something *
-                                                ((*locationsPtr)[i * embeddingDimension + d] -
-                                                 (*locationsPtr)[(j + k) * embeddingDimension + d]);
+                                                ((*locationsPtr)[rowLocationOffset + i * embeddingDimension + d] -
+                                                 (*locationsPtr)[columnLocationOffset + (j + k) * embeddingDimension + d]);
 
 
-                        (*gradientPtr)[i * embeddingDimension + d] += update;
+                        (*gradientPtr)[rowLocationOffset + i * embeddingDimension + d] += update;
                     }
                 }
 			}
-		}
+
+			}
 	}
 
 	double getScalar(double x, int i) {
@@ -497,12 +550,14 @@ public:
     RealType innerLikelihoodLoop(const DispatchType& dispatch, const RealType scale, const int i,
                                  const int begin, const int end) {
 
+		    const auto stride = layout.observationStride;
+
         SimdType sum = SimdType(RealType(0));
 
         for (int j = begin; j < end; j += SimdSize) {
 
             const auto distance = dispatch.calculate(j);
-            const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
+            const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * stride + j]);
             const auto notMissing = !getMissing(i, j, observation);
 
             if (any(notMissing)) {
@@ -515,7 +570,7 @@ public:
                     squaredResidual += mask(notMissing, math::phi_new(distance * oneOverSd));
                 }
 
-                SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
+                SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * stride + j]);
                 sum += squaredResidual;
             }
         }
@@ -526,27 +581,31 @@ public:
     template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeSumOfIncrementsGeneric() {
 
-        const auto scale = 0.5 * precision;
+       const auto scale = 0.5 * precision;
 
         RealType delta =
-                accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
+                accumulate(0, layout.rowLocationCount, RealType(0), [this, scale](const int i) {
 
-                    const int vectorCount = locationCount - locationCount % SimdSize;
+                    const auto rowLocationCount = layout.rowLocationCount;
+                    const auto columnLocationOffset = layout.columnLocationOffset;
+                    const auto columnLocationCount = layout.columnLocationCount;
 
-                    DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+                    const int vectorCount = columnLocationCount - columnLocationCount % SimdSize;
+
+                    DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension, 0, columnLocationOffset);
 
 					RealType sumOfSquaredResiduals =
                             innerLikelihoodLoop<withTruncation, SimdType, SimdSize>(dispatch, scale, i,
                                                                                     0, vectorCount);
 
 
-                    if (vectorCount < locationCount) { // Edge-cases
+                    if (vectorCount < columnLocationCount) { // Edge-cases
 
-                        DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+                        DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension, 0, columnLocationOffset);
 
                         sumOfSquaredResiduals +=
                                 innerLikelihoodLoop<withTruncation, RealType, 1>(dispatch, scale, i,
-                                                                                 vectorCount, locationCount);
+                                                                                 vectorCount, columnLocationCount);
                     }
 
                     return sumOfSquaredResiduals;
@@ -555,7 +614,9 @@ public:
 
         double lSumOfSquaredResiduals = delta;
 
-        lSumOfSquaredResiduals /= 2.0;
+        if (layout.isSymmetric()) {
+          lSumOfSquaredResiduals /= 2.0;
+        }
         sumOfIncrements = lSumOfSquaredResiduals;
 
         incrementsKnown = true;
@@ -564,6 +625,8 @@ public:
 
 	template <bool withTruncation>
 	void updateSumOfIncrements() { // TODO To be vectorized (when we start using this function again)
+
+		const auto stride = layout.observationStride; // TODO UPDATE
 
 		assert (false); // Should not get here anymore
 		const RealType scale = RealType(0.5) * precision;
@@ -575,9 +638,9 @@ public:
 		//auto offset = begin(*locationsPtr);
 
 		RealType delta =
- 		accumulate(0, locationCount, RealType(0),
+ 		accumulate(0, layout.rowLocationCount, RealType(0),
 
-			[this, i, // , &offset, &start]
+			[this, i, stride, // , &offset, &start]
       scale](const int j) {
                 const auto distance = 0.0; // TODO
 //                        calculateDistance<mm::MemoryManager<RealType>>(
@@ -586,7 +649,7 @@ public:
 //                    embeddingDimension
 //                );
 
-                const auto observation = observations[i * locationCount + j];
+                const auto observation = observations[i * stride + j];
                 auto squaredResidual = RealType(0);
 
                 if (!std::isnan(observation)) {
@@ -602,13 +665,13 @@ public:
                 }
 
             	// store old value
-            	const auto oldSquaredResidual = increments[i * locationCount + j];
+            	const auto oldSquaredResidual = increments[i * stride + j];
             	storedIncrements[j] = oldSquaredResidual;
 
                 const auto inc = squaredResidual - oldSquaredResidual;
 
             	// store new value
-                increments[i * locationCount + j] = squaredResidual;
+                increments[i * stride + j] = squaredResidual;
 
                 return inc;
             }, ParallelType()
@@ -756,6 +819,7 @@ private:
     double storedSumOfIncrements;
 
     mm::MemoryManager<RealType> observations;
+    mm::MemoryManager<RealType> transposedObservations;
 
     mm::MemoryManager<RealType> locations0;
     mm::MemoryManager<RealType> locations1;
@@ -786,46 +850,46 @@ private:
 
 // factory
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
 	Rcpp::Rcout << "DOUBLE, NO PARALLEL, NO SIMD" << std::endl;
 #else
   std::cerr << "DOUBLE, NO PARALLEL, NO SIMD" << std::endl;
 #endif
-	return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+	return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, layout, flags, threads);
 }
 
 #ifdef USE_TBB
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingDoubleTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+constructNewMultiDimensionalScalingDoubleTbbNoSimd(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
   Rcpp::Rcout << "DOUBLE, TBB PARALLEL, NO SIMD" << std::endl;
 #else
   std::cerr << "DOUBLE, TBB PARALLEL, NO SIMD" << std::endl;
 #endif
-  return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+  return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
 }
 #endif
 
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
   Rcpp::Rcout << "SINGLE, NO PARALLEL, NO SIMD" << std::endl;
 #else
   std::cerr << "SINGLE, NO PARALLEL, NO SIMD" << std::endl;
 #endif
-  return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+  return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, CpuAccumulate>>(embeddingDimension, layout, flags, threads);
 }
 
 #ifdef USE_TBB
 std::shared_ptr<AbstractMultiDimensionalScaling>
-constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int locationCount, long flags, int threads) {
+constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
   Rcpp::Rcout << "SINGLE, TBB PARALLEL, NO SIMD" << std::endl;
 #else
   std::cerr << "SINGLE, TBB PARALLEL, NO SIMD" << std::endl;
 #endif
-  return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+  return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
 }
 #endif
 
@@ -833,94 +897,94 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, int lo
 
 #ifdef USE_AVX
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleNoParallelAvx(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleNoParallelAvx(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
         Rcpp::Rcout << "DOUBLE, NO PARALLEL, AVX" << std::endl;
 #else
         std::cerr << "DOUBLE, NO PARALLEL, AVX" << std::endl;
 #endif
-        return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, CpuAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 
 #ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleTbbAvx(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleTbbAvx(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, TBB PARALLEL, AVX" << std::endl;
 #else
       std::cerr << "DOUBLE, TBB PARALLEL, AVX" << std::endl;
 #endif
-        return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 #endif
 #endif
 
 #ifdef USE_AVX512
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleNoParallelAvx512(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleNoParallelAvx512(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, NO PARALLEL, AVX512" << std::endl;
 #else
       std::cerr << "DOUBLE, NO PARALLEL, AVX512" << std::endl;
 #endif
-        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, CpuAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 
 #ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleTbbAvx512(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleTbbAvx512(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, TBB PARALLEL, AVX512" << std::endl;
 #else
       std::cerr << "DOUBLE, TBB PARALLEL, AVX512" << std::endl;
 #endif
-        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+        return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 #endif
 #endif
 
 #ifdef USE_SSE
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleNoParallelSse(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, NO PARALLEL, SSE" << std::endl;
 #else
       std::cerr << "DOUBLE, NO PARALLEL, SSE" << std::endl;
 #endif
-      return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+      return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, CpuAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 
 #ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructNewMultiDimensionalScalingDoubleTbbSse(int embeddingDimension, int locationCount, long flags, int threads) {
+    constructNewMultiDimensionalScalingDoubleTbbSse(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
       Rcpp::Rcout << "DOUBLE, TBB PARALLEL, SSE" << std::endl;
 #else
       std::cerr << "DOUBLE, TBB PARALLEL, SSE" << std::endl;
 #endif
-      return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+      return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 #endif
 
 	std::shared_ptr<AbstractMultiDimensionalScaling>
-	constructNewMultiDimensionalScalingFloatNoParallelSse(int embeddingDimension, int locationCount, long flags, int threads) {
+	constructNewMultiDimensionalScalingFloatNoParallelSse(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
 	  Rcpp::Rcout << "SINGLE, NO PARALLEL, SSE" << std::endl;
 #else
 	  std::cerr << "SINGLE, NO PARALLEL, SSE" << std::endl;
 #endif
-	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, CpuAccumulate>>(embeddingDimension, locationCount, flags, threads);
+	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, CpuAccumulate>>(embeddingDimension, layout, flags, threads);
 	}
 
 #ifdef USE_TBB
 	std::shared_ptr<AbstractMultiDimensionalScaling>
-	constructNewMultiDimensionalScalingFloatTbbSse(int embeddingDimension, int locationCount, long flags, int threads) {
+	constructNewMultiDimensionalScalingFloatTbbSse(int embeddingDimension, Layout layout, long flags, int threads) {
 #ifdef RBUILD
 	  Rcpp::Rcout << "SINGLE, TBB PARALLEL, SSE" << std::endl;
 #else
 	  std::cerr << "SINGLE, TBB PARALLEL, SSE" << std::endl;
 #endif
-	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, TbbAccumulate>>(embeddingDimension, locationCount, flags, threads);
+	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
 	}
 #endif
 #endif
