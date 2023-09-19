@@ -1,5 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
-PROJECT(mds)
+PROJECT(mds2)
 
 OPTION(BUILD_NOSIMD "Build MDS without SIMD" OFF)
 OPTION(BUILD_AVX512 "Build MDS with AVX-512" OFF)
@@ -189,42 +189,42 @@ set(JNI_SOURCE_FILES
        endif(${BUILD_AVX})
    endif(${BUILD_AVX512})
 
-add_library(mds_jni SHARED ${JNI_SOURCE_FILES})
-set_target_properties(mds_jni PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
+add_library(mds2_jni SHARED ${JNI_SOURCE_FILES})
+set_target_properties(mds2_jni PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
 
 if(BUILD_OPENCL)
-	target_link_libraries(mds_jni mds_opencl)
+	target_link_libraries(mds2_jni mds2_opencl)
 endif(BUILD_OPENCL)
 
-target_link_libraries(mds_jni ${TBB_LIBRARIES})
+target_link_libraries(mds2_jni ${TBB_LIBRARIES})
 
 ##
 # Build benchmark
 ##
 
-add_executable(benchmark src/benchmark.cpp)
-target_link_libraries(benchmark mds_jni)
-   set_target_properties(benchmark PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
-   target_link_libraries(benchmark ${TBB_LIBRARIES})
-   target_link_libraries(benchmark boost_program_options)
+# add_executable(benchmark src/benchmark.cpp)
+# target_link_libraries(benchmark mds_jni)
+# set_target_properties(benchmark PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
+# target_link_libraries(benchmark ${TBB_LIBRARIES})
+# target_link_libraries(benchmark boost_program_options)
 
-   add_executable(benchmark2 src/benchmark2.cpp)
-   target_link_libraries(benchmark2 mds_jni)
-   set_target_properties(benchmark2 PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
-   target_link_libraries(benchmark2 ${TBB_LIBRARIES})
-   target_link_libraries(benchmark2 boost_program_options)
+add_executable(benchmark2 src/benchmark2.cpp)
+target_link_libraries(benchmark2 mds2_jni)
+set_target_properties(benchmark2 PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
+target_link_libraries(benchmark2 ${TBB_LIBRARIES})
+target_link_libraries(benchmark2 boost_program_options)
 
-   add_executable(benchmark-san src/benchmark.cpp)
-   set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "-fsanitize=address")
-   set_target_properties(benchmark-san PROPERTIES LINK_FLAGS "-fsanitize=address")
-   set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "${SSE_FLAGS}")
-   target_link_libraries(benchmark-san mds_jni)
-   target_link_libraries(benchmark-san ${TBB_LIBRARIES})
-   target_link_libraries(benchmark-san boost_program_options)
+# add_executable(benchmark-san src/benchmark.cpp)
+# set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "-fsanitize=address")
+# set_target_properties(benchmark-san PROPERTIES LINK_FLAGS "-fsanitize=address")
+# set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "${SSE_FLAGS}")
+# target_link_libraries(benchmark-san mds_jni)
+# target_link_libraries(benchmark-san ${TBB_LIBRARIES})
+# target_link_libraries(benchmark-san boost_program_options)
 
 add_executable(testme src/test.cpp)
 
-   ##
+##
 # Packaging
 ##
 include(${CMAKE_CURRENT_SOURCE_DIR}/CPack.txt)
