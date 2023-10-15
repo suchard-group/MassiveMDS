@@ -147,13 +147,13 @@ if (JNI_FOUND)
    ##
    # Build boost program_options for benchmark
    ##
-   INCLUDE("${CMAKE_MODULE_PATH}/build_boost_headers.cmake")
-   file(GLOB BOOST_PO_FILES
-           "${BoostHeaders_INCLUDE_DIRS}/libs/program_options/src/*.cpp"
-           )
+#   INCLUDE("${CMAKE_MODULE_PATH}/build_boost_headers.cmake")
+#   file(GLOB BOOST_PO_FILES
+#           "${BoostHeaders_INCLUDE_DIRS}/libs/program_options/src/*.cpp"
+#           )
    include_directories(${BoostHeaders_INCLUDE_DIRS})
    include_directories(${xsimd_INCLUDE_DIRS})
-   add_library(boost_program_options ${BOOST_PO_FILES})
+#   add_library(boost_program_options ${BOOST_PO_FILES})
 
    IF(${BUILD_NOSIMD})
        ADD_SUBDIRECTORY(src/backend/nosimd)
@@ -212,7 +212,7 @@ add_executable(benchmark2 src/benchmark2.cpp)
 target_link_libraries(benchmark2 mds2_jni)
 set_target_properties(benchmark2 PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
 target_link_libraries(benchmark2 ${TBB_LIBRARIES})
-target_link_libraries(benchmark2 boost_program_options)
+# target_link_libraries(benchmark2 boost_program_options)
 
 # add_executable(benchmark-san src/benchmark.cpp)
 # set_target_properties(benchmark-san PROPERTIES COMPILE_FLAGS "-fsanitize=address")

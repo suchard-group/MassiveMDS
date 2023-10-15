@@ -4,7 +4,9 @@
 #include <iostream>
 #include <fstream>
 
-#include <boost/program_options.hpp>
+//#include <boost/program_options.hpp>
+
+#include "cxxopts.hpp"
 
 #ifdef USE_TBB
 	#define TBB_PREVIEW_GLOBAL_CONTROL 1
@@ -24,43 +26,33 @@ void generateLocation(T& locations, D& d, PRNG& prng) {
 	}
 }
 
-//double getGradient
-
 int main(int argc, char* argv[]) {
 
 	// Set-up CLI
-	namespace po = boost::program_options;
-	po::options_description desc("Allowed options");
-	desc.add_options()
-            ("help", "produce help message")
-            ("gpu", po::value<int>()->default_value(0), "number of GPU on which to run")
-            ("tbb", po::value<int>()->default_value(0), "use TBB with specified number of threads")
-            ("float", "run in single-precision")
-            ("truncation", "enable truncation")
-            ("iterations", po::value<int>()->default_value(1), "number of iterations")
-            ("row_locations", po::value<int>()->default_value(4), "number of row locations")
-	          ("column_locations", po::value<int>()->default_value(3), "number of column locations")
-            ("dimension", po::value<int>()->default_value(2), "number of dimensions")
-			      ("internal", "use internal dimension")
-			      ("missing", "allow for missing entries")
-            ("sse", "use hand-rolled SSE")
-            ("avx", "use hand-rolled AVX")
-            ("avx512", "use hand-rolled AVX-512")
-	;
-	po::variables_map vm;
 
-	try {
-		po::store(po::parse_command_line(argc, argv, desc), vm);
-		po::notify(vm);
-	} catch (std::exception& e) {
-		std::cout << desc << std::endl;
-		return 1;
-	}
+    cxxopts::Options options("benchmark2", "Benchmark row-by-column multidimensional scaling");
+    options.add_options()
+            ("h,help", "print usage")
+            ("g,gpu", "number of GPU on which to run", cxxopts::value<int>()->default_value("0"))
+            ("t,tbb", "use TBB with specified number of threads", cxxopts::value<int>()->default_value("0"))
+            ("f,float", "run in single-precision")
+            ("x,truncation", "enable truncation")
+            ("i,iterations", "number of iterations", cxxopts::value<int>()->default_value("1"))
+            ("r,row_locations", "number of row locations", cxxopts::value<int>()->default_value("4"))
+            ("c,column_locations", "number of column locations", cxxopts::value<int>()->default_value("3"))
+            ("d,dimension", "number of dimensions", cxxopts::value<int>()->default_value("2"))
+            ("internal", "use internal dimension", cxxopts::value<bool>()->default_value("false"))
+            ("missing", "allow for missing entries", cxxopts::value<bool>()->default_value("false"))
+            ("sse", "use hand-rolled SSE", cxxopts::value<bool>()->default_value("false"))
+            ("avx", "use hand-rolled AVX", cxxopts::value<bool>()->default_value("false"))
+            ("avx512", "use hand-rolled AVX-512", cxxopts::value<bool>()->default_value("false"))
+            ;
 
-	if (vm.count("help")) {
-		std::cout << desc << std::endl;
-		return 1;
-	}
+    auto result = options.parse(argc, argv);
+    if (result.count("help")) {
+        std::cout << options.help() << std::endl;
+        exit(0);
+    }
 
 	long seed = 666L;
 
@@ -69,9 +61,9 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "Loading data" << std::endl;
 
-	int embeddingDimension = vm["dimension"].as<int>();
-	int rowLocationCount = vm["row_locations"].as<int>();
-	int columnLocationCount = vm["column_locations"].as<int>();
+    int embeddingDimension = result["dimension"].as<int>();
+    int rowLocationCount = result["row_locations"].as<int>();
+    int columnLocationCount = result["column_locations"].as<int>();
 
 	bool updateAllLocations = true;
 
@@ -89,14 +81,13 @@ int main(int argc, char* argv[]) {
 
   int deviceNumber = -1;
   int threads = 0;
-	if (vm["gpu"].as<int>() > 0) {
+    if (result["gpu"].as<int>() > 0) {
 		std::cout << "Running on GPU" << std::endl;
 		flags |= mds::Flags::OPENCL;
-        deviceNumber = vm["gpu"].as<int>() - 1;
+        deviceNumber = result["gpu"].as<int>() - 1;
 	} else {
 		std::cout << "Running on CPU" << std::endl;
-
-		threads = vm["tbb"].as<int>();
+		threads = result["tbb"].as<int>();
 		if (threads != 0) {
 #ifdef USE_TBB		
 			std::cout << "Using TBB with " << threads << " out of "
@@ -108,7 +99,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	if (vm.count("float")) {
+	if (result["float"].as<bool>()) {
 		std::cout << "Running in single-precision" << std::endl;
 		flags |= mds::Flags::FLOAT;
 	} else {
@@ -117,15 +108,15 @@ int main(int argc, char* argv[]) {
 
     int simdCount = 0;
     auto simd = "no simd";
-    if (vm.count("sse")){
+    if (result["sse"].as<bool>()){
         ++simdCount;
         simd = "sse";
     }
-    if (vm.count("avx")){
+    if (result["avx"].as<bool>()){
         ++simdCount;
         simd = "avx";
     }
-    if (vm.count("avx512")){
+    if (result["avx512"].as<bool>()){
         ++simdCount;
         simd = "avx512";
     }
@@ -139,7 +130,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "Can not request more than one SIMD simultaneously" << std::endl;
             exit(-1);
         }
-        if (vm.count("avx512")) {
+        if (result["avx512"].as<bool>()) {
 #ifndef USE_AVX512
             std::cerr << "AVX-512 is not implemented" << std::endl;
             exit(-1);
@@ -147,7 +138,7 @@ int main(int argc, char* argv[]) {
             flags |= mds::Flags::AVX512;
 #endif // USE_AVX512
 
-		} else if (vm.count("avx")) {
+		} else if (result["avx"].as<bool>()) {
 #ifndef USE_AVX
 			std::cerr << "AVX is not implemented" << std::endl;
 			exit(-1);
@@ -161,13 +152,13 @@ int main(int argc, char* argv[]) {
 	}
 
 	bool truncation = false;
-	if (vm.count("truncation")) {
+	if (result["truncation"].as<bool>()) {
 		std::cout << "Enabling truncation" << std::endl;
 		flags |= mds::Flags::LEFT_TRUNCATION;
 		truncation = true;
 	}
 
-	bool internalDimension = vm.count("internal");
+	bool internalDimension = result["internal"].as<bool>();
 
 	std::cerr << "dim = " << embeddingDimension << "\n" <<
 	  "row_locations = " << rowLocationCount << "\n" <<
@@ -177,7 +168,7 @@ int main(int argc, char* argv[]) {
 
 	mds::SharedPtr instance = mds::factory(embeddingDimension, layout, flags, deviceNumber, threads);
 
-	bool missing = vm.count("missing");
+	bool missing = result["missing"].as<bool>();
 	if (missing) {
         std::cout << "Allowing for missingness" << std::endl;
 	}
@@ -233,7 +224,7 @@ int main(int argc, char* argv[]) {
 	std::cout << "Starting MDS benchmark" << std::endl;
 	auto startTime = std::chrono::steady_clock::now();
 
-	int iterations = vm["iterations"].as<int>();
+	int iterations = result["iterations"].as<int>();
 
 	double timer = 0;
     double timer2 = 0;
