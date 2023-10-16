@@ -4,8 +4,6 @@
 #include <iostream>
 #include <fstream>
 
-//#include <boost/program_options.hpp>
-
 #include "cxxopts.hpp"
 
 #ifdef USE_TBB
@@ -48,7 +46,16 @@ int main(int argc, char* argv[]) {
             ("avx512", "use hand-rolled AVX-512", cxxopts::value<bool>()->default_value("false"))
             ;
 
-    auto result = options.parse(argc, argv);
+    cxxopts::ParseResult result;
+
+    try {
+        result = options.parse(argc, argv);
+    } catch (const cxxopts::exceptions::exception& e) {
+        std::cout << e.what()  << std::endl << std::endl;
+        std::cout << options.help() << std::endl;
+        exit(-1);
+    }
+
     if (result.count("help")) {
         std::cout << options.help() << std::endl;
         exit(0);
