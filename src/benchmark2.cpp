@@ -19,8 +19,8 @@ template <typename T, typename PRNG, typename D>
 void generateLocation(T& locations, D& d, PRNG& prng) {
   int i = 1;
 	for (auto& location : locations) {
-//		location = d(prng);
-        location = i++;
+		location = d(prng);
+//        location = i++;
 	}
 }
 
@@ -167,10 +167,6 @@ int main(int argc, char* argv[]) {
 
 	bool internalDimension = result["internal"].as<bool>();
 
-	std::cerr << "dim = " << embeddingDimension << "\n" <<
-	  "row_locations = " << rowLocationCount << "\n" <<
-	    "column_locations = " << columnLocationCount << "\n";
-
 	mds::Layout layout = mds::Layout(rowLocationCount, columnLocationCount);
 
 	mds::SharedPtr instance = mds::factory(embeddingDimension, layout, flags, deviceNumber, threads);
@@ -182,7 +178,7 @@ int main(int argc, char* argv[]) {
 
 	auto elementCount = rowLocationCount * columnLocationCount;
 	std::vector<double> data(elementCount);
-	int fixed = 1;
+	//int fixed = 1;
 	for (int i = 0; i < rowLocationCount; ++i) {
 	    for (int j = 0; j < columnLocationCount; ++j) {
 
@@ -192,7 +188,7 @@ int main(int argc, char* argv[]) {
 	        if (missing && toss(prng2)) {
 	            distance = NAN;
 	        }
-	        distance = fixed++;
+	        //distance = fixed++;
 	        data[i * columnLocationCount + j] = distance;
 	    }
 	}
@@ -221,7 +217,7 @@ int main(int argc, char* argv[]) {
 	instance->makeDirty();
 	auto logLik = instance->getSumOfIncrements();
 
-    std::vector<double> gradient((rowLocationCount + columnLocationCount) * dataDimension);
+    std::vector<double> gradient((rowLocationCount + columnLocationCount) * dataDimension, 0.0);
 
     instance->getLogLikelihoodGradient(gradient.data(),
                                        (rowLocationCount + columnLocationCount) *
@@ -256,8 +252,6 @@ int main(int argc, char* argv[]) {
 
 		double inc = instance->getSumOfIncrements();
 		logLik += inc;
-
-		std::cerr << "inc = " << inc << "\n";
 
 // 		if (truncation) {
 // 			double trunc = instance->getSumOfLogTruncations();
