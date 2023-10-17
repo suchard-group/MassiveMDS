@@ -8,8 +8,8 @@
 
 #if defined(__clang__) && defined(__has_warning)
 # if __has_warning( "-Wc11-extensions" )
- #  pragma clang diagnostic ignored "-Wc11-extensions"
- # endif
+#  pragma clang diagnostic ignored "-Wc11-extensions"
+# endif
 #endif
 
 #include <iostream>
@@ -36,13 +36,12 @@
 #define TILE_DIM 16
 
 #define TILE_DIM_I  128
-//#define TILE_DIM_J  128
 #define TPB 128
 #define DELTA 1;
 
 #define USE_VECTOR
 
-#define DEBUG_KERNELS
+//#define DEBUG_KERNELS
 
 #include "OpenCLMemoryManagement.hpp"
 #include "Reducer.hpp"
@@ -67,7 +66,6 @@ public:
 
           observations(layout.observationCount),
           transposedData(layout.isSymmetric() ? 0 : layout.observationCount),
-//          transposedObservations(layout.isSymmetric() ? 0 : layout.observationCount),
 
           locations0(layout.uniqueLocationCount * OpenCLRealType::dim),
 		  locations1(layout.uniqueLocationCount * OpenCLRealType::dim),
@@ -78,10 +76,7 @@ public:
           storedSquaredResiduals(layout.uniqueLocationCount),
 
           isStoredSquaredResidualsEmpty(false),
-          isStoredTruncationsEmpty(false)//,
-//          isStoredAllTruncationsEmpty(false)
-
-//           , nThreads(4) //, pool(nThreads)
+          isStoredTruncationsEmpty(false)
     {
 #ifdef RBUILD
 // TODO Remove code-duplication with immediately below (after #else)
@@ -146,7 +141,7 @@ public:
           std::cerr << "Error: selected device not GPU." << std::endl;
           exit(-1);
       } else {
-          std::cerr << "Using: " << device.name() << std::endl;
+          std::cerr << "Using: " << device.name();
       }
 
       ctx = boost::compute::context(device, 0);
@@ -159,13 +154,8 @@ public:
           dTransposedObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
       }
 
-      std::cerr << "\twith vector-dim = " << OpenCLRealType::dim << std::endl;
+      std::cerr << " with vector-dim = " << OpenCLRealType::dim << std::endl;
 #endif //RBUILD
-
-//		if (embeddingDimension != OpenCLRealType::dim) {
-//			std::cerr << "Currently only implemented for embedding dimension == VectorDimension" << std::endl;
-//			exit(-1);
-//		}
 
 #ifdef USE_VECTORS
 		dLocations0 = mm::GPUMemoryManager<VectorType>(layout.uniqueLocationCount, ctx);
@@ -199,18 +189,6 @@ public:
 
 		createOpenCLKernels();
     }
-
-//    virtual ~OpenCLMultiDimensionalScaling() override {
-//#ifdef RBUILD
-//      Rcpp::Rcout << "timer1 = " << timer1 << std::endl;
-//      Rcpp::Rcout << "timer2 = " << timer2 << std::endl;
-//      Rcpp::Rcout << "timer3 = " << timer3 << std::endl;
-//#else
-//    	std::cout << "timer1 = " << timer1 << std::endl;
-//    	std::cout << "timer2 = " << timer2 << std::endl;
-//    	std::cout << "timer3 = " << timer3 << std::endl;
-//#endif
-//    }
 
     void updateLocations(int locationIndex, double* location, size_t length) override {
 
@@ -347,32 +325,35 @@ public:
 #endif // DOUBLE_CHECK_GRADIENT
 
 		kernelGradientVector.set_arg(0, *dLocationsPtr);
-        kernelGradientVector.set_arg(1, dObservations);
 		kernelGradientVector.set_arg(3, static_cast<RealType>(precision));
 
         using uint_ = boost::compute::uint_;
 
-        // Row locations first
-        kernelGradientVector.set_arg(4, uint_(layout.rowLocationCount));
-        kernelGradientVector.set_arg(5, uint_(layout.columnLocationCount));
-        kernelGradientVector.set_arg(6, uint_(0));
-        kernelGradientVector.set_arg(7, uint_(layout.columnLocationOffset));
-        kernelGradientVector.set_arg(8, uint_(0));
+        if (!layout.isSymmetric()) {
+            // Row locations first
+            kernelGradientVector.set_arg(1, dObservations);
+            kernelGradientVector.set_arg(4, uint_(layout.rowLocationCount));
+            kernelGradientVector.set_arg(5, uint_(layout.columnLocationCount));
+            kernelGradientVector.set_arg(6, uint_(0));
+            kernelGradientVector.set_arg(7, uint_(layout.columnLocationOffset));
+            kernelGradientVector.set_arg(8, uint_(0));
+        }
 
 		queue.enqueue_1d_range_kernel(kernelGradientVector, 0,
                                       static_cast<unsigned int>(layout.rowLocationCount) * TPB, TPB);
 
-        // Column locations second
-        kernelGradientVector.set_arg(1, dTransposedObservations);
-        kernelGradientVector.set_arg(4, uint_(layout.columnLocationCount));
-        kernelGradientVector.set_arg(5, uint_(layout.rowLocationCount));
-        kernelGradientVector.set_arg(6, uint_(layout.columnLocationOffset));
-        kernelGradientVector.set_arg(7, uint_(0));
-        kernelGradientVector.set_arg(8, uint_(layout.rowLocationCount));
+        if (!layout.isSymmetric()) {
+            // Column locations second
+            kernelGradientVector.set_arg(1, dTransposedObservations);
+            kernelGradientVector.set_arg(4, uint_(layout.columnLocationCount));
+            kernelGradientVector.set_arg(5, uint_(layout.rowLocationCount));
+            kernelGradientVector.set_arg(6, uint_(layout.columnLocationOffset));
+            kernelGradientVector.set_arg(7, uint_(0));
+            kernelGradientVector.set_arg(8, uint_(layout.rowLocationCount));
 
-        queue.enqueue_1d_range_kernel(kernelGradientVector, 0,
-                                      static_cast<unsigned int>(layout.columnLocationCount) * TPB, TPB);
-        
+            queue.enqueue_1d_range_kernel(kernelGradientVector, 0,
+                                          static_cast<unsigned int>(layout.columnLocationCount) * TPB, TPB);
+        }
         queue.finish();
 
         if (length == layout.uniqueLocationCount * OpenCLRealType::dim) {
@@ -534,13 +515,6 @@ public:
     	}
     }
 
-//     double getDiagnostic() {
-//         return std::accumulate(
-//             begin(squaredResiduals),
-//             end(squaredResiduals),
-//             RealType(0));
-//     }
-
     void acceptState() override {
         if (!isStoredSquaredResidualsEmpty) {
             const int count = layout.uniqueLocationCount;
@@ -620,11 +594,6 @@ public:
 
     // TODO use layout.observationStride
 
-
-//    RealType getNan();
-    double getNan(double) { return std::nan(""); }
-    float getNan(float) { return std::nanf(""); }
-
     void setPairwiseData(double* data, size_t length) override {
 		assert(length == observations.size());
 
@@ -635,8 +604,6 @@ public:
         }
 
 		mm::bufferedCopy(data, data + length, begin(observations), buffer);
-
-
 
 		// COMPUTE
 		mm::bufferedCopyToDevice(data, data + length, dObservations.begin(),
@@ -727,13 +694,9 @@ public:
 		if (count > 1) timer1 += std::chrono::duration<double, std::milli>(duration1).count();
 #endif // DOUBLE_CHECK
 
-//		std::cerr << "HERE2" << std::endl;
-		//exit(-1);
-
 		// COMPUTE TODO
 		auto startTime2 = std::chrono::steady_clock::now();
 
-// 		std::cerr << "Prepare for launch..." << std::endl;
 #ifdef USE_VECTORS
         const int rowCount = layout.rowLocationCount;
         const int colCount = layout.columnLocationCount;
@@ -756,13 +719,7 @@ public:
         }
 		const size_t global_work_size[2] = {col_work_groups * TILE_DIM, row_work_groups * TILE_DIM};
 
-	//	std::cerr << "HERE3" << std::endl;
-		//exit(-1);
-
-		//queue.enqueue_1d_range_kernel(kernelSumOfSquaredResidualsVector, 0, locationCount * locationCount, 0);
 		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, 0, global_work_size, local_work_size);
-		//std::cerr << "HERE4" << std::endl;
-		//exit(-1);
 
 #else
         std::cerr << "Not yet implemented" << std::endl;
@@ -771,33 +728,18 @@ public:
 		queue.enqueue_1d_range_kernel(kernelSumOfSquaredResiduals, 0, locationCount * locationCount, 0);
 #endif // USE_VECTORS
 
-		//std::cerr << "HERE4" << std::endl;
 		queue.finish();
-		//std::cerr << "HERE5" << std::endl;
 		auto duration2 = std::chrono::steady_clock::now() - startTime2;
 		if (count > 1) timer2 += std::chrono::duration<double, std::milli>(duration2).count();
 
 
         auto startTime3 = std::chrono::steady_clock::now();
-// 		std::cerr << "Done with transform." << std::endl;
 		RealType sum = RealType(0.0);
-		//boost::compute::reduce_fast(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
 		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
-//		std::cerr << "HERE6" << std::endl;
-
-// 		if (isLeftTruncated) {
-// 			RealType sum2 = RealType(0.0);
-// 			boost::compute::reduce(dTruncations.begin(), dTruncations.end(), &sum2, queue);
-// 			lSumOfTruncations = sum2;
-// 		}
 
 		queue.finish();
 		auto duration3 = std::chrono::steady_clock::now() - startTime3;
 		if (count > 1) timer3 += std::chrono::duration<double, std::milli>(duration3).count();
-
-
-//		RealType tmp = std::accumulate(begin(squaredResiduals), end(squaredResiduals), RealType(0.0));
-
 
 #ifdef DOUBLE_CHECK
 #ifdef RBUILD
@@ -817,51 +759,8 @@ public:
 //         }
 //         exit(-1);
 
-
-//  		std::cerr << tmp << std::endl << std::endl;
-//
-// 		auto d = calculateDistance<mm::MemoryManager<RealType>>(
-// 					begin(*locationsPtr) + 0 * OpenCLRealType::dim,
-// 					begin(*locationsPtr) + 10 * OpenCLRealType::dim
-// 				);
-//
-// 		std::cerr << d << std::endl;
-//
-// 		std::cerr << dSquaredResiduals[10] << std::endl;
-//
-// 		std::cerr << squaredResiduals[0 * locationCount + 10] << std::endl << std::endl;
-//
-// 		std::cerr << (dSquaredResiduals[10] - d) << std::endl << std::endl;
-//
-//
-// 		std::cerr << dSquaredResiduals[locationCount * locationCount - 2] << std::endl;
-// 		std::cerr << squaredResiduals[locationCount * locationCount - 2] << std::endl << std::endl;
-
-// 		for (int i = 0; i < locationCount * locationCount; ++i) {
-// 			if (squaredResiduals[i] != dSquaredResiduals[i]) {
-// 				std::cerr << i << " " << (squaredResiduals[i] - dSquaredResiduals[i]) << std::endl;
-// 			}
-// 			if (i == 100) exit(-1);
-// 		}
-//
-// 		exit(-1);
-// 		std::cerr << "Sum = " << sum << std::endl;
-
 	    lSumOfSquaredResiduals = sum;
-	    // lSumOfTruncations =
-
-		//
-
-//    	lSumOfSquaredResiduals /= 2.0;
     	sumOfSquaredResiduals = lSumOfSquaredResiduals;
-
-//     	if (withTruncation) {
-//     		lSumOfTruncations /= 2.0;
-//     		sumOfTruncations = lSumOfTruncations;
-//     	}
-
-// 		std::cerr << lSumOfSquaredResiduals << " " << lSumOfTruncations << std::endl;
-// 		exit(-1);
 
 	    incrementsKnown = true;
 	    sumOfIncrementsKnown = true;
@@ -870,7 +769,6 @@ public:
 	}
 
 	void updateSumOfSquaredResiduals() {
-		// double delta = 0.0;
 
         std::cerr << "Not yet implemented" << std::endl;
         exit(-1);
@@ -917,9 +815,6 @@ public:
 		sumOfSquaredResiduals += delta;
 #endif
 	}
-
-// 	int count = 0
-//	int count2 = 0;
 
 	void updateSumOfSquaredResidualsAndTruncations() {
 
@@ -1466,7 +1361,6 @@ private:
     boost::compute::command_queue queue;
 
     mm::MemoryManager<RealType> observations;
-//    mm::MemoryManager<RealType> transposedObservations;
     std::vector<double> transposedData;
 
     mm::MemoryManager<RealType> locations0;
@@ -1527,14 +1421,6 @@ private:
 	double timer1 = 0;
 	double timer2 = 0;
 	double timer3 = 0;
-
-
-//     bool isStoredAllTruncationsEmpty;
-
-//     int nThreads;
-//     ThreadPool pool;
-
-
 };
 
 } // namespace mds
