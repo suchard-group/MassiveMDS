@@ -49,7 +49,7 @@ SharedPtr factory(int dim1, Layout layout, long flags, int device, int threads) 
 	bool useFloat = flags & mds::Flags::FLOAT;
 	bool useOpenCL = flags & mds::Flags::OPENCL;
 	bool useTbb = flags & mds::Flags::TBB;
-  bool useAvx512 = flags & mds::Flags::AVX512;
+    bool useAvx512 = flags & mds::Flags::AVX512;
 	bool useAvx = flags & mds::Flags::AVX;
 	bool useSse = flags & mds::Flags::SSE;
 
@@ -58,6 +58,8 @@ SharedPtr factory(int dim1, Layout layout, long flags, int device, int threads) 
 #ifdef HAVE_OPENCL
 			return constructOpenCLMultiDimensionalScalingFloat(dim1, layout, flags, device);
 #else
+            std::cerr << "Not compiled with OpenCL" << std::endl;
+            exit(-1);
 		  return constructNewMultiDimensionalScalingFloatNoParallelNoSimd(dim1, layout, flags, threads);
 #endif
 		} else {
@@ -84,6 +86,8 @@ SharedPtr factory(int dim1, Layout layout, long flags, int device, int threads) 
 #ifdef HAVE_OPENCL
 			return constructOpenCLMultiDimensionalScalingDouble(dim1, layout, flags, device);
 #else
+            std::cerr << "Not compiled with OpenCL" << std::endl;
+            exit(-1);
 		  return constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(dim1, layout, flags, threads);
 #endif
 		} else {

@@ -1,6 +1,17 @@
 #ifndef _OPENCL_MULTIDIMENSIONAL_SCALING_HPP
 #define _OPENCL_MULTIDIMENSIONAL_SCALING_HPP
 
+// Turn off warning about Atomics from older BOOST
+#if defined(__clang__)
+# pragma clang diagnostic push
+#endif
+
+#if defined(__clang__) && defined(__has_warning)
+# if __has_warning( "-Wc11-extensions" )
+ #  pragma clang diagnostic ignored "-Wc11-extensions"
+ # endif
+#endif
+
 #include <iostream>
 #include <cmath>
 
@@ -47,22 +58,22 @@ public:
 	typedef typename OpenCLRealType::BaseType RealType;
 	typedef typename OpenCLRealType::VectorType VectorType;
 
-    OpenCLMultiDimensionalScaling(int embeddingDimension, int locationCount, long flags, int deviceNumber)
-        : AbstractMultiDimensionalScaling(embeddingDimension, locationCount, flags),
+    OpenCLMultiDimensionalScaling(int embeddingDimension, Layout layout, long flags, int deviceNumber)
+        : AbstractMultiDimensionalScaling(embeddingDimension, layout, flags),
           precision(0.0), storedPrecision(0.0),
           oneOverSd(0.0), storedOneOverSd(0.0),
           sumOfSquaredResiduals(0.0), storedSumOfSquaredResiduals(0.0),
           sumOfTruncations(0.0), storedSumOfTruncations(0.0),
 
-          observations(locationCount * locationCount),
+          observations(layout.rowLocationCount * layout.columnLocationCount),
 
-          locations0(locationCount * OpenCLRealType::dim),
-		  locations1(locationCount * OpenCLRealType::dim),
+          locations0(layout.uniqueLocationCount * OpenCLRealType::dim),
+		  locations1(layout.uniqueLocationCount * OpenCLRealType::dim),
 		  locationsPtr(&locations0),
 		  storedLocationsPtr(&locations1),
 
-          squaredResiduals(locationCount * locationCount),
-          storedSquaredResiduals(locationCount),
+          squaredResiduals(layout.rowLocationCount * layout.columnLocationCount),
+          storedSquaredResiduals(layout.uniqueLocationCount),
 
           isStoredSquaredResidualsEmpty(false),
           isStoredTruncationsEmpty(false)//,
@@ -148,9 +159,9 @@ public:
 //		}
 
 #ifdef USE_VECTORS
-		dLocations0 = mm::GPUMemoryManager<VectorType>(locationCount, ctx);
-		dLocations1 = mm::GPUMemoryManager<VectorType>(locationCount, ctx);
-		dGradient   = mm::GPUMemoryManager<VectorType>(locationCount, ctx);
+		dLocations0 = mm::GPUMemoryManager<VectorType>(layout.uniqueLocationCount, ctx);
+		dLocations1 = mm::GPUMemoryManager<VectorType>(layout.uniqueLocationCount, ctx);
+		dGradient   = mm::GPUMemoryManager<VectorType>(layout.uniqueLocationCount, ctx);
 #else
 		dLocations0 = mm::GPUMemoryManager<RealType>(locations0.size(), ctx);
 		dLocations1 = mm::GPUMemoryManager<RealType>(locations1.size(), ctx);
@@ -170,8 +181,8 @@ public:
     		std::cout << "Using left truncation" << std::endl;
 #endif
 
-    		truncations.resize(locationCount * locationCount);
-    		storedTruncations.resize(locationCount);
+    		truncations.resize(layout.rowLocationCount * layout.columnLocationCount);
+    		storedTruncations.resize(layout.uniqueLocationCount);
 
     		dTruncations = mm::GPUMemoryManager<RealType>(truncations.size(), ctx);
     		dStoredTruncations = mm::GPUMemoryManager<RealType>(storedTruncations.size(), ctx);
@@ -199,8 +210,8 @@ public:
 
 		if (locationIndex == -1) {
 			// Update all locations
-			assert(length == OpenCLRealType::dim * locationCount ||
-                    length == embeddingDimension * locationCount);
+			assert(length == OpenCLRealType::dim * layout.uniqueLocationCount ||
+                    length == embeddingDimension * layout.uniqueLocationCount);
 
 			incrementsKnown = false;
 			isStoredSquaredResidualsEmpty = true;
@@ -234,9 +245,9 @@ public:
 
                 mm::paddedBufferedCopy(location, embeddingDimension, embeddingDimension,
                                        begin(*locationsPtr) + offset, OpenCLRealType::dim,
-                                       locationCount, buffer);
+                                       layout.uniqueLocationCount, buffer);
 
-                length = OpenCLRealType::dim * locationCount; // New padded length
+                length = OpenCLRealType::dim * layout.uniqueLocationCount; // New padded length
 
             } else {
 
@@ -330,10 +341,10 @@ public:
 		kernelGradientVector.set_arg(3, static_cast<RealType>(precision));
 
 		queue.enqueue_1d_range_kernel(kernelGradientVector, 0,
-                                      static_cast<unsigned int>(locationCount) * TPB, TPB);
+                                      static_cast<unsigned int>(layout.uniqueLocationCount) * TPB, TPB);
 		queue.finish();
 
-        if (length == locationCount * OpenCLRealType::dim) {
+        if (length == layout.uniqueLocationCount * OpenCLRealType::dim) {
 
             mm::bufferedCopyFromDevice<OpenCLRealType>(dGradient.begin(), dGradient.end(),
                                        result, buffer, queue);
@@ -341,8 +352,8 @@ public:
 
         } else {
 
-            if (doubleBuffer.size() != locationCount * OpenCLRealType::dim) {
-                doubleBuffer.resize(locationCount * OpenCLRealType::dim);
+            if (doubleBuffer.size() != layout.uniqueLocationCount * OpenCLRealType::dim) {
+                doubleBuffer.resize(layout.uniqueLocationCount * OpenCLRealType::dim);
             }
 
             mm::bufferedCopyFromDevice<OpenCLRealType>(dGradient.begin(), dGradient.end(),
@@ -351,7 +362,7 @@ public:
 
             mm::paddedBufferedCopy(begin(doubleBuffer), OpenCLRealType::dim, embeddingDimension,
                                    result, embeddingDimension,
-                                   locationCount, buffer);
+                                   layout.uniqueLocationCount, buffer);
         }
 
 #ifdef DOUBLE_CHECK_GRADIENT
@@ -501,15 +512,16 @@ public:
 
     void acceptState() override {
         if (!isStoredSquaredResidualsEmpty) {
-    		for (int j = 0; j < locationCount; ++j) {
-    			squaredResiduals[j * locationCount + updatedLocation] = squaredResiduals[updatedLocation * locationCount + j];
+            const int count = layout.uniqueLocationCount;
+    		for (int j = 0; j < count; ++j) {
+    			squaredResiduals[j * count + updatedLocation] = squaredResiduals[updatedLocation * count + j];
     		}
 
     		// COMPUTE TODO
 
     		if (isLeftTruncated) {
-                for (int j = 0; j < locationCount; ++j) {
-	    			truncations[j * locationCount + updatedLocation] = truncations[updatedLocation * locationCount + j];
+                for (int j = 0; j < count; ++j) {
+	    			truncations[j * count + updatedLocation] = truncations[updatedLocation * count + j];
 	    		}
 
 	    		// COMPUTE TODO
@@ -522,17 +534,18 @@ public:
     	sumOfIncrementsKnown = true;
 
 		if (!isStoredSquaredResidualsEmpty) {
+            const int count = layout.uniqueLocationCount;
     		std::copy(
     			begin(storedSquaredResiduals),
     			end(storedSquaredResiduals),
-    			begin(squaredResiduals) + updatedLocation * locationCount
+    			begin(squaredResiduals) + updatedLocation * count
     		);
 
     		// COMPUTE
     		boost::compute::copy(
     			dStoredSquaredResiduals.begin(),
     			dStoredSquaredResiduals.end(),
-    			dSquaredResiduals.begin() + updatedLocation * locationCount, queue
+    			dSquaredResiduals.begin() + updatedLocation * count, queue
     		);
 
     		incrementsKnown = true;
@@ -548,14 +561,14 @@ public:
 	    		std::copy(
 	    			begin(storedTruncations),
 	    			end(storedTruncations),
-	    			begin(truncations) + updatedLocation * locationCount
+	    			begin(truncations) + updatedLocation * count
 	    		);
 
 	    		// COMPUTE
 	    		boost::compute::copy(
 	    			dStoredTruncations.begin(),
 	    			dStoredTruncations.end(),
-	    			dTruncations.begin() + updatedLocation * locationCount, queue
+	    			dTruncations.begin() + updatedLocation * count, queue
 	    		);
 	    	}
 	    }
@@ -661,6 +674,9 @@ public:
 
 // 		std::cerr << "Prepare for launch..." << std::endl;
 #ifdef USE_VECTORS
+        const int rowCount = layout.rowLocationCount;
+        const int colCount = layout.columnLocationCount;
+
 		kernelSumOfSquaredResidualsVector.set_arg(0, *dLocationsPtr);
 
 		if (isLeftTruncated) {
@@ -669,11 +685,15 @@ public:
 		}
 
 		const size_t local_work_size[2] = {TILE_DIM, TILE_DIM};
-		size_t work_groups = locationCount / TILE_DIM;
-		if (locationCount % TILE_DIM != 0) {
-			++work_groups;
+		size_t row_work_groups = rowCount / TILE_DIM;
+		if (rowCount % TILE_DIM != 0) {
+			++row_work_groups;
 		}
-		const size_t global_work_size[2] = {work_groups * TILE_DIM, work_groups * TILE_DIM};
+        size_t col_work_groups = colCount / TILE_DIM;
+        if (colCount % TILE_DIM != 0) {
+            ++col_work_groups;
+        }
+		const size_t global_work_size[2] = {row_work_groups * TILE_DIM, col_work_groups * TILE_DIM};
 
 	//	std::cerr << "HERE3" << std::endl;
 		//exit(-1);
@@ -684,6 +704,8 @@ public:
 		//exit(-1);
 
 #else
+        std::cerr << "Not yet implemented" << std::endl;
+        exit(-1);
 		kernelSumOfSquaredResiduals.set_arg(0, *dLocationsPtr);
 		queue.enqueue_1d_range_kernel(kernelSumOfSquaredResiduals, 0, locationCount * locationCount, 0);
 #endif // USE_VECTORS
@@ -789,6 +811,10 @@ public:
 	void updateSumOfSquaredResiduals() {
 		// double delta = 0.0;
 
+        std::cerr << "Not yet implemented" << std::endl;
+        exit(-1);
+
+#if 0
 		const int i = updatedLocation;
 		isStoredSquaredResidualsEmpty = false;
 
@@ -828,6 +854,7 @@ public:
 		// COMPUTE TODO
 
 		sumOfSquaredResiduals += delta;
+#endif
 	}
 
 // 	int count = 0
@@ -835,6 +862,10 @@ public:
 
 	void updateSumOfSquaredResidualsAndTruncations() {
 
+        std::cerr << "Not yet implemented." << std::endl;
+        exit(-1);
+
+#if 0
 		const int i = updatedLocation;
 		isStoredSquaredResidualsEmpty = false;
 		isStoredTruncationsEmpty = false;
@@ -884,6 +915,7 @@ public:
 
 		sumOfSquaredResiduals += delta.real();
  		sumOfTruncations += delta.imag();
+#endif
 	}
 
 #ifdef SSE
@@ -1173,8 +1205,9 @@ public:
 			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(precision)); // Must update
 			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(oneOverSd)); // Must update
 		}
-		kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(locationCount));
-
+		kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(layout.rowLocationCount));
+        kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(layout.columnLocationCount));
+        kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(layout.columnLocationOffset));
 	}
 
 	void createOpenCLGradientKernel() {
@@ -1361,7 +1394,9 @@ public:
 		kernelGradientVector.set_arg(1, dObservations);
 		kernelGradientVector.set_arg(2, dGradient);
 		kernelGradientVector.set_arg(3, static_cast<RealType>(precision)); // Must update
-		kernelGradientVector.set_arg(4, boost::compute::uint_(locationCount));
+		kernelGradientVector.set_arg(4, boost::compute::uint_(layout.rowLocationCount));
+        kernelGradientVector.set_arg(5, boost::compute::uint_(layout.columnLocationCount));
+        kernelGradientVector.set_arg(6, boost::compute::uint_(layout.columnLocationOffset));
 	}
 
 	void createOpenCLKernels() {

@@ -44,9 +44,9 @@ SET(OPENCL_SOURCE_FILES
 	OpenCLMemoryManagement.hpp
 	Reducer.hpp
 	)
-ADD_LIBRARY(mds_opencl ${OPENCL_SOURCE_FILES})
-set_target_properties(mds_opencl PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
-TARGET_LINK_LIBRARIES(mds_opencl ${OpenCL_LIBRARIES})
+ADD_LIBRARY(mds2_opencl ${OPENCL_SOURCE_FILES})
+set_target_properties(mds2_opencl PROPERTIES COMPILE_FLAGS "${SIMD_FLAGS}")
+TARGET_LINK_LIBRARIES(mds2_opencl ${OpenCL_LIBRARIES})
 
 #ADD_EXECUTABLE(test test.cpp)
 #MESSAGE(STATUS "OCL lib: ${OpenCL_LIBRARIES}")

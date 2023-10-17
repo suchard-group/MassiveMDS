@@ -12,15 +12,15 @@ namespace mds {
 
 // factory
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, int locationCount, long flags, int device) {
+    constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, Layout layout, long flags, int device) {
         if (embeddingDimension <= 2) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<2>>>(embeddingDimension, locationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<2>>>(embeddingDimension, layout.rowLocationCount,
                                                                                     flags, device);
         } else if (embeddingDimension <= 4) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<4>>>(embeddingDimension, locationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<4>>>(embeddingDimension, layout.rowLocationCount,
                                                                                     flags, device);
         } else if (embeddingDimension <= 8) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<8>>>(embeddingDimension, locationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<8>>>(embeddingDimension, layout.rowLocationCount,
                                                                                     flags, device);
         } else {
 #ifdef RBUILD
@@ -32,15 +32,15 @@ namespace mds {
     }
 
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, int locationCount, long flags, int device) {
+    constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, Layout layout, long flags, int device) {
         if (embeddingDimension <= 2) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<2>>>(embeddingDimension, locationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<2>>>(embeddingDimension, layout,
                                                                                    flags, device);
         } else if (embeddingDimension <= 4) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<4>>>(embeddingDimension, locationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<4>>>(embeddingDimension, layout,
                                                                                    flags, device);
         } else if (embeddingDimension <= 8) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<8>>>(embeddingDimension, locationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<8>>>(embeddingDimension, layout,
                                                                                    flags, device);
         } else {
 #ifdef RBUILD
