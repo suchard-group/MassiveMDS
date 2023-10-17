@@ -42,7 +42,7 @@
 
 #define USE_VECTOR
 
-//#define DEBUG_KERNELS
+#define DEBUG_KERNELS
 
 #include "OpenCLMemoryManagement.hpp"
 #include "Reducer.hpp"
@@ -65,14 +65,16 @@ public:
           sumOfSquaredResiduals(0.0), storedSumOfSquaredResiduals(0.0),
           sumOfTruncations(0.0), storedSumOfTruncations(0.0),
 
-          observations(layout.rowLocationCount * layout.columnLocationCount),
+          observations(layout.observationCount),
+          transposedData(layout.isSymmetric() ? 0 : layout.observationCount),
+//          transposedObservations(layout.isSymmetric() ? 0 : layout.observationCount),
 
           locations0(layout.uniqueLocationCount * OpenCLRealType::dim),
 		  locations1(layout.uniqueLocationCount * OpenCLRealType::dim),
 		  locationsPtr(&locations0),
 		  storedLocationsPtr(&locations1),
 
-          squaredResiduals(layout.rowLocationCount * layout.columnLocationCount),
+          squaredResiduals(layout.observationCount),
           storedSquaredResiduals(layout.uniqueLocationCount),
 
           isStoredSquaredResidualsEmpty(false),
@@ -82,6 +84,7 @@ public:
 //           , nThreads(4) //, pool(nThreads)
     {
 #ifdef RBUILD
+// TODO Remove code-duplication with immediately below (after #else)
       Rcpp::Rcout << "ctor OpenCLMultiDimensionalScaling" << std::endl;
 
       Rcpp::Rcout << "All devices:" << std::endl;
@@ -113,6 +116,9 @@ public:
       };
 
       dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
+            if (!layout.isSymmetric()) {
+          dTransposedObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
+      }
 
       Rcpp::Rcout << "\twith vector-dim = " << OpenCLRealType::dim << std::endl;
 
@@ -149,6 +155,9 @@ public:
       };
 
       dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
+      if (!layout.isSymmetric()) {
+          dTransposedObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
+      }
 
       std::cerr << "\twith vector-dim = " << OpenCLRealType::dim << std::endl;
 #endif //RBUILD
@@ -181,7 +190,7 @@ public:
     		std::cout << "Using left truncation" << std::endl;
 #endif
 
-    		truncations.resize(layout.rowLocationCount * layout.columnLocationCount);
+    		truncations.resize(layout.observationCount);
     		storedTruncations.resize(layout.uniqueLocationCount);
 
     		dTruncations = mm::GPUMemoryManager<RealType>(truncations.size(), ctx);
@@ -338,11 +347,33 @@ public:
 #endif // DOUBLE_CHECK_GRADIENT
 
 		kernelGradientVector.set_arg(0, *dLocationsPtr);
+        kernelGradientVector.set_arg(1, dObservations);
 		kernelGradientVector.set_arg(3, static_cast<RealType>(precision));
 
+        using uint_ = boost::compute::uint_;
+
+        // Row locations first
+        kernelGradientVector.set_arg(4, uint_(layout.rowLocationCount));
+        kernelGradientVector.set_arg(5, uint_(layout.columnLocationCount));
+        kernelGradientVector.set_arg(6, uint_(0));
+        kernelGradientVector.set_arg(7, uint_(layout.columnLocationOffset));
+        kernelGradientVector.set_arg(8, uint_(0));
+
 		queue.enqueue_1d_range_kernel(kernelGradientVector, 0,
-                                      static_cast<unsigned int>(layout.uniqueLocationCount) * TPB, TPB);
-		queue.finish();
+                                      static_cast<unsigned int>(layout.rowLocationCount) * TPB, TPB);
+
+        // Column locations second
+        kernelGradientVector.set_arg(1, dTransposedObservations);
+        kernelGradientVector.set_arg(4, uint_(layout.columnLocationCount));
+        kernelGradientVector.set_arg(5, uint_(layout.rowLocationCount));
+        kernelGradientVector.set_arg(6, uint_(layout.columnLocationOffset));
+        kernelGradientVector.set_arg(7, uint_(0));
+        kernelGradientVector.set_arg(8, uint_(layout.rowLocationCount));
+
+        queue.enqueue_1d_range_kernel(kernelGradientVector, 0,
+                                      static_cast<unsigned int>(layout.columnLocationCount) * TPB, TPB);
+        
+        queue.finish();
 
         if (length == layout.uniqueLocationCount * OpenCLRealType::dim) {
 
@@ -587,13 +618,43 @@ public:
 
     }
 
+    // TODO use layout.observationStride
+
+
+//    RealType getNan();
+    double getNan(double) { return std::nan(""); }
+    float getNan(float) { return std::nanf(""); }
+
     void setPairwiseData(double* data, size_t length) override {
 		assert(length == observations.size());
+
+        if (layout.isSymmetric()) {
+            for (int i = 0; i < layout.rowLocationCount; ++i) {
+                data[i * layout.observationStride + i] = std::nan("");
+            }
+        }
+
 		mm::bufferedCopy(data, data + length, begin(observations), buffer);
+
+
 
 		// COMPUTE
 		mm::bufferedCopyToDevice(data, data + length, dObservations.begin(),
-			buffer, queue);
+                                 buffer, queue);
+
+        if (!layout.isSymmetric()) {
+            for (int i = 0; i < layout.rowLocationCount; ++i) {
+                for (int j = 0; j < layout.columnLocationCount; ++j) {
+                    transposedData[j * layout.rowLocationCount + i] =
+                            data[i * layout.columnLocationCount + j];
+                }
+            }
+
+            // COMPUTE
+            double* transposed = &(transposedData[0]);
+            mm::bufferedCopyToDevice(transposed, transposed + length,
+                                     dTransposedObservations.begin(), buffer, queue);
+        }
 
 #ifdef DOUBLE_CHECK
 		RealType sum = 0.0;
@@ -680,8 +741,8 @@ public:
 		kernelSumOfSquaredResidualsVector.set_arg(0, *dLocationsPtr);
 
 		if (isLeftTruncated) {
-			kernelSumOfSquaredResidualsVector.set_arg(3, static_cast<RealType>(precision));
-			kernelSumOfSquaredResidualsVector.set_arg(4, static_cast<RealType>(oneOverSd));
+			kernelSumOfSquaredResidualsVector.set_arg(7, static_cast<RealType>(precision));
+			kernelSumOfSquaredResidualsVector.set_arg(8, static_cast<RealType>(oneOverSd));
 		}
 
 		const size_t local_work_size[2] = {TILE_DIM, TILE_DIM};
@@ -1031,7 +1092,7 @@ public:
                     << " -DZERO=0.0 -DHALF=0.5";
 
 			if (isLeftTruncated) {
-				code << cdfString1Double;
+				code << cdfString1Double << "\n";
 			}
 
 		} else { // 32-bit fp
@@ -1039,26 +1100,26 @@ public:
                     << " -DZERO=0.0f -DHALF=0.5f";
 
 			if (isLeftTruncated) {
-				code << cdfString1Float;
+				code << cdfString1Float << "\n";
 			}
 		}
 
 		code <<
-			" __kernel void computeSSR(__global const REAL_VECTOR *locations,  \n" <<
-			"  						   __global const REAL *observations,      \n" <<
-			"						   __global REAL *squaredResiduals,        \n";
-
+			" __kernel void computeSSR(__global const REAL_VECTOR *locations,  \n" << // 0
+			"                          __global const REAL *observations,      \n" << // 1
+			"                          __global REAL *squaredResiduals,        \n" << // 2
+            "                          const uint rowLocationCount,            \n" << // 3
+            "                          const uint colLocationCount,            \n" << // 4
+            "                          const uint rowOffset,                   \n" << // 5
+            "                          const uint colOffset";                         // 6
 
 		if (isLeftTruncated) {
-			code <<
-            "                          const REAL precision,                   \n" <<
-			"                          const REAL oneOverSd,                   \n";
-		}
-
-		code <<
-			"						   const uint rowLocationCount,           \n" <<
-            "                          const uint colLocationCount,           \n" <<
-            "                          const uint colOffset) {                \n";
+			code << ", \n" <<
+            "                          const REAL precision,                   \n" << // 7
+			"                          const REAL oneOverSd) {                 \n";   // 8
+		} else {
+            code << ") { \n";
+        }
 
 		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 				const uint offsetJ = get_group_id(0) * TILE_DIM;
@@ -1071,7 +1132,7 @@ public:
 
 				if (get_local_id(1) < 2) { // load just 2 rows
 					tile[get_local_id(1)][get_local_id(0)] = locations[
-						(get_local_id(1) - 0) * (offsetI + get_local_id(0)) + // tile[1] = locations_i
+						(get_local_id(1) - 0) * (rowOffset + offsetI + get_local_id(0)) + // tile[1] = locations_i
 						(1 - get_local_id(1)) * (colOffset + offsetJ + get_local_id(0))   // tile[0] = locations_j
 					];
 				}
@@ -1150,13 +1211,17 @@ public:
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dObservations);
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dSquaredResiduals);
 
+        using uint_ = boost::compute::uint_;
+
+        kernelSumOfSquaredResidualsVector.set_arg(index++, uint_(layout.rowLocationCount));  // 3
+        kernelSumOfSquaredResidualsVector.set_arg(index++, uint_(layout.columnLocationCount));
+        kernelSumOfSquaredResidualsVector.set_arg(index++, uint_(0));
+        kernelSumOfSquaredResidualsVector.set_arg(index++, uint_(layout.columnLocationOffset));
+
 		if (isLeftTruncated) {
-			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(precision)); // Must update
-			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(oneOverSd)); // Must update
+			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(precision)); // 7 Must update
+			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(oneOverSd)); // 8 Must update
 		}
-		kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(layout.rowLocationCount));
-        kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(layout.columnLocationCount));
-        kernelSumOfSquaredResidualsVector.set_arg(index++, boost::compute::uint_(layout.columnLocationOffset));
 	}
 
 	void createOpenCLGradientKernel() {
@@ -1209,8 +1274,8 @@ public:
                     << " -DZERO=0.0 -DONE=1.0 -DHALF=0.5";
 
 			if (isLeftTruncated) {
-				code << cdfString1Double;
-                code << pdfString1Double;
+				code << cdfString1Double << "\n";
+                code << pdfString1Double << "\n";
 			}
 
 		} else { // 32-bit fp
@@ -1218,8 +1283,8 @@ public:
                     << " -DZERO=0.0f -DONE=1.0f -DHALF=0.5f";
 
 			if (isLeftTruncated) {
-				code << cdfString1Float;
-				code << pdfString1Float;
+				code << cdfString1Float << "\n";
+				code << pdfString1Float << "\n";
 			}
 		}
 
@@ -1232,9 +1297,11 @@ public:
 			 "                               __global const REAL *observations,      \n" <<
 			 "                               __global REAL_VECTOR *output,           \n" <<
 		     "                               const REAL precision,                   \n" <<
-			 "                               const uint locationCount,               \n" <<
+			 "                               const uint rowLocationCount,            \n" <<
              "                               const uint colLocationCount,            \n" <<
-             "                               const uint colOffset) {                 \n" <<
+             "                               const uint rowOffset,                   \n" <<
+             "                               const uint colOffset,                   \n" <<
+             "                               const uint gradientOffset) {            \n" <<
 			 "                                                                       \n" <<
 			 "   const uint i = get_group_id(0);                                     \n" <<
 			 "                                                                       \n" <<
@@ -1243,7 +1310,7 @@ public:
 			 "                                                                       \n" <<
 			 "   __local REAL_VECTOR scratch[TPB];                                   \n" <<
 			 "                                                                       \n" <<
-			 "   const REAL_VECTOR vectorI = locations[i];                           \n" <<
+			 "   const REAL_VECTOR vectorI = locations[rowOffset + i];               \n" <<
 			 "   REAL_VECTOR sum = ZERO;                                             \n" <<
 			 "                                                                       \n" <<
 			 "   while (j < colLocationCount) {                                      \n" <<
@@ -1309,7 +1376,7 @@ public:
         code << " ); \n";
 
         code <<
-			 "     output[i] = mask * scratch[0];                                    \n" <<
+			 "     output[gradientOffset + i] = mask * scratch[0];                   \n" <<
 			 "   }                                                                   \n" <<
 			 " }                                                                     \n ";
 
@@ -1335,13 +1402,17 @@ public:
 #endif
 #endif
 
+        using uint_ = boost::compute::uint_;
+
 		kernelGradientVector.set_arg(0, dLocations0); // Must update
 		kernelGradientVector.set_arg(1, dObservations);
 		kernelGradientVector.set_arg(2, dGradient);
 		kernelGradientVector.set_arg(3, static_cast<RealType>(precision)); // Must update
-		kernelGradientVector.set_arg(4, boost::compute::uint_(layout.rowLocationCount));
-        kernelGradientVector.set_arg(5, boost::compute::uint_(layout.columnLocationCount));
-        kernelGradientVector.set_arg(6, boost::compute::uint_(layout.columnLocationOffset));
+		kernelGradientVector.set_arg(4, uint_(layout.rowLocationCount));
+        kernelGradientVector.set_arg(5, uint_(layout.columnLocationCount));
+        kernelGradientVector.set_arg(6, uint_(0));
+        kernelGradientVector.set_arg(7, uint_(layout.columnLocationOffset));
+        kernelGradientVector.set_arg(8, uint_(0));
 	}
 
 	void createOpenCLKernels() {
@@ -1395,6 +1466,8 @@ private:
     boost::compute::command_queue queue;
 
     mm::MemoryManager<RealType> observations;
+//    mm::MemoryManager<RealType> transposedObservations;
+    std::vector<double> transposedData;
 
     mm::MemoryManager<RealType> locations0;
     mm::MemoryManager<RealType> locations1;
@@ -1411,6 +1484,7 @@ private:
 	mm::MemoryManager<RealType> gradient;
 
     mm::GPUMemoryManager<RealType> dObservations;
+    mm::GPUMemoryManager<RealType> dTransposedObservations;
 
 #ifdef USE_VECTORS
     mm::GPUMemoryManager<VectorType> dLocations0;

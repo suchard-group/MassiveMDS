@@ -354,7 +354,7 @@ public:
 
                    if (vectorCount < columnLocationCount) { // Edge-cases
 
-                     DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension,0, columnLocationOffset);
+                     DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension, 0, columnLocationOffset);
 
                      innerGradientLoop<withTruncation, RealType, 1>(dispatch, observations, layout.observationStride, scale, i, vectorCount, columnLocationCount);
                    }
