@@ -693,7 +693,7 @@ public:
         if (colCount % TILE_DIM != 0) {
             ++col_work_groups;
         }
-		const size_t global_work_size[2] = {row_work_groups * TILE_DIM, col_work_groups * TILE_DIM};
+		const size_t global_work_size[2] = {col_work_groups * TILE_DIM, row_work_groups * TILE_DIM};
 
 	//	std::cerr << "HERE3" << std::endl;
 		//exit(-1);
@@ -791,7 +791,7 @@ public:
 
 		//
 
-    	lSumOfSquaredResiduals /= 2.0;
+//    	lSumOfSquaredResiduals /= 2.0;
     	sumOfSquaredResiduals = lSumOfSquaredResiduals;
 
 //     	if (withTruncation) {
@@ -1020,51 +1020,10 @@ public:
 	    	}
 		);
 
-//		const char SumOfSquaredResidualsKernelVectorBody[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-//				const uint offsetJ = get_group_id(0) * TILE_DIM;
-//				const uint offsetI = get_group_id(1) * TILE_DIM;
-//
-//				const uint j = offsetJ + get_local_id(0);
-//				const uint i = offsetI + get_local_id(1);
-//
-//				__local REAL_VECTOR tile[2][TILE_DIM + 1]; // tile[0] == locations_j, tile[1] == locations_i
-//
-//				if (get_local_id(1) < 2) { // load just 2 rows
-//					tile[get_local_id(1)][get_local_id(0)] = locations[
-//						(get_local_id(1) - 0) * (offsetI + get_local_id(0)) + // tile[1] = locations_i
-//						(1 - get_local_id(1)) * (offsetJ + get_local_id(0))   // tile[0] = locations_j
-//					];
-//				}
-//
-//				barrier(CLK_LOCAL_MEM_FENCE);
-//
-//				if (i < locationCount && j < locationCount) {
-//
-//					const REAL distance = length(
-//						tile[1][get_local_id(1)] - tile[0][get_local_id(0)]
-//// 						locations[i] - locations[j]
-//					);
-//
-//					const REAL residual =  !isnan(observations[i * locationCount + j]) *
-//					        (distance - observations[i * locationCount + j]); //Andrew's not sure
-//					const REAL squaredResidual = residual * residual;
-//
-//					squaredResiduals[i * locationCount + j] = squaredResidual;
-//				}
-//			}
-//		);
-
-//		bool useLocalMemory = false;
-
-// 		std::cerr << "A" << std::endl;
-
 		std::stringstream code;
 		std::stringstream options;
 
 		options << "-DTILE_DIM=" << TILE_DIM;
-//		if (useLocalMemory) {
-//	    	options << " -DLOCAL_MEM";
-//	    }
 
 		if (sizeof(RealType) == 8) { // 64-bit fp
 			code << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
@@ -1097,10 +1056,9 @@ public:
 		}
 
 		code <<
-			"						   const uint locationCount) {            \n";
-
-
-//        code << "}\n";
+			"						   const uint rowLocationCount,           \n" <<
+            "                          const uint colLocationCount,           \n" <<
+            "                          const uint colOffset) {                \n";
 
 		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 				const uint offsetJ = get_group_id(0) * TILE_DIM;
@@ -1114,13 +1072,13 @@ public:
 				if (get_local_id(1) < 2) { // load just 2 rows
 					tile[get_local_id(1)][get_local_id(0)] = locations[
 						(get_local_id(1) - 0) * (offsetI + get_local_id(0)) + // tile[1] = locations_i
-						(1 - get_local_id(1)) * (offsetJ + get_local_id(0))   // tile[0] = locations_j
+						(1 - get_local_id(1)) * (colOffset + offsetJ + get_local_id(0))   // tile[0] = locations_j
 					];
 				}
 
 				barrier(CLK_LOCAL_MEM_FENCE);
 
-				if (i < locationCount && j < locationCount) {
+				if (i < rowLocationCount && j < colLocationCount) {
 
                     const REAL_VECTOR difference = tile[1][get_local_id(1)] - tile[0][get_local_id(0)];
                     // 						locations[i] - locations[j]
@@ -1140,29 +1098,21 @@ public:
         }
 
         code << BOOST_COMPUTE_STRINGIZE_SOURCE(
-                    const REAL observation = observations[i * locationCount + j];
-
+                    const REAL observation = observations[i * colLocationCount + j];
                     const REAL residual = select(distance - observation, ZERO, (CAST)isnan(observation));
-                    //const REAL residual = distance - observation;
                     REAL squaredResidual = residual * residual;
-
-//                    if (!isnan(observation)) {
-//                        const REAL residual = (distance - observation);
-//                        squaredResidual = residual * residual;
-//                    }
         );
 
 		if (isLeftTruncated) {
 			code << BOOST_COMPUTE_STRINGIZE_SOURCE(
 					squaredResidual *= HALF * precision;
-					const REAL truncation = (i == j) ? ZERO :
-					        select(log(cdf(fabs(distance) * oneOverSd)), ZERO, (CAST)isnan(observation));
+					const REAL truncation = select(log(cdf(fabs(distance) * oneOverSd)), ZERO, (CAST)isnan(observation));
 					squaredResidual += truncation;
 			);
 		}
 
 		code << BOOST_COMPUTE_STRINGIZE_SOURCE(
-			 		squaredResiduals[i * locationCount + j] = squaredResidual;
+			 		squaredResiduals[i * colLocationCount + j] = squaredResidual;
 				}
             }
 		);
@@ -1176,7 +1126,7 @@ public:
 #endif
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
-	    	kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
+        kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
 
 #ifdef DEBUG_KERNELS
 #ifdef RBUILD
@@ -1201,7 +1151,6 @@ public:
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dSquaredResiduals);
 
 		if (isLeftTruncated) {
-// 			kernelSumOfSquaredResidualsVector.set_arg(index++, dTruncations);
 			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(precision)); // Must update
 			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(oneOverSd)); // Must update
 		}
@@ -1283,11 +1232,11 @@ public:
 			 "                               __global const REAL *observations,      \n" <<
 			 "                               __global REAL_VECTOR *output,           \n" <<
 		     "                               const REAL precision,                   \n" <<
-			 "                               const uint locationCount) {             \n" <<
+			 "                               const uint locationCount,               \n" <<
+             "                               const uint colLocationCount,            \n" <<
+             "                               const uint colOffset) {                 \n" <<
 			 "                                                                       \n" <<
-//			 "   const uint i = get_local_id(1) + get_group_id(0) * TILE_DIM_I;      \n" <<
 			 "   const uint i = get_group_id(0);                                     \n" <<
-//			 "   const int inBounds = (i < locationCount);                           \n" <<
 			 "                                                                       \n" <<
 			 "   const uint lid = get_local_id(0);                                   \n" <<
 			 "   uint j = get_local_id(0);                                           \n" <<
@@ -1297,9 +1246,9 @@ public:
 			 "   const REAL_VECTOR vectorI = locations[i];                           \n" <<
 			 "   REAL_VECTOR sum = ZERO;                                             \n" <<
 			 "                                                                       \n" <<
-			 "   while (j < locationCount) {                                         \n" <<
+			 "   while (j < colLocationCount) {                                      \n" <<
 			 "                                                                       \n" <<
-			 "     const REAL_VECTOR vectorJ = locations[j];                         \n" <<
+			 "     const REAL_VECTOR vectorJ = locations[colOffset + j];             \n" <<
              "     const REAL_VECTOR difference = vectorI - vectorJ;                 \n";
 
         if (OpenCLRealType::dim == 8) {
@@ -1312,15 +1261,13 @@ public:
             code << "     const REAL distance = length(difference);                  \n";
         }
 
-        // TODO Handle missing values by  `!isnan(observation) * `
-
         code <<
-             "     const REAL observation = observations[i * locationCount + j];     \n" <<
+             "     const REAL observation = observations[i * colLocationCount + j];  \n" <<
              "     REAL residual = select(observation - distance, ZERO,              \n" <<
              "                                  (CAST)isnan(observation));           \n";
 
         if (isLeftTruncated) {
-            code << "     const REAL trncDrv = select(-ONE / sqrt(precision) *        \n" << // TODO speed up this part
+            code << "     const REAL trncDrv = select(-ONE / sqrt(precision) *       \n" <<
                     "                              pdf(distance * sqrt(precision)) / \n" <<
                     "                              cdf(distance * sqrt(precision)),  \n" <<
                     "                                 ZERO,                          \n" <<
@@ -1330,15 +1277,13 @@ public:
 
         code <<
              "     REAL contrib = residual * precision / distance;                   \n" <<
-			 "                                                                       \n" <<
-             "     if (i != j) { sum += (vectorI - vectorJ) * contrib * DELTA;  }    \n" <<
-			 "                                                                       \n" <<
+             "     sum += (vectorI - vectorJ) * contrib * DELTA;                     \n" <<
 			 "     j += TPB;                                                         \n" <<
 			 "   }                                                                   \n" <<
 			 "                                                                       \n" <<
 			 "   scratch[lid] = sum;                                                 \n";
 #ifdef USE_VECTOR
-			 code << reduce::ReduceBody1<RealType,false>::body(); // TODO Try NVIDIA version at some point
+			 code << reduce::ReduceBody1<RealType,false>::body();
 #else
 		code << (isNvidia ? reduce::ReduceBody2<RealType,true>::body() : reduce::ReduceBody2<RealType,false>::body());
 #endif

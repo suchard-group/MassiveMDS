@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
             ("sse", "use hand-rolled SSE", cxxopts::value<bool>()->default_value("false"))
             ("avx", "use hand-rolled AVX", cxxopts::value<bool>()->default_value("false"))
             ("avx512", "use hand-rolled AVX-512", cxxopts::value<bool>()->default_value("false"))
+            ("show", "show results for each iteration")
             ;
 
     cxxopts::ParseResult result;
@@ -261,6 +262,10 @@ int main(int argc, char* argv[]) {
 		auto duration1 = std::chrono::steady_clock::now() - startTime1;
 		timer += std::chrono::duration<double, std::milli>(duration1).count();
 
+        if (result["show"].as<bool>()) {
+            std::cout << "log-likelihood = " << inc << std::endl;
+        }
+
 		bool restore = binomial(prng);
 		if (restore) {
 			instance->restoreState();
@@ -289,6 +294,14 @@ int main(int argc, char* argv[]) {
 
         auto duration2 = std::chrono::steady_clock::now() - startTime2;
         timer2 += std::chrono::duration<double, std::milli>(duration2).count();
+
+        if (result["show"].as<bool>()) {
+            std::cout << "gradient = [" << gradient[0];
+            for (int j = 1; j < gradient.size(); ++j) {
+                std::cout << ", " << gradient[j];
+            }
+            std::cout << "]" << std::endl;
+        }
 
 //        sumGradient += std::accumulate(std::begin(gradient), std::end(gradient), 0.0) + 1;
         sumGradient += gradient[gradientIndex];
