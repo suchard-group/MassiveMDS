@@ -22,11 +22,13 @@
 
 #ifdef RBUILD
 # include <Rcpp.h>
-# define MDS_COUT Rcpp::Rcout
-# define MDS_CERR Rcpp::Rcout
+# define MDS_COUT   Rcpp::Rcout
+# define MDS_CERR   Rcpp::Rcout
+# define MDS_STOP(msg)  Rcpp::stop(msg)
 #else
-# define MDS_COUT std::cout
-# define MDS_CERR std::cerr
+# define MDS_COUT   std::cout
+# define MDS_CERR   std::cerr
+# define MDS_STOP(msg)  std::cerr << msg; exit(-1)
 #endif
 
 #define TILE_DIM 16
@@ -77,8 +79,8 @@ public:
 
       const auto devices = boost::compute::system::devices();
 
-      for (const auto &device : devices){
-          MDS_CERR << "\t" << device.name() << std::endl;
+      for (const auto &dev : devices) {
+          MDS_CERR << "\t" << dev.name() << std::endl;
       }
 
       if (deviceNumber < 0 || deviceNumber >= devices.size()) {
@@ -87,16 +89,17 @@ public:
         device = devices[deviceNumber];
       }
 
-      // TODO Check is device supports FP precision
-
-      if (device.type() != CL_DEVICE_TYPE_GPU){
-          MDS_CERR << "Error: selected device not GPU." << std::endl;
-          exit(-1);
+      if (device.type() != CL_DEVICE_TYPE_GPU) {
+          MDS_STOP("Error: selected device is not a GPU.\n");
       } else {
           MDS_CERR << "Using: " << device.name() << " with vector-dim = " << OpenCLRealType::dim << std::endl;
       }
 
-      ctx = boost::compute::context(device, 0);
+      if ((sizeof(RealType) == 8) && !device.supports_extension("cl_khr_fp64")) {
+          MDS_STOP("Error: device does not support FP64.\n");
+      }
+
+      ctx = boost::compute::context(device, nullptr);
       queue = boost::compute::command_queue{ctx, device
         , boost::compute::command_queue::enable_profiling
       };
@@ -151,7 +154,7 @@ public:
                     length == embeddingDimension);
 
 	    	if (updatedLocation != - 1) {
-    			// more than one location updated -- do a full recomputation
+    			// more than one location updated -- do a full re-computation
 	    		incrementsKnown = false;
 	    		isStoredSquaredResidualsEmpty = true;
 	    		isStoredTruncationsEmpty = true;
@@ -262,15 +265,10 @@ public:
     void computeResidualsAndTruncations() {
 
 		if (!incrementsKnown) {
-			if (isLeftTruncated) { // run-time dispatch to compile-time optimization
-				computeSumOfSquaredResiduals<true>();
-			} else {
-				computeSumOfSquaredResiduals<false>();
-			}
+            computeSumOfSquaredResiduals();
 			incrementsKnown = true;
 		} else {
 			MDS_CERR << "SHOULD NOT BE HERE" << std::endl;
-
 			if (isLeftTruncated) {
 				updateSumOfSquaredResidualsAndTruncations();
 			} else {
@@ -291,6 +289,7 @@ public:
 		}
  	}    // TODO Duplicated code with CPU version; there is a problem here?
 
+#if 0
  	double getSumOfLogTruncations() {
     	if (!sumOfIncrementsKnown) {
 			computeResidualsAndTruncations();
@@ -298,6 +297,7 @@ public:
 		}
  		return sumOfTruncations;
  	}
+#endif
 
     void storeState() override {
     	storedSumOfSquaredResiduals = sumOfSquaredResiduals;
@@ -325,16 +325,16 @@ public:
 
     void acceptState() override {
         if (!isStoredSquaredResidualsEmpty) {
-            const int count = layout.uniqueLocationCount;
-    		for (int j = 0; j < count; ++j) {
-    			squaredResiduals[j * count + updatedLocation] = squaredResiduals[updatedLocation * count + j];
+            const int cnt = layout.uniqueLocationCount;
+    		for (int j = 0; j < cnt; ++j) {
+    			squaredResiduals[j * cnt + updatedLocation] = squaredResiduals[updatedLocation * cnt + j];
     		}
 
     		// COMPUTE TODO
 
     		if (isLeftTruncated) {
-                for (int j = 0; j < count; ++j) {
-	    			truncations[j * count + updatedLocation] = truncations[updatedLocation * count + j];
+                for (int j = 0; j < cnt; ++j) {
+	    			truncations[j * cnt + updatedLocation] = truncations[updatedLocation * cnt + j];
 	    		}
 
 	    		// COMPUTE TODO
@@ -347,18 +347,18 @@ public:
     	sumOfIncrementsKnown = true;
 
 		if (!isStoredSquaredResidualsEmpty) {
-            const int count = layout.uniqueLocationCount;
+            const int cnt = layout.uniqueLocationCount;
     		std::copy(
     			begin(storedSquaredResiduals),
     			end(storedSquaredResiduals),
-    			begin(squaredResiduals) + updatedLocation * count
+    			begin(squaredResiduals) + updatedLocation * cnt
     		);
 
     		// COMPUTE
     		boost::compute::copy(
-    			dStoredSquaredResiduals.begin(),
-    			dStoredSquaredResiduals.end(),
-    			dSquaredResiduals.begin() + updatedLocation * count, queue
+                    dStoredSquaredResiduals.begin(),
+                    dStoredSquaredResiduals.end(),
+    			dSquaredResiduals.begin() + updatedLocation * cnt, queue
     		);
 
     		incrementsKnown = true;
@@ -403,6 +403,11 @@ public:
     // TODO use layout.observationStride
 
     void setPairwiseData(double* data, size_t length) override {
+
+        MDS_CERR << "length = " << length << std::endl;
+        MDS_CERR << "size   = " << observations.size() << std::endl;
+        MDS_CERR << "layout = " << layout.observationCount << std::endl;
+
 		assert(length == observations.size());
 
         if (layout.isSymmetric()) {
@@ -455,10 +460,7 @@ public:
 
 	int count = 0;
 
-	template <bool withTruncation>
 	void computeSumOfSquaredResiduals() {
-
-		RealType lSumOfSquaredResiduals = 0.0;
 
 		// COMPUTE TODO
 		auto startTime2 = std::chrono::steady_clock::now();
@@ -484,7 +486,7 @@ public:
         }
 		const size_t global_work_size[2] = {col_work_groups * TILE_DIM, row_work_groups * TILE_DIM};
 
-		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, 0, global_work_size, local_work_size);
+		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, nullptr, global_work_size, local_work_size);
 
 		queue.finish();
 		auto duration2 = std::chrono::steady_clock::now() - startTime2;
@@ -509,8 +511,7 @@ public:
 //         }
 //         exit(-1);
 
-	    lSumOfSquaredResiduals = sum;
-    	sumOfSquaredResiduals = lSumOfSquaredResiduals;
+    	sumOfSquaredResiduals = sum;
 
 	    incrementsKnown = true;
 	    sumOfIncrementsKnown = true;
@@ -627,17 +628,17 @@ public:
 	void createOpenCLLikelihoodKernel() {
 
 		const char cdfString1Double[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			static double cdf(double);
+                __attribute__((unused)) static double cdf(double);
 
-			static double cdf(double value) {
+                __attribute__((unused)) static double cdf(double value) {
 	    		return 0.5 * erfc(-value * M_SQRT1_2);
 	    	}
 		);
 
 		const char cdfString1Float[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-			static float cdf(float);
+                __attribute__((unused)) static float cdf(float);
 
-			static float cdf(float value) {
+                __attribute__((unused)) static float cdf(float value) {
 
 				const float rSqrt2f = 0.70710678118655f;
 	    		return 0.5f * erfc(-value * rSqrt2f);
@@ -752,46 +753,45 @@ public:
         MDS_CERR << "Successful build." << std::endl;
 #endif
 
-		size_t index = 0;
-		kernelSumOfSquaredResidualsVector.set_arg(index++, dLocations0); // Must update
-		kernelSumOfSquaredResidualsVector.set_arg(index++, dObservations);
-		kernelSumOfSquaredResidualsVector.set_arg(index++, dSquaredResiduals);
+		kernelSumOfSquaredResidualsVector.set_arg(0, dLocations0); // Must update
+		kernelSumOfSquaredResidualsVector.set_arg(1, dObservations);
+		kernelSumOfSquaredResidualsVector.set_arg(2, dSquaredResiduals);
 
         using uint_ = boost::compute::uint_;
 
-        kernelSumOfSquaredResidualsVector.set_arg(index++, uint_(layout.rowLocationCount));  // 3
-        kernelSumOfSquaredResidualsVector.set_arg(index++, uint_(layout.columnLocationCount));
-        kernelSumOfSquaredResidualsVector.set_arg(index++, uint_(0));
-        kernelSumOfSquaredResidualsVector.set_arg(index++, uint_(layout.columnLocationOffset));
+        kernelSumOfSquaredResidualsVector.set_arg(3, uint_(layout.rowLocationCount));  // 3
+        kernelSumOfSquaredResidualsVector.set_arg(4, uint_(layout.columnLocationCount));
+        kernelSumOfSquaredResidualsVector.set_arg(5, uint_(0));
+        kernelSumOfSquaredResidualsVector.set_arg(6, uint_(layout.columnLocationOffset));
 
 		if (isLeftTruncated) {
-			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(precision)); // 7 Must update
-			kernelSumOfSquaredResidualsVector.set_arg(index++, static_cast<RealType>(oneOverSd)); // 8 Must update
+			kernelSumOfSquaredResidualsVector.set_arg(7, static_cast<RealType>(precision)); // 7 Must update
+			kernelSumOfSquaredResidualsVector.set_arg(8, static_cast<RealType>(oneOverSd)); // 8 Must update
 		}
 	}
 
 	void createOpenCLGradientKernel() {
 
         const char cdfString1Double[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-                static double cdf(double);
+                __attribute__((unused)) static double cdf(double);
 
-                static double cdf(double value) {
+                __attribute__((unused)) static double cdf(double value) {
                     return 0.5 * erfc(-value * M_SQRT1_2);
                 }
         );
 
         const char pdfString1Double[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-                static double pdf(double);
+                __attribute__((unused)) static double pdf(double);
 
-                static double pdf(double value) {
+                __attribute__((unused)) static double pdf(double value) {
                     return 0.5 * M_SQRT1_2 * M_2_SQRTPI * exp( - pow(value,2.0) * 0.5);
                 }
         );
 
         const char cdfString1Float[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-                static float cdf(float);
+                __attribute__((unused)) static float cdf(float);
 
-                static float cdf(float value) {
+                __attribute__((unused)) static float cdf(float value) {
 
                     const float rSqrt2f = 0.70710678118655f;
                     return 0.5f * erfc(-value * rSqrt2f);
@@ -799,9 +799,9 @@ public:
         );
 
         const char pdfString1Float[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-                static float pdf(float);
+                __attribute__((unused)) static float pdf(float);
 
-                static float pdf(float value) {
+                __attribute__((unused)) static float pdf(float value) {
 
                     const float rSqrt2f = 0.70710678118655f;
                     const float rSqrtPif = 0.56418958354775f;
@@ -1013,7 +1013,6 @@ private:
 	boost::compute::kernel kernelSumOfSquaredResidualsVector;
 	boost::compute::kernel kernelGradientVector;
 
-	double timer1 = 0;
 	double timer2 = 0;
 	double timer3 = 0;
 };

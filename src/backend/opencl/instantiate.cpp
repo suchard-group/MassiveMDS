@@ -14,13 +14,13 @@ namespace mds {
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, Layout layout, long flags, int device) {
         if (embeddingDimension <= 2) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<2>>>(embeddingDimension, layout.rowLocationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<2>>>(embeddingDimension, layout,
                                                                                     flags, device);
         } else if (embeddingDimension <= 4) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<4>>>(embeddingDimension, layout.rowLocationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<4>>>(embeddingDimension, layout,
                                                                                     flags, device);
         } else if (embeddingDimension <= 8) {
-            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<8>>>(embeddingDimension, layout.rowLocationCount,
+            return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<8>>>(embeddingDimension, layout,
                                                                                     flags, device);
         } else {
 #ifdef RBUILD
