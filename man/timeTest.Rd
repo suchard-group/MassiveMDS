@@ -4,8 +4,14 @@
 \alias{timeTest}
 \title{Time log likelihood and gradient calculations}
 \usage{
-timeTest(locationCount = 5000, maxIts = 1, threads = 0, simd = 0,
-  gpu = 0, single = 0)
+timeTest(
+  locationCount = 5000,
+  maxIts = 1,
+  threads = 0,
+  simd = 0,
+  gpu = 0,
+  single = 0
+)
 }
 \arguments{
 \item{locationCount}{Size of distance matrix or number of latent locations.}

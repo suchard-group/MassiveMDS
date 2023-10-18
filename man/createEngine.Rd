@@ -4,8 +4,15 @@
 \alias{createEngine}
 \title{Create MDS engine object}
 \usage{
-createEngine(embeddingDimension, locationCount, truncation, tbb, simd, gpu,
-  single)
+createEngine(
+  embeddingDimension,
+  locationCount,
+  truncation,
+  tbb,
+  simd,
+  gpu,
+  single
+)
 }
 \arguments{
 \item{embeddingDimension}{Dimension of latent locations.}

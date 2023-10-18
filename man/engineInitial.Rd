@@ -4,8 +4,18 @@
 \alias{engineInitial}
 \title{Initialize MDS engine object}
 \usage{
-engineInitial(data, locations, N, P, precision = 1, threads, simd,
-  truncation, gpu, single)
+engineInitial(
+  data,
+  locations,
+  N,
+  P,
+  precision = 1,
+  threads,
+  simd,
+  truncation,
+  gpu,
+  single
+)
 }
 \arguments{
 \item{data}{N by N distance matrix.}

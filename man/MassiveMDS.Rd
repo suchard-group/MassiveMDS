@@ -3,7 +3,6 @@
 \docType{package}
 \name{MassiveMDS}
 \alias{MassiveMDS}
-\alias{MassiveMDS-package}
 \title{MassiveMDS}
 \description{
 MassiveMDS facilitates fast Bayesian MDS through GPU, multi-core CPU, and SIMD vectorization powered implementations of the Hamiltonian Monte Carlo algorithm.

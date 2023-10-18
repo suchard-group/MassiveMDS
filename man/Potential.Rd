@@ -4,8 +4,15 @@
 \alias{Potential}
 \title{Potential function and gradient for HMC}
 \usage{
-Potential(engine, locations, treeVcv, traitVcv, treePrec, traitPrec,
-  gradient = FALSE)
+Potential(
+  engine,
+  locations,
+  treeVcv,
+  traitVcv,
+  treePrec,
+  traitPrec,
+  gradient = FALSE
+)
 }
 \arguments{
 \item{engine}{MDS engine object.}

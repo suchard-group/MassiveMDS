@@ -22,6 +22,11 @@
 
 #ifdef RBUILD
 #include <Rcpp.h>
+#define MDS_COUT Rcpp::Rcout
+#define MDS_CERR Rcpp::Rcout
+#else
+#define MDS_COUT std::cout
+#define MDS_CERR std::cerr
 #endif
 
 #define SSE
@@ -78,18 +83,15 @@ public:
           isStoredSquaredResidualsEmpty(false),
           isStoredTruncationsEmpty(false)
     {
-#ifdef RBUILD
-// TODO Remove code-duplication with immediately below (after #else)
-      Rcpp::Rcout << "ctor OpenCLMultiDimensionalScaling" << std::endl;
+      MDS_CERR << "ctor OpenCLMultiDimensionalScaling" << std::endl;
 
-      Rcpp::Rcout << "All devices:" << std::endl;
+      MDS_CERR << "All devices:" << std::endl;
 
       const auto devices = boost::compute::system::devices();
 
       for(const auto &device : devices){
-        Rcpp::Rcout << "\t" << device.name() << std::endl;
+          MDS_CERR << "\t" << device.name() << std::endl;
       }
-
 
       if (deviceNumber < 0 || deviceNumber >= devices.size()) {
         device = boost::compute::system::default_device();
@@ -97,51 +99,11 @@ public:
         device = devices[deviceNumber];
       }
 
-      //device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
-
-      if (device.type()!=CL_DEVICE_TYPE_GPU){
-          Rcpp::stop("Error: selected device not GPU.");
-      } else {
-          Rcpp::Rcout << "Using: " << device.name() << std::endl;
-      }
-
-      ctx = boost::compute::context(device, 0);
-      queue = boost::compute::command_queue{ctx, device
-        , boost::compute::command_queue::enable_profiling
-      };
-
-      dObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
-            if (!layout.isSymmetric()) {
-          dTransposedObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
-      }
-
-      Rcpp::Rcout << "\twith vector-dim = " << OpenCLRealType::dim << std::endl;
-
-#else //RBUILD
-      std::cerr << "ctor OpenCLMultiDimensionalScaling" << std::endl;
-
-      std::cerr << "All devices:" << std::endl;
-
-      const auto devices = boost::compute::system::devices();
-
-      for(const auto &device : devices){
-        std::cerr << "\t" << device.name() << std::endl;
-      }
-
-
-      if (deviceNumber < 0 || deviceNumber >= devices.size()) {
-        device = boost::compute::system::default_device();
-      } else {
-        device = devices[deviceNumber];
-      }
-
-      //device = devices[devices.size() - 1]; // hackishly chooses correct device TODO do this correctly
-
-      if (device.type()!=CL_DEVICE_TYPE_GPU){
-          std::cerr << "Error: selected device not GPU." << std::endl;
+      if (device.type() != CL_DEVICE_TYPE_GPU){
+          MDS_CERR << "Error: selected device not GPU." << std::endl;
           exit(-1);
       } else {
-          std::cerr << "Using: " << device.name();
+          MDS_CERR << "Using: " << device.name();
       }
 
       ctx = boost::compute::context(device, 0);
@@ -154,8 +116,7 @@ public:
           dTransposedObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
       }
 
-      std::cerr << " with vector-dim = " << OpenCLRealType::dim << std::endl;
-#endif //RBUILD
+        MDS_CERR << " with vector-dim = " << OpenCLRealType::dim << std::endl;
 
 #ifdef USE_VECTORS
 		dLocations0 = mm::GPUMemoryManager<VectorType>(layout.uniqueLocationCount, ctx);
@@ -174,11 +135,8 @@ public:
 
     	if (flags & Flags::LEFT_TRUNCATION) {
     		isLeftTruncated = true;
-#ifdef RBUILD
-    	  Rcpp::Rcout << "Using left truncation" << std::endl;
-#else
-    		std::cout << "Using left truncation" << std::endl;
-#endif
+
+    		MDS_COUT << "Using left truncation" << std::endl;
 
     		truncations.resize(layout.observationCount);
     		storedTruncations.resize(layout.uniqueLocationCount);
@@ -395,55 +353,29 @@ public:
             testGradient11.push_back(doubleBuffer[i]);
         }
 
-#ifdef RBUILD
-        Rcpp::Rcout << "cpu0: ";
+        MDS_CERR << "cpu0: ";
         for (auto x : testGradient0) {
-          Rcpp::Rcout << " " << x;
+            MDS_CERR << " " << x;
         }
-        Rcpp::Rcout << std::endl;
+        MDS_CERR << std::endl;
 
-        Rcpp::Rcout << "cpu1: ";
+        MDS_CERR << "cpu1: ";
         for (auto x : testGradient00) {
-          Rcpp::Rcout << " " << x;
+            MDS_CERR << " " << x;
         }
-        Rcpp::Rcout << std::endl;
+        MDS_CERR << std::endl;
 
-        Rcpp::Rcout << "gpu0: ";
+        MDS_CERR << "gpu0: ";
         for (auto x : testGradient1) {
-          Rcpp::Rcout << " " << x;
+            MDS_CERR << " " << x;
         }
-        Rcpp::Rcout << std::endl;
+        MDS_CERR << std::endl;
 
-        Rcpp::Rcout << "gpu1: ";
+        MDS_CERR << "gpu1: ";
         for (auto x : testGradient11) {
-          Rcpp::Rcout << " " << x;
+            MDS_CERR << " " << x;
         }
-        Rcpp::Rcout << std::endl;
-#else //RBUILD
-        std::cerr << "cpu0: ";
-        for (auto x : testGradient0) {
-            std::cerr << " " << x;
-        }
-        std::cerr << std::endl;
-
-        std::cerr << "cpu1: ";
-        for (auto x : testGradient00) {
-            std::cerr << " " << x;
-        }
-        std::cerr << std::endl;
-
-        std::cerr << "gpu0: ";
-        for (auto x : testGradient1) {
-            std::cerr << " " << x;
-        }
-        std::cerr << std::endl;
-
-        std::cerr << "gpu1: ";
-        for (auto x : testGradient11) {
-            std::cerr << " " << x;
-        }
-        std::cerr << std::endl;
-#endif //RBUILD
+        MDS_CERR << std::endl;
 #endif
 
  	}
@@ -458,11 +390,8 @@ public:
 			}
 			incrementsKnown = true;
 		} else {
-#ifdef RBUILD
-		  Rcpp::Rcout << "SHOULD NOT BE HERE" << std::endl;
-#else
-			std::cerr << "SHOULD NOT BE HERE" << std::endl;
-#endif
+			MDS_CERR << "SHOULD NOT BE HERE" << std::endl;
+
 			if (isLeftTruncated) {
 				updateSumOfSquaredResidualsAndTruncations();
 			} else {
@@ -627,11 +556,7 @@ public:
 		RealType sum = 0.0;
 		boost::compute::reduce(dObservations.begin(), dObservations.end(), &sum, queue);
 		RealType sum2 = std::accumulate(begin(observations), end(observations), RealType(0.0));
-#ifdef RBUILD
-		Rcpp::Rcout << sum << " ?= " << sum2 << std::endl;
-#else
-		std::cerr << sum << " ?= " << sum2 << std::endl;
-#endif
+		MDS_CERR << sum << " ?= " << sum2 << std::endl;
 #endif
 
     }
@@ -722,7 +647,7 @@ public:
 		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, 0, global_work_size, local_work_size);
 
 #else
-        std::cerr << "Not yet implemented" << std::endl;
+        MDS_CERR << "Not yet implemented" << std::endl;
         exit(-1);
 		kernelSumOfSquaredResiduals.set_arg(0, *dLocationsPtr);
 		queue.enqueue_1d_range_kernel(kernelSumOfSquaredResiduals, 0, locationCount * locationCount, 0);
@@ -742,11 +667,7 @@ public:
 		if (count > 1) timer3 += std::chrono::duration<double, std::milli>(duration3).count();
 
 #ifdef DOUBLE_CHECK
-#ifdef RBUILD
-      Rcpp::Rcout << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
-#else
-  		std::cerr << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
-#endif
+  		MDS_CERR << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
 #endif
 
 //  		using namespace boost::compute;
@@ -754,8 +675,8 @@ public:
 //
 //         auto list = cache->get_keys();
 //         for (auto x : list) {
-//             std::cerr << x.first << " " << x.second << std::endl;
-//             std::cerr << cache->get(x.first, x.second)->source() << std::endl;
+//             MDS_CERR << x.first << " " << x.second << std::endl;
+//             MDS_CERR << cache->get(x.first, x.second)->source() << std::endl;
 //         }
 //         exit(-1);
 
@@ -770,7 +691,7 @@ public:
 
 	void updateSumOfSquaredResiduals() {
 
-        std::cerr << "Not yet implemented" << std::endl;
+        MDS_CERR << "Not yet implemented" << std::endl;
         exit(-1);
 
 #if 0
@@ -818,7 +739,7 @@ public:
 
 	void updateSumOfSquaredResidualsAndTruncations() {
 
-        std::cerr << "Not yet implemented." << std::endl;
+        MDS_CERR << "Not yet implemented." << std::endl;
         exit(-1);
 
 #if 0
@@ -933,30 +854,6 @@ public:
 	}
 
 	void createOpenCLLikelihoodKernel() {
-
-//		const char Test[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
-//			// approximation of the cumulative normal distribution function
-//			static float cnd(float d)
-//			{
-//				const float A1 =  0.319381530f;
-//				const float A2 = -0.356563782f;
-//				const float A3 =  1.781477937f;
-//				const float A4 = -1.821255978f;
-//				const float A5 =  1.330274429f;
-//				const float R_SQRT_2PI = 0.39894228040143267793994605993438f;
-//
-//				float K = 1.0f / (1.0f + 0.2316419f * fabs(d));
-//				float cnd =
-//                        R_SQRT_2PI * exp(-0.5f * d * d) *
-//					(K * (A1 + K * (A2 + K * (A3 + K * (A4 + K * A5)))));
-//
-//				if(d > 0){
-//					cnd = 1.0f - cnd;
-//				}
-//
-//				return cnd;
-//			}
-//		);
 
 		const char cdfString1Double[] = BOOST_COMPUTE_STRINGIZE_SOURCE(
 			static double cdf(double);
@@ -1074,31 +971,18 @@ public:
 		);
 
 #ifdef DEBUG_KERNELS
-#ifdef RBUILD
-		    Rcpp::Rcout << "Likelihood kernel\n" << code.str() << std::endl;
-#else
-        std::cerr << "Likelihood kernel\n" << code.str() << std::endl;
-#endif
+        MDS_CERR << "Likelihood kernel\n" << code.str() << std::endl;
 #endif
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
         kernelSumOfSquaredResidualsVector = boost::compute::kernel(program, "computeSSR");
 
 #ifdef DEBUG_KERNELS
-#ifdef RBUILD
-        Rcpp:Rcout << "Successful build." << std::endl;
-#else
-        std::cerr << "Successful build." << std::endl;
-#endif
+        MDS_CERR << "Successful build." << std::endl;
 #endif
 
 #ifdef DOUBLE_CHECK
-#ifdef RBUILD
-        Rcpp::Rcout << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
-#else
-        std::cerr << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
-#endif
-//        exit(-1);
+        MDS_CERR << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
 #endif // DOUBLE_CHECK
 
 		size_t index = 0;
@@ -1214,13 +1098,14 @@ public:
              "     const REAL_VECTOR difference = vectorI - vectorJ;                 \n";
 
         if (OpenCLRealType::dim == 8) {
-            code << "     const REAL distance = sqrt(                                \n" <<
-                    "              dot(difference.lo, difference.lo) +               \n" <<
-                    "              dot(difference.hi, difference.hi)                 \n" <<
-                    "      );                                                        \n";
+            code <<
+             "     const REAL distance = sqrt(                                       \n" <<
+             "              dot(difference.lo, difference.lo) +                      \n" <<
+             "              dot(difference.hi, difference.hi));                      \n";
 
         } else {
-            code << "     const REAL distance = length(difference);                  \n";
+            code <<
+             "     const REAL distance = length(difference);                         \n";
         }
 
         code <<
@@ -1229,12 +1114,13 @@ public:
              "                                  (CAST)isnan(observation));           \n";
 
         if (isLeftTruncated) {
-            code << "     const REAL trncDrv = select(-ONE / sqrt(precision) *       \n" <<
-                    "                              pdf(distance * sqrt(precision)) / \n" <<
-                    "                              cdf(distance * sqrt(precision)),  \n" <<
-                    "                                 ZERO,                          \n" <<
-                    "                                 (CAST)isnan(observation));     \n" <<
-                    "     residual += trncDrv;                                       \n";
+            code <<
+             "     const REAL trncDrv = select(-ONE / sqrt(precision) *              \n" <<
+             "                              pdf(distance * sqrt(precision)) /        \n" <<
+             "                              cdf(distance * sqrt(precision)),         \n" <<
+             "                                 ZERO,                                 \n" <<
+             "                                 (CAST)isnan(observation));            \n" <<
+             "     residual += trncDrv;                                              \n";
         }
 
         code <<
@@ -1275,26 +1161,15 @@ public:
 			 "   }                                                                   \n" <<
 			 " }                                                                     \n ";
 
-#ifdef DOUBLE_CHECK_GRADIENT
-#ifndef RBUILD
-		std::cerr << code.str() << std::endl;
-#endif
-//        exit(-1);
-#endif
-
 #ifdef DEBUG_KERNELS
-#ifndef RBUILD
-        std::cerr << "Build gradient\n" << code.str() << std::endl;
-#endif
+        MDS_CERR << "Build gradient\n" << code.str() << std::endl;
 #endif
 
 		program = boost::compute::program::build_with_source(code.str(), ctx, options.str());
 		kernelGradientVector = boost::compute::kernel(program, "computeGradient");
 
 #ifdef DEBUG_KERNELS
-#ifndef RBUILD
-        std::cerr << "Success" << std::endl;
-#endif
+        MDS_CERR << "Success" << std::endl;
 #endif
 
         using uint_ = boost::compute::uint_;
@@ -1311,36 +1186,8 @@ public:
 	}
 
 	void createOpenCLKernels() {
-
 		createOpenCLLikelihoodKernel();
 		createOpenCLGradientKernel();
-
-#ifdef DOUBLE_CHECK
- 		using namespace boost::compute;
-        boost::shared_ptr<program_cache> cache = program_cache::get_global_cache(ctx);
-
-		RealType sum = RealType(0.0);
-		boost::compute::reduce(dSquaredResiduals.begin(), dSquaredResiduals.end(), &sum, queue);
-
-		auto programInfo = *begin(cache->get_keys());
-#ifndef RBUILD
-		std::cerr << "Try " << programInfo.first << " : " << programInfo.second << std::endl;
-#endif
-        boost::compute::program programReduce = *cache->get(programInfo.first, programInfo.second);
-        auto kernelReduce = kernel(programReduce, "reduce");
-#ifndef RBUILD
-        std::cerr << programReduce.source() << std::endl;
-#endif
-
-        const auto &device2 = queue.get_device();
-#ifndef RBUILD
-        std::cerr << "nvidia? " << detail::is_nvidia_device(device) << " " << device.name() << " " << device.vendor() << std::endl;
-        std::cerr << "nvidia? " << detail::is_nvidia_device(device2) << " " << device2.name() << " " << device.vendor() << std::endl;
-
-		std::cerr << "Done compile VECTOR." << std::endl;
-#endif
-#endif
-
 	}
 
 private:

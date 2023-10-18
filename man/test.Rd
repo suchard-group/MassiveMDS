@@ -4,8 +4,7 @@
 \alias{test}
 \title{Compare serially and parallel-ly computed log likelihoods and gradients}
 \usage{
-test(locationCount = 10, threads = 0, simd = 0, gpu = 0,
-  single = 0)
+test(locationCount = 10, threads = 0, simd = 0, gpu = 0, single = 0)
 }
 \arguments{
 \item{locationCount}{Size of distance matrix or number of latent locations.}
