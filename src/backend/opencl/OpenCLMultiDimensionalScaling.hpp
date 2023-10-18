@@ -21,30 +21,18 @@
 #include "reduce_fast.hpp"
 
 #ifdef RBUILD
-#include <Rcpp.h>
-#define MDS_COUT Rcpp::Rcout
-#define MDS_CERR Rcpp::Rcout
+# include <Rcpp.h>
+# define MDS_COUT Rcpp::Rcout
+# define MDS_CERR Rcpp::Rcout
 #else
-#define MDS_COUT std::cout
-#define MDS_CERR std::cerr
+# define MDS_COUT std::cout
+# define MDS_CERR std::cerr
 #endif
 
-#define SSE
-//#undef SSE
-
-#define USE_VECTORS
-
-//#define DOUBLE_CHECK
-
-//#define DOUBLE_CHECK_GRADIENT
-
 #define TILE_DIM 16
-
 #define TILE_DIM_I  128
 #define TPB 128
-#define DELTA 1;
-
-#define USE_VECTOR
+#define DELTA 1
 
 //#define DEBUG_KERNELS
 
@@ -89,7 +77,7 @@ public:
 
       const auto devices = boost::compute::system::devices();
 
-      for(const auto &device : devices){
+      for (const auto &device : devices){
           MDS_CERR << "\t" << device.name() << std::endl;
       }
 
@@ -99,11 +87,13 @@ public:
         device = devices[deviceNumber];
       }
 
+      // TODO Check is device supports FP precision
+
       if (device.type() != CL_DEVICE_TYPE_GPU){
           MDS_CERR << "Error: selected device not GPU." << std::endl;
           exit(-1);
       } else {
-          MDS_CERR << "Using: " << device.name();
+          MDS_CERR << "Using: " << device.name() << " with vector-dim = " << OpenCLRealType::dim << std::endl;
       }
 
       ctx = boost::compute::context(device, 0);
@@ -116,16 +106,9 @@ public:
           dTransposedObservations = mm::GPUMemoryManager<RealType>(observations.size(), ctx);
       }
 
-        MDS_CERR << " with vector-dim = " << OpenCLRealType::dim << std::endl;
-
-#ifdef USE_VECTORS
 		dLocations0 = mm::GPUMemoryManager<VectorType>(layout.uniqueLocationCount, ctx);
 		dLocations1 = mm::GPUMemoryManager<VectorType>(layout.uniqueLocationCount, ctx);
 		dGradient   = mm::GPUMemoryManager<VectorType>(layout.uniqueLocationCount, ctx);
-#else
-		dLocations0 = mm::GPUMemoryManager<RealType>(locations0.size(), ctx);
-		dLocations1 = mm::GPUMemoryManager<RealType>(locations1.size(), ctx);
-#endif // USE_VECTORS
 
 		dLocationsPtr = &dLocations0;
 		dStoredLocationsPtr = &dLocations1;
@@ -177,11 +160,7 @@ public:
 	    	updatedLocation = locationIndex;
 
 			offset = locationIndex * OpenCLRealType::dim;
-#ifdef USE_VECTORS
 	    	deviceOffset = static_cast<size_t>(locationIndex);
-#else
-	    	deviceOffset = locationIndex * embeddingDimension;
-#endif
 	    }
 
         // If requires padding
@@ -225,62 +204,6 @@ public:
 	void getLogLikelihoodGradient(double* result, size_t length) override {
 
         // TODO Buffer gradients
-
-#ifdef DOUBLE_CHECK_GRADIENT
-		assert(length == locationCount * embeddingDimension ||
-                       length == locationCount * OpenCLRealType::dim);
-
-		if (gradient.size() != locationCount * OpenCLRealType::dim) {
-			gradient.resize(locationCount * OpenCLRealType::dim);
-		}
-
-		std::fill(std::begin(gradient), std::end(gradient), static_cast<RealType>(0.0));
-
-		const RealType scale = precision;
-
-		for (int i = 0; i < locationCount; ++i) {
-			for (int j = 0; j < locationCount; ++j) {
-				if (i != j) {
-					const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-							begin(*locationsPtr) + i * OpenCLRealType::dim,
-							begin(*locationsPtr) + j * OpenCLRealType::dim
-					);
-
-					const RealType dataContribution =
-							(observations[i * locationCount + j] - distance) * scale / distance;
-
-                    for (int d = 0; d < embeddingDimension; ++d) {
-                        const RealType update = dataContribution *
-                                                 ((*locationsPtr)[i * OpenCLRealType::dim + d] - (*locationsPtr)[j * OpenCLRealType::dim + d]);
-                        gradient[i * OpenCLRealType::dim + d] += update;
-                    }
-				}
-			}
-		}
-
-		if (doubleBuffer.size() != locationCount * OpenCLRealType::dim) {
-			doubleBuffer.resize(locationCount * OpenCLRealType::dim);
-		}
-
-		mm::bufferedCopy(std::begin(gradient), std::end(gradient), doubleBuffer.data(), buffer);
-
-        std::vector<double> testGradient0;
-        for (int d = 0; d < embeddingDimension; ++d) {
-            testGradient0.push_back(doubleBuffer[d]);
-        }
-        for (int d = 0; d < embeddingDimension; ++d) {
-            testGradient0.push_back(doubleBuffer[OpenCLRealType::dim * (locationCount - 1) + d]);
-        }
-
-        std::vector<double> testGradient00;
-        for (int d = 0; d < OpenCLRealType::dim; ++d) {
-            testGradient00.push_back(doubleBuffer[d]);
-        }
-        for (int d = 0; d < OpenCLRealType::dim; ++d) {
-            testGradient00.push_back(doubleBuffer[OpenCLRealType::dim * (locationCount - 1) + d]);
-        }
-
-#endif // DOUBLE_CHECK_GRADIENT
 
 		kernelGradientVector.set_arg(0, *dLocationsPtr);
 		kernelGradientVector.set_arg(3, static_cast<RealType>(precision));
@@ -334,50 +257,6 @@ public:
                                    result, embeddingDimension,
                                    layout.uniqueLocationCount, buffer);
         }
-
-#ifdef DOUBLE_CHECK_GRADIENT
-        std::vector<double> testGradient1;
-        for (int i = 0; i < embeddingDimension; ++i) {
-            testGradient1.push_back(result[i]);
-        }
-
-		int stride = (length == locationCount * OpenCLRealType::dim) ?
-					 OpenCLRealType::dim : embeddingDimension;
-
-        for (int i = 0; i < embeddingDimension; ++i) {
-            testGradient1.push_back(result[stride * (locationCount - 1) + i]);
-        }
-
-        std::vector<double> testGradient11;
-        for (int i = 0; i < OpenCLRealType::dim; ++i) {
-            testGradient11.push_back(doubleBuffer[i]);
-        }
-
-        MDS_CERR << "cpu0: ";
-        for (auto x : testGradient0) {
-            MDS_CERR << " " << x;
-        }
-        MDS_CERR << std::endl;
-
-        MDS_CERR << "cpu1: ";
-        for (auto x : testGradient00) {
-            MDS_CERR << " " << x;
-        }
-        MDS_CERR << std::endl;
-
-        MDS_CERR << "gpu0: ";
-        for (auto x : testGradient1) {
-            MDS_CERR << " " << x;
-        }
-        MDS_CERR << std::endl;
-
-        MDS_CERR << "gpu1: ";
-        for (auto x : testGradient11) {
-            MDS_CERR << " " << x;
-        }
-        MDS_CERR << std::endl;
-#endif
-
  	}
 
     void computeResidualsAndTruncations() {
@@ -551,14 +430,6 @@ public:
             mm::bufferedCopyToDevice(transposed, transposed + length,
                                      dTransposedObservations.begin(), buffer, queue);
         }
-
-#ifdef DOUBLE_CHECK
-		RealType sum = 0.0;
-		boost::compute::reduce(dObservations.begin(), dObservations.end(), &sum, queue);
-		RealType sum2 = std::accumulate(begin(observations), end(observations), RealType(0.0));
-		MDS_CERR << sum << " ?= " << sum2 << std::endl;
-#endif
-
     }
 
     void setParameters(double* data, size_t length) override {
@@ -589,40 +460,9 @@ public:
 
 		RealType lSumOfSquaredResiduals = 0.0;
 
-#ifdef DOUBLE_CHECK
-	  RealType lSumOfTruncations = 0.0;
-		auto startTime1 = std::chrono::steady_clock::now();
-
-		for (int i = 0; i < locationCount; ++i) { // TODO Parallelize
-			for (int j = 0; j < locationCount; ++j) {
-
-				const auto distance = calculateDistance<mm::MemoryManager<RealType>>(
-					begin(*locationsPtr) + i * OpenCLRealType::dim,
-					begin(*locationsPtr) + j * OpenCLRealType::dim
-				);
-				const auto residual = !std::isnan(observations[i * locationCount + j]) *
-				        (distance - observations[i * locationCount + j]);
-				const auto squaredResidual = residual * residual;
-				squaredResiduals[i * locationCount + j] = squaredResidual;
-				lSumOfSquaredResiduals += squaredResidual;
-
-				if (withTruncation) { // compile-time check
-					const auto truncation = (i == j) ? RealType(0) :
-						math::logCdf<OpenCLMultiDimensionalScaling>(std::fabs(residual) * oneOverSd);
-					truncations[i * locationCount + j] = truncation;
-					lSumOfTruncations += truncation;
-				}
-			}
-		}
-
-		auto duration1 = std::chrono::steady_clock::now() - startTime1;
-		if (count > 1) timer1 += std::chrono::duration<double, std::milli>(duration1).count();
-#endif // DOUBLE_CHECK
-
 		// COMPUTE TODO
 		auto startTime2 = std::chrono::steady_clock::now();
 
-#ifdef USE_VECTORS
         const int rowCount = layout.rowLocationCount;
         const int colCount = layout.columnLocationCount;
 
@@ -646,13 +486,6 @@ public:
 
 		queue.enqueue_nd_range_kernel(kernelSumOfSquaredResidualsVector, 2, 0, global_work_size, local_work_size);
 
-#else
-        MDS_CERR << "Not yet implemented" << std::endl;
-        exit(-1);
-		kernelSumOfSquaredResiduals.set_arg(0, *dLocationsPtr);
-		queue.enqueue_1d_range_kernel(kernelSumOfSquaredResiduals, 0, locationCount * locationCount, 0);
-#endif // USE_VECTORS
-
 		queue.finish();
 		auto duration2 = std::chrono::steady_clock::now() - startTime2;
 		if (count > 1) timer2 += std::chrono::duration<double, std::milli>(duration2).count();
@@ -665,10 +498,6 @@ public:
 		queue.finish();
 		auto duration3 = std::chrono::steady_clock::now() - startTime3;
 		if (count > 1) timer3 += std::chrono::duration<double, std::milli>(duration3).count();
-
-#ifdef DOUBLE_CHECK
-  		MDS_CERR << sum << " - " << lSumOfSquaredResiduals << " = " <<  (sum - lSumOfSquaredResiduals) << std::endl;
-#endif
 
 //  		using namespace boost::compute;
 //         boost::shared_ptr<program_cache> cache = program_cache::get_global_cache(ctx);
@@ -793,64 +622,6 @@ public:
 		sumOfSquaredResiduals += delta.real();
  		sumOfTruncations += delta.imag();
 #endif
-	}
-
-#ifdef SSE
-    template <typename HostVectorType, typename Iterator>
-    double calculateDistance(Iterator iX, Iterator iY) const {
-
-        using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
-
-        auto sum = static_cast<AlignedValueType>(0);
-        AlignedValueType* x = &*iX;
-        AlignedValueType* y = &*iY;
-
-        for (int i = 0; i < OpenCLRealType::dim; ++i, ++x, ++y) {
-            const auto difference = *x - *y; // TODO Why does this seg-fault?
-            sum += difference * difference;
-        }
-        return std::sqrt(sum);
-    }
-
-//    template <typename HostVectorType, typename Iterator>
-//    double calculateDistance<HostVectorType, Iterator, 2>(Iterator iX, Iterator iY, int length) const {
-//
-//        using AlignedValueType = typename HostVectorType::allocator_type::aligned_value_type;
-//
-//        auto sum = static_cast<AlignedValueType>(0);
-//        AlignedValueType* x = &*iX;
-//        AlignedValueType* y = &*iY;
-//
-//        for (int i = 0; i < 2; ++i, ++x, ++y) {
-//            const auto difference = *x - *y; // TODO Why does this seg-fault?
-//            sum += difference * difference;
-//        }
-//        return std::sqrt(sum);
-//    }
-
-
-#else // SSE
-    template <typename HostVectorType, typename Iterator>
-    double calculateDistance(Iterator x, Iterator y, int length) const {
-
-        assert (false);
-
-        auto sum = static_cast<RealType>(0);
-
-        for (int i = 0; i < 2; ++i, ++x, ++y) {
-            const auto difference = *x - *y;
-            sum += difference * difference;
-        }
-        return std::sqrt(sum);
-    }
-#endif // SSE
-
-	template <typename Integer, typename Function, typename Real>
-	inline Real accumulate(Integer begin, Integer end, Real sum, Function function) {
-		for (; begin != end; ++begin) {
-			sum += function(begin);
-		}
-		return sum;
 	}
 
 	void createOpenCLLikelihoodKernel() {
@@ -981,10 +752,6 @@ public:
         MDS_CERR << "Successful build." << std::endl;
 #endif
 
-#ifdef DOUBLE_CHECK
-        MDS_CERR << kernelSumOfSquaredResidualsVector.get_program().source() << std::endl;
-#endif // DOUBLE_CHECK
-
 		size_t index = 0;
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dLocations0); // Must update
 		kernelSumOfSquaredResidualsVector.set_arg(index++, dObservations);
@@ -1067,10 +834,6 @@ public:
 			}
 		}
 
-#ifndef USE_VECTOR
-		bool isNvidia = false; // TODO Check device name
-#endif
-
 		code <<
 			 " __kernel void computeGradient(__global const REAL_VECTOR *locations,  \n" <<
 			 "                               __global const REAL *observations,      \n" <<
@@ -1130,11 +893,9 @@ public:
 			 "   }                                                                   \n" <<
 			 "                                                                       \n" <<
 			 "   scratch[lid] = sum;                                                 \n";
-#ifdef USE_VECTOR
-			 code << reduce::ReduceBody1<RealType,false>::body();
-#else
-		code << (isNvidia ? reduce::ReduceBody2<RealType,true>::body() : reduce::ReduceBody2<RealType,false>::body());
-#endif
+
+        code << reduce::ReduceBody1<RealType,false>::body();
+
 		code <<
 			 "   barrier(CLK_LOCAL_MEM_FENCE);                                       \n" <<
 			 "   if (lid == 0) {                                                     \n";
@@ -1227,7 +988,6 @@ private:
     mm::GPUMemoryManager<RealType> dObservations;
     mm::GPUMemoryManager<RealType> dTransposedObservations;
 
-#ifdef USE_VECTORS
     mm::GPUMemoryManager<VectorType> dLocations0;
     mm::GPUMemoryManager<VectorType> dLocations1;
 
@@ -1235,14 +995,6 @@ private:
     mm::GPUMemoryManager<VectorType>* dStoredLocationsPtr;
 
 	mm::GPUMemoryManager<VectorType> dGradient;
-#else
-    mm::GPUMemoryManager<RealType> dLocations0;
-    mm::GPUMemoryManager<RealType> dLocations1;
-
-    mm::GPUMemoryManager<RealType>* dLocationsPtr;
-    mm::GPUMemoryManager<RealType>* dStoredLocationsPtr;
-#endif // USE_VECTORS
-
 
     mm::GPUMemoryManager<RealType> dSquaredResiduals;
     mm::GPUMemoryManager<RealType> dStoredSquaredResiduals;
@@ -1258,12 +1010,8 @@ private:
 
     boost::compute::program program;
 
-#ifdef USE_VECTORS
 	boost::compute::kernel kernelSumOfSquaredResidualsVector;
 	boost::compute::kernel kernelGradientVector;
-#else
-    boost::compute::kernel kernelSumOfSquaredResiduals;
-#endif // USE_VECTORS
 
 	double timer1 = 0;
 	double timer2 = 0;
