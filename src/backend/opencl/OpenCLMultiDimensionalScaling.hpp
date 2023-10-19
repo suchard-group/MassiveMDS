@@ -20,17 +20,6 @@
 #include <boost/compute/algorithm/reduce.hpp>
 #include "reduce_fast.hpp"
 
-#ifdef RBUILD
-# include <Rcpp.h>
-# define MDS_COUT   Rcpp::Rcout
-# define MDS_CERR   Rcpp::Rcout
-# define MDS_STOP(msg)  Rcpp::stop(msg)
-#else
-# define MDS_COUT   std::cout
-# define MDS_CERR   std::cerr
-# define MDS_STOP(msg)  std::cerr << msg; exit(-1)
-#endif
-
 #define TILE_DIM 16
 #define TILE_DIM_I  128
 #define TPB 128

@@ -3,54 +3,56 @@
 // forward reference
 namespace mds {
 #ifdef HAVE_OPENCL
-    SharedPtr constructOpenCLMultiDimensionalScalingDouble(int, Layout, long, int);
-    SharedPtr constructOpenCLMultiDimensionalScalingFloat(int, Layout layout, long, int);
+    SharedPtr constructOpenCLMultiDimensionalScalingDouble(int, const Layout&, long, int);
+    SharedPtr constructOpenCLMultiDimensionalScalingFloat(int, const Layout&, long, int);
 #endif
-    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int, Layout layout, long, int);
-    SharedPtr constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int, Layout layout, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int, const Layout&, long, int);
+    SharedPtr constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int, const Layout&, long, int);
 #ifdef USE_TBB
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbNoSimd(int, Layout layout, long, int);
-    SharedPtr constructNewMultiDimensionalScalingFloatTbbNoSimd(int, Layout layout, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbNoSimd(int, const Layout&, long, int);
+    SharedPtr constructNewMultiDimensionalScalingFloatTbbNoSimd(int, const Layout&, long, int);
 #endif
 
 #ifdef USE_SSE
-    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelSse(int, Layout layout, long, int);
-    SharedPtr constructNewMultiDimensionalScalingFloatNoParallelSse(int, Layout layout, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelSse(int, const Layout&, long, int);
+    SharedPtr constructNewMultiDimensionalScalingFloatNoParallelSse(int, const Layout&, long, int);
 #ifdef USE_TBB
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbSse(int, Layout layout, long, int);
-    SharedPtr constructNewMultiDimensionalScalingFloatTbbSse(int, Layout layout, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbSse(int, const Layout&, long, int);
+    SharedPtr constructNewMultiDimensionalScalingFloatTbbSse(int, const Layout&, long, int);
 #endif
 #endif
 
 #ifdef USE_AVX
 #ifdef USE_TBB
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx(int, Layout layout, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx(int, const Layout&, long, int);
 #endif
-    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx(int, Layout layout, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx(int, const Layout&, long, int);
 #endif
 
 #ifdef USE_AVX512
 #ifdef USE_TBB
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx512(int, Layout layout, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx512(int, const Layout&, long, int);
 #endif
-    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx512(int, Layout layout, long, int);
+    SharedPtr constructNewMultiDimensionalScalingDoubleNoParallelAvx512(int, const Layout&, long, int);
 #endif
 
 #ifndef USE_TBB
-	SharedPtr constructNewMultiDimensionalScalingDoubleTbbNoSimd(int, Layout layout, long, int) { return NULL; }
-    SharedPtr constructNewMultiDimensionalScalingFloatTbbNoSimd(int, Layout layout, long, int) { return NULL; }
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbSse(int, Layout layout, long, int) { return NULL; }
-    SharedPtr constructNewMultiDimensionalScalingFloatTbbSse(int, Layout layout, long, int) { return NULL; }
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx(int, Layout layout, long, int) { return NULL; }
-    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx512(int, Layout layout, long, int) { return NULL; }
+	SharedPtr constructNewMultiDimensionalScalingDoubleTbbNoSimd(int, const Layout&, long, int) { return nullptr; }
+    SharedPtr constructNewMultiDimensionalScalingFloatTbbNoSimd(int, const Layout&, long, int) { return nullptr; }
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbSse(int, const Layout&, long, int) { return nullptr; }
+    SharedPtr constructNewMultiDimensionalScalingFloatTbbSse(int, const Layout&, long, int) { return nullptr; }
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx(int, const Layout&, long, int) { return nullptr; }
+    SharedPtr constructNewMultiDimensionalScalingDoubleTbbAvx512(int, const Layout&, long, int) { return nullptr; }
 #endif
 
-SharedPtr factory(int dim1, Layout layout, long flags, int device, int threads) {
+SharedPtr factory(int dim1, const Layout& layout, long flags, int device, int threads) {
 	bool useFloat = flags & mds::Flags::FLOAT;
 	bool useOpenCL = flags & mds::Flags::OPENCL;
 	bool useTbb = flags & mds::Flags::TBB;
+    __attribute__((unused))
     bool useAvx512 = flags & mds::Flags::AVX512;
-	bool useAvx = flags & mds::Flags::AVX;
+    __attribute__((unused))
+    bool useAvx = flags & mds::Flags::AVX;
 	bool useSse = flags & mds::Flags::SSE;
 
 	if (useFloat) {
@@ -101,7 +103,7 @@ SharedPtr factory(int dim1, Layout layout, long flags, int device, int threads) 
                 }
             } else
 #else
-              useAvx512 = false; // stops unused variable warning when AVX512 is unavailable
+//              useAvx512 = false; // stops unused variable warning when AVX512 is unavailable
 #endif // USE_AVX512
 
 #ifdef USE_AVX
@@ -113,7 +115,7 @@ SharedPtr factory(int dim1, Layout layout, long flags, int device, int threads) 
                 }
             } else
 #else
-              useAvx = false;
+//              useAvx = false;
 #endif // USE_AVX
 
 #ifdef USE_SSE

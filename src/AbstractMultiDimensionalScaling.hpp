@@ -31,6 +31,17 @@
 #include "CDF.h"
 #include "flags.h"
 
+#ifdef RBUILD
+# include <Rcpp.h>
+# define MDS_COUT   Rcpp::Rcout
+# define MDS_CERR   Rcpp::Rcout
+# define MDS_STOP(msg)  Rcpp::stop(msg)
+#else
+# define MDS_COUT   std::cout
+# define MDS_CERR   std::cerr
+# define MDS_STOP(msg)  std::cerr << msg; exit(-1)
+#endif
+
 namespace mds {
 
 class Layout {
@@ -110,7 +121,7 @@ protected:
 
 typedef std::shared_ptr<mds::AbstractMultiDimensionalScaling> SharedPtr;
 
-SharedPtr factory(int dim1, Layout layout, long flags, int device, int threads);
+SharedPtr factory(int dim1, const Layout& layout, long flags, int device, int threads);
 
 //template <typename T>
 //struct DetermineType;

@@ -5,14 +5,9 @@
 #include "OpenCLMultiDimensionalScaling.hpp"
 
 namespace mds {
-//
-// template class OpenCLMultiDimensionalScaling<float>;
-// template class OpenCLMultiDimensionalScaling<double>;
-//
 
-// factory
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, Layout layout, long flags, int device) {
+    constructOpenCLMultiDimensionalScalingDouble(int embeddingDimension, const Layout& layout, long flags, int device) {
         if (embeddingDimension <= 2) {
             return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLDouble<2>>>(embeddingDimension, layout,
                                                                                     flags, device);
@@ -32,7 +27,7 @@ namespace mds {
     }
 
     std::shared_ptr<AbstractMultiDimensionalScaling>
-    constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, Layout layout, long flags, int device) {
+    constructOpenCLMultiDimensionalScalingFloat(int embeddingDimension, const Layout& layout, long flags, int device) {
         if (embeddingDimension <= 2) {
             return std::make_shared<OpenCLMultiDimensionalScaling<OpenCLFloat<2>>>(embeddingDimension, layout,
                                                                                    flags, device);
