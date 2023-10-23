@@ -296,9 +296,7 @@ public:
 
 	void getLogLikelihoodGradient(double* result, size_t length) override {
 
-		const auto count = layout.uniqueLocationCount;
-
-		assert (length == count * embeddingDimension);
+		assert (length == layout.uniqueLocationCount * embeddingDimension);
 
         // TODO Cache values
 

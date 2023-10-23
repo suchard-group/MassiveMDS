@@ -94,7 +94,9 @@ Rcpp::List createEngine(int embeddingDimension, int locationCount, bool truncati
 
   }
 
-  auto mds = new MdsWrapper(mds::factory(embeddingDimension, locationCount,
+  mds::Layout layout(locationCount);
+
+  auto mds = new MdsWrapper(mds::factory(embeddingDimension, layout,
                                          flags, deviceNumber, threads));
   XPtrMdsWrapper engine(mds);
 

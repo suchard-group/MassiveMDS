@@ -72,19 +72,19 @@ public:
 
 	inline SimdType calculate(int j) const;
 
-	inline const int getRowLocationOffset() const {
+	inline int getRowLocationOffset() const {
 	  return rowOffset * embeddingDimension;
 	}
 
-	inline const int getRowOffset() const {
+	inline int getRowOffset() const {
 	  return rowOffset;
 	}
 
-  inline const int getColumnLocationOffset() const {
+  inline int getColumnLocationOffset() const {
     return columnOffset * embeddingDimension;
   }
 
-	inline const int getColumnOffset() const {
+	inline int getColumnOffset() const {
 	  return columnOffset;
 	}
 };
@@ -506,12 +506,12 @@ public:
 #ifdef USE_SSE
     template <>
     inline D2 SimdHelper<D2, D2::value_type>::get(const double* iterator) {
-        return D2(iterator, xsimd::unaligned_mode());
+        return {iterator, xsimd::unaligned_mode()};
     }
 
 	template <>
 	inline S4 SimdHelper<S4, S4::value_type>::get(const float* iterator) {
-		return S4(iterator, xsimd::unaligned_mode());
+		return {iterator, xsimd::unaligned_mode()};
 	}
 #endif
 #ifdef USE_AVX

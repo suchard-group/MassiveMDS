@@ -56,7 +56,7 @@ public:
   int observationStride;
   int transposedObservationStride;
 
-  Layout(int locationCount) :
+  explicit Layout(int locationCount) :
     rowLocationCount(locationCount), columnLocationCount(locationCount),
     columnLocationOffset(0),
     uniqueLocationCount(locationCount),
@@ -74,7 +74,7 @@ public:
 
   virtual ~Layout() = default;
 
-  bool isSymmetric() {
+  bool isSymmetric() const {
     return columnLocationOffset == 0;
   }
 };
@@ -82,7 +82,7 @@ public:
 class AbstractMultiDimensionalScaling {
 public:
     AbstractMultiDimensionalScaling(int embeddingDimension,
-                                    Layout layout, long flags)
+                                    const Layout& layout, long flags)
         : embeddingDimension(embeddingDimension), layout(layout),
           flags(flags) { }
 

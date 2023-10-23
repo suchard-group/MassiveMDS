@@ -11,21 +11,21 @@ namespace mds {
     template <>
     struct OpenCLFloat<2> {
         typedef float BaseType;
-        typedef boost::compute::float2_ VectorType;
+        __attribute__((unused)) typedef boost::compute::float2_ VectorType;
         static const int dim = 2;
     };
 
     template <>
     struct OpenCLFloat<4> {
         typedef float BaseType;
-        typedef boost::compute::float4_ VectorType;
+        __attribute__((unused)) typedef boost::compute::float4_ VectorType;
         static const int dim = 4;
     };
 
     template <>
     struct OpenCLFloat<8> {
         typedef float BaseType;
-        typedef boost::compute::float8_ VectorType;
+        __attribute__((unused)) typedef boost::compute::float8_ VectorType;
         static const int dim = 8;
     };
 
@@ -35,21 +35,21 @@ namespace mds {
     template <>
     struct OpenCLDouble<2> {
         typedef double BaseType;
-        typedef boost::compute::double2_ VectorType;
+        __attribute__((unused)) typedef boost::compute::double2_ VectorType;
         static const int dim = 2;
     };
 
     template <>
     struct OpenCLDouble<4> {
         typedef double BaseType;
-        typedef boost::compute::double4_ VectorType;
+        __attribute__((unused)) typedef boost::compute::double4_ VectorType;
         static const int dim = 4;
     };
 
     template <>
     struct OpenCLDouble<8> {
         typedef double BaseType;
-        typedef boost::compute::double8_ VectorType;
+        __attribute__((unused)) typedef boost::compute::double8_ VectorType;
         static const int dim = 8;
     };
 
@@ -74,6 +74,7 @@ using GPUMemoryManager = boost::compute::vector<T>;
 	}
 
         template <typename OpenCLVectorType, typename Buffer, typename Queue>
+        __attribute__((unused))
         void bufferedCopyFromDevice(typename mm::GPUMemoryManager<typename OpenCLVectorType::VectorType>::iterator begin,
                                     typename mm::GPUMemoryManager<typename OpenCLVectorType::VectorType>::iterator end,
                                     double *destination,
@@ -88,6 +89,7 @@ using GPUMemoryManager = boost::compute::vector<T>;
 
 
         template <typename OpenCLVectorType, typename Buffer, typename Queue>
+        __attribute__((unused))
         void bufferedCopyFromDevice(typename mm::GPUMemoryManager<typename OpenCLVectorType::VectorType>::iterator begin,
                                     typename mm::GPUMemoryManager<typename OpenCLVectorType::VectorType>::iterator end,
                                     double* destination,
@@ -139,7 +141,8 @@ using GPUMemoryManager = boost::compute::vector<T>;
 //    }
 
 	template <typename Buffer, typename Queue>
-	void bufferedCopyFromDevice(mm::GPUMemoryManager<float>::iterator begin,
+    __attribute__((unused))
+    void bufferedCopyFromDevice(mm::GPUMemoryManager<float>::iterator begin,
 								mm::GPUMemoryManager<float>::iterator end,
 								double *destination,
 								Buffer& buffer, Queue& queue) {
@@ -247,6 +250,7 @@ using GPUMemoryManager = boost::compute::vector<T>;
         }
 
         template <typename Buffer, typename Queue>
+        __attribute__((unused))
         void bufferedCopyToDevice(double *begin, double *end,
                                   mm::GPUMemoryManager<float>::iterator destination, Buffer& buffer, Queue& queue) {
 
