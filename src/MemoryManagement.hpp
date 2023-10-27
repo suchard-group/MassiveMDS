@@ -49,10 +49,9 @@ void bufferedCopy(double *begin, double *end,
         if (std::isnan(*begin)) {
             *destination = NAN;
         } else {
-            *destination = *begin;
+            *destination = static_cast<float>(*begin);
         }
     }
-//	std::copy(begin, end, destination);
 }
 
 template <typename RealVectorPtr, typename Buffer>

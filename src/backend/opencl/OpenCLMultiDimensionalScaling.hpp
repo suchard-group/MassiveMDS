@@ -393,10 +393,6 @@ public:
 
     void setPairwiseData(double* data, size_t length) override {
 
-        MDS_CERR << "length = " << length << std::endl;
-        MDS_CERR << "size   = " << observations.size() << std::endl;
-        MDS_CERR << "layout = " << layout.observationCount << std::endl;
-
 		assert(length == observations.size());
 
         if (layout.isSymmetric()) {
@@ -867,12 +863,12 @@ public:
 
         if (isLeftTruncated) {
             code <<
-             "     const REAL trncDrv = select(-ONE / sqrt(precision) *              \n" <<
+             "     const REAL truncDrv = select(-ONE / sqrt(precision) *             \n" <<
              "                              pdf(distance * sqrt(precision)) /        \n" <<
              "                              cdf(distance * sqrt(precision)),         \n" <<
              "                                 ZERO,                                 \n" <<
              "                                 (CAST)isnan(observation));            \n" <<
-             "     residual += trncDrv;                                              \n";
+             "     residual += truncDrv;                                             \n";
         }
 
         code <<

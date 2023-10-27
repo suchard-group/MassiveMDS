@@ -145,7 +145,7 @@ public:
 #endif // USE_SIMD
 
     template <typename Iterator>
-    typename Iterator::value_type calculateDistanceScalar(Iterator x, Iterator y, int length) {
+    typename Iterator::value_type calculateDistanceScalar(Iterator x, Iterator y, int) {
 
         typename Iterator::value_type sum{0};
 
