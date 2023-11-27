@@ -38,10 +38,11 @@ getLogLikelihood <- function(engine) {
 #' Takes MDS engine object and returns log likelihood gradient.
 #'
 #' @param engine An MDS engine object.
+#' @param landmarks If true, then bandwidth is number of landmarks. If false, then it is number of bands.
 #' @return MDS log likelihood gradient.
 #'
 #' @export
-getGradient <- function(engine) {
+getGradient <- function(engine,landmarks=FALSE) {
 
   if (!engine$dataInitialized) {
     stop("data are not set")
@@ -55,8 +56,13 @@ getGradient <- function(engine) {
     stop("precision is not set")
   }
 
-  matrix(.getLogLikelihoodGradient(engine$engine, engine$locationCount * engine$embeddingDimension),
-         nrow = engine$locationCount, byrow = TRUE)
+  if (landmarks) {
+    matrix(.getLogLikelihoodGradient2(engine$engine, engine$locationCount * engine$embeddingDimension),
+           nrow = engine$locationCount, byrow = TRUE)
+  } else {
+    matrix(.getLogLikelihoodGradient(engine$engine, engine$locationCount * engine$embeddingDimension),
+           nrow = engine$locationCount, byrow = TRUE)
+  }
 }
 
 #' Deliver precision variable to MDS engine object

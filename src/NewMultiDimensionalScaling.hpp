@@ -348,6 +348,70 @@ public:
         }, ParallelType());
     }
 
+
+	void getLogLikelihoodGradient2(double* result, size_t length) {
+
+	  assert (length == locationCount * embeddingDimension);
+
+	  // TODO Cache values
+
+	  if (isLeftTruncated) { // run-time dispatch to compile-time optimization
+	    if (embeddingDimension == 2) {
+	      computeLogLikelihoodGradient2Generic<true, typename TypeInfo::SimdType, TypeInfo::SimdSize, NonGeneric>();
+	    } else {
+	      computeLogLikelihoodGradient2Generic<true, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
+	    }
+	  } else {
+	    if (embeddingDimension == 2) {
+	      computeLogLikelihoodGradient2Generic<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, NonGeneric>();
+	    } else {
+	      computeLogLikelihoodGradient2Generic<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
+	    }
+	  }
+
+	  mm::bufferedCopy(std::begin(*gradientPtr), std::end(*gradientPtr), result, buffer);
+	}
+
+	template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
+	void computeLogLikelihoodGradient2Generic() {
+
+	  const auto length = locationCount * embeddingDimension;
+	  if (length != gradientPtr->size()) {
+	    gradientPtr->resize(length);
+	  }
+
+	  std::fill(std::begin(*gradientPtr), std::end(*gradientPtr),
+             static_cast<RealType>(0.0));
+
+	  //const auto dim = embeddingDimension;
+	  //RealType* gradient = gradientPtr->data();
+	  const RealType scale = precision;
+
+	  for_each(0, locationCount, [this, scale](const int i) { // [gradient,dim]
+
+	    int upperMin = bandwidth+1;
+
+	    if (locationCount <= upperMin) {
+	      upperMin = locationCount;
+	    }
+
+	    const int upper = upperMin - upperMin % SimdSize;
+
+	    DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+
+	    innerGradientLoop2<withTruncation, SimdType, SimdSize>(dispatch, scale, i, 0, upper);
+
+	    // if (vectorCount < locationCount) { // Edge-cases
+	    //
+	    //   DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+	    //
+	    //   innerGradientLoop2<withTruncation, RealType, 1>(dispatch, scale, i, vectorCount, locationCount);
+	    // }
+	  }, ParallelType());
+	}
+
+
+
 #ifdef USE_SIMD
 
 	template <typename T, size_t N>
@@ -473,6 +537,48 @@ public:
                 }
 			}
 		}
+	}
+
+	template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
+	void innerGradientLoop2(const DispatchType& dispatch, const RealType scale, const int i,
+                         const int begin, const int end) {
+
+	  const SimdType sqrtScale(std::sqrt(scale));
+
+	  for (int j = begin; j < end; j += SimdSize) {
+
+	    const auto distance = dispatch.calculate(j);
+	    const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
+	    const auto notMissing = !getMissing(i, j, observation);
+
+	    if (any(notMissing)) {
+
+	      auto residual = mask(notMissing, observation - distance);
+
+	      if (withTruncation) {
+
+	        residual -= mask(notMissing, math::pdf_new( distance * sqrtScale ) /
+	          (xsimd::exp(math::phi_new(distance * sqrtScale)) *
+	            sqrtScale) );
+	      }
+
+	      auto dataContribution = mask(notMissing, residual * scale / distance);
+
+	      for (int k = 0; k < SimdSize; ++k) {
+	        for (int d = 0; d < embeddingDimension; ++d) {
+
+	          const RealType something = getScalar(dataContribution, k);
+
+	          const RealType update = something *
+	            ((*locationsPtr)[i * embeddingDimension + d] -
+	            (*locationsPtr)[(j + k) * embeddingDimension + d]);
+
+
+	          (*gradientPtr)[i * embeddingDimension + d] += update;
+	        }
+	      }
+	    }
+	  }
 	}
 
 	double getScalar(double x, int i) {

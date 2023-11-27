@@ -83,6 +83,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// getLogLikelihoodGradient2
+std::vector<double> getLogLikelihoodGradient2(SEXP sexp, size_t len);
+RcppExport SEXP _MassiveMDS_getLogLikelihoodGradient2(SEXP sexpSEXP, SEXP lenSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sexp(sexpSEXP);
+    Rcpp::traits::input_parameter< size_t >::type len(lenSEXP);
+    rcpp_result_gen = Rcpp::wrap(getLogLikelihoodGradient2(sexp, len));
+    return rcpp_result_gen;
+END_RCPP
+}
 // getSumOfIncrements
 double getSumOfIncrements(SEXP sexp);
 RcppExport SEXP _MassiveMDS_getSumOfIncrements(SEXP sexpSEXP) {
@@ -102,6 +114,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_MassiveMDS_updateLocations", (DL_FUNC) &_MassiveMDS_updateLocations, 2},
     {"_MassiveMDS_setPrecision", (DL_FUNC) &_MassiveMDS_setPrecision, 2},
     {"_MassiveMDS_getLogLikelihoodGradient", (DL_FUNC) &_MassiveMDS_getLogLikelihoodGradient, 2},
+    {"_MassiveMDS_getLogLikelihoodGradient2", (DL_FUNC) &_MassiveMDS_getLogLikelihoodGradient2, 2},
     {"_MassiveMDS_getSumOfIncrements", (DL_FUNC) &_MassiveMDS_getSumOfIncrements, 1},
     {NULL, NULL, 0}
 };

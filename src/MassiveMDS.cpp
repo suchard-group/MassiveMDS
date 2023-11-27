@@ -143,6 +143,14 @@ std::vector<double> getLogLikelihoodGradient(SEXP sexp, size_t len) {
   return result;
 }
 
+// [[Rcpp::export(.getLogLikelihoodGradient2)]]
+std::vector<double> getLogLikelihoodGradient2(SEXP sexp, size_t len) {
+  auto ptr = parsePtr(sexp);
+  std::vector<double> result(len);
+  ptr->getLogLikelihoodGradient2(&result[0], len);
+  return result;
+}
+
 // [[Rcpp::export(.getSumOfIncrements)]]
 double getSumOfIncrements(SEXP sexp) {
   auto ptr = parsePtr(sexp);

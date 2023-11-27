@@ -51,6 +51,7 @@ public:
 //     virtual double getSumOfLogTruncations() = 0;
     virtual double getSumOfIncrements() = 0;
     virtual void getLogLikelihoodGradient(double*, size_t) = 0;
+    virtual void getLogLikelihoodGradient2(double*, size_t) = 0;
     virtual void storeState() = 0;
     virtual void restoreState() = 0;
     virtual void acceptState() = 0;

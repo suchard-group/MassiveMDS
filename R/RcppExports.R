@@ -41,6 +41,10 @@ createEngine <- function(embeddingDimension, locationCount, truncation, tbb, sim
     .Call('_MassiveMDS_getLogLikelihoodGradient', PACKAGE = 'MassiveMDS', sexp, len)
 }
 
+.getLogLikelihoodGradient2 <- function(sexp, len) {
+    .Call('_MassiveMDS_getLogLikelihoodGradient2', PACKAGE = 'MassiveMDS', sexp, len)
+}
+
 .getSumOfIncrements <- function(sexp) {
     .Call('_MassiveMDS_getSumOfIncrements', PACKAGE = 'MassiveMDS', sexp)
 }
