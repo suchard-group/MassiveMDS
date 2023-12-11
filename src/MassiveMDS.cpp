@@ -156,3 +156,9 @@ double getSumOfIncrements(SEXP sexp) {
   auto ptr = parsePtr(sexp);
   return ptr->getSumOfIncrements();
 }
+
+// [[Rcpp::export(.getSumOfIncrements2)]]
+double getSumOfIncrements2(SEXP sexp) {
+  auto ptr = parsePtr(sexp);
+  return ptr->getSumOfIncrements2();
+}

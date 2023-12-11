@@ -50,6 +50,7 @@ public:
 //     virtual double getSumOfSquaredResiduals() = 0;
 //     virtual double getSumOfLogTruncations() = 0;
     virtual double getSumOfIncrements() = 0;
+    virtual double getSumOfIncrements2() = 0;
     virtual void getLogLikelihoodGradient(double*, size_t) = 0;
     virtual void getLogLikelihoodGradient2(double*, size_t) = 0;
     virtual void storeState() = 0;

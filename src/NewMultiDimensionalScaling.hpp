@@ -190,6 +190,31 @@ public:
 		}
     }
 
+    void computeIncrements2() {
+      if (!incrementsKnown) {
+        if (isLeftTruncated) { // run-time dispatch to compile-time optimization
+          if (embeddingDimension == 2) {
+            computeSumOfIncrements2Generic<true, typename TypeInfo::SimdType, TypeInfo::SimdSize, NonGeneric>();
+          } else {
+            computeSumOfIncrements2Generic<true, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
+          }
+        } else {
+          if (embeddingDimension == 2) {
+            computeSumOfIncrements2Generic<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, NonGeneric>();
+          } else {
+            computeSumOfIncrements2Generic<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
+          }
+        }
+        incrementsKnown = true;
+      } else {
+        if (isLeftTruncated) {
+          updateSumOfIncrements<true>();
+        } else {
+          updateSumOfIncrements<false>();
+        }
+      }
+    }
+
     double getSumOfIncrements() {
     	if (!sumOfIncrementsKnown) {
 			computeIncrements();
@@ -201,6 +226,18 @@ public:
 			return 0.5 * precision * sumOfIncrements;
 		}
  	}
+
+    double getSumOfIncrements2() {
+      if (!sumOfIncrementsKnown) {
+        computeIncrements2();
+        sumOfIncrementsKnown = true;
+      }
+      if (isLeftTruncated) {
+        return sumOfIncrements;
+      } else {
+        return 0.5 * precision * sumOfIncrements;
+      }
+    }
 
     void storeState() {
     	storedSumOfIncrements = sumOfIncrements;
@@ -642,6 +679,37 @@ public:
         return reduce(sum);
     }
 
+    template <bool withTruncation, typename SimdType, int SimdSize, typename DispatchType>
+    RealType innerLikelihoodLoop2(const DispatchType& dispatch, const RealType scale, const int i,
+                                 const int begin, const int end) {
+
+      SimdType sum = SimdType(RealType(0));
+
+      for (int j = begin; j < end; j += SimdSize) {
+
+        const auto distance = dispatch.calculate(j);
+        const auto observation = SimdHelper<SimdType, RealType>::get(&observations[i * locationCount + j]);
+        const auto notMissing = !getMissing(i, j, observation);
+
+        if (any(notMissing)) {
+
+          const auto residual = mask(notMissing, observation - distance);
+          auto squaredResidual = residual * residual;
+
+          if (withTruncation) {
+            squaredResidual *= scale;
+            squaredResidual += mask(notMissing, math::phi_new(distance * oneOverSd));
+          }
+
+          SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
+          sum += squaredResidual;
+        }
+      }
+
+      return reduce(sum);
+    }
+
+
     template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
     void computeSumOfIncrementsGeneric() {
 
@@ -691,6 +759,56 @@ public:
 
         incrementsKnown = true;
         sumOfIncrementsKnown = true;
+    }
+
+    template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
+    void computeSumOfIncrements2Generic() {
+
+      const auto scale = 0.5 * precision;
+
+      RealType delta =
+        accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
+          int upperMin = bandwidth+1;
+
+          if (locationCount <= upperMin) {
+            upperMin = locationCount;
+          }
+
+          const int upper = upperMin - upperMin % SimdSize;
+
+
+          //Rcpp::Rcout << "bandMin: " << bandMin << std::endl;
+          //
+          //  Rcpp::Rcout << "VectorCount: " << vectorCount << std::endl;
+
+
+          DistanceDispatch<SimdType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+
+          RealType sumOfSquaredResiduals =
+            innerLikelihoodLoop2<withTruncation, SimdType, SimdSize>(dispatch, scale, i,
+                                                                    0, upper);
+
+
+          // if (vectorCount < bandMin) { // Edge-cases
+          //
+          //       DistanceDispatch<RealType, RealType, Algorithm> dispatch(*locationsPtr, i, embeddingDimension);
+          //
+          //       sumOfSquaredResiduals +=
+          //               innerLikelihoodLoop<withTruncation, RealType, 1>(dispatch, scale, i,
+          //                                                                vectorCount, bandMin);
+          //   }
+
+          return sumOfSquaredResiduals;
+
+        }, ParallelType());
+
+      double lSumOfSquaredResiduals = delta;
+
+      lSumOfSquaredResiduals /= 2.0;
+      sumOfIncrements = lSumOfSquaredResiduals;
+
+      incrementsKnown = true;
+      sumOfIncrementsKnown = true;
     }
 
 	template <bool withTruncation>

@@ -49,3 +49,7 @@ createEngine <- function(embeddingDimension, locationCount, truncation, tbb, sim
     .Call('_MassiveMDS_getSumOfIncrements', PACKAGE = 'MassiveMDS', sexp)
 }
 
+.getSumOfIncrements2 <- function(sexp) {
+    .Call('_MassiveMDS_getSumOfIncrements2', PACKAGE = 'MassiveMDS', sexp)
+}
+

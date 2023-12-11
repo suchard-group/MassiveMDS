@@ -7,7 +7,7 @@
 #' @return MDS log likelihood
 #'
 #' @export
-getLogLikelihood <- function(engine) {
+getLogLikelihood <- function(engine,landmarks=FALSE) {
 
   if (!engine$dataInitialized) {
     stop("data are not set")
@@ -20,15 +20,26 @@ getLogLikelihood <- function(engine) {
   if (is.null(engine$precision)) {
     stop("precision is not set")
   }
+  if (landmarks) {
+    sumOfIncrements <- .getSumOfIncrements2(engine$engine)
+    #observationCount <- (engine$locationCount * (engine$locationCount - 1)) / 2;
+    observationCount <- engine$locationCount * engine$bandwidth -
+      (engine$bandwidth * (engine$bandwidth + 1) / 2)
 
-  sumOfIncrements <- .getSumOfIncrements(engine$engine)
-  #observationCount <- (engine$locationCount * (engine$locationCount - 1)) / 2;
-  observationCount <- engine$locationCount * engine$bandwidth -
-    (engine$bandwidth * (engine$bandwidth + 1) / 2)
+    #logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount - sumOfIncrements
 
-  #logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount - sumOfIncrements
+    logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount - 2 * sumOfIncrements
+  } else {
+    sumOfIncrements <- .getSumOfIncrements(engine$engine)
+    #observationCount <- (engine$locationCount * (engine$locationCount - 1)) / 2;
+    observationCount <- engine$locationCount * engine$bandwidth -
+      (engine$bandwidth * (engine$bandwidth + 1) / 2)
 
-  logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount - 2 * sumOfIncrements
+    #logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount - sumOfIncrements
+
+    logLikelihood <- 0.5 * (log(engine$precision) - log(2 * pi)) * observationCount - 2 * sumOfIncrements
+  }
+
 
   return(logLikelihood)
 }
