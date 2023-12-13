@@ -6,6 +6,7 @@ OPTION(BUILD_AVX512 "Build MDS with AVX-512" OFF)
 OPTION(BUILD_AVX "Build MDS with AVX" OFF)
 OPTION(BUILD_CUDA "Build MDS with a CUDA backend" OFF)
 OPTION(BUILD_OPENCL "Build MDS with a OpenCL backend" OFF)
+OPTION(BUILD_MULTIARCH "Build MDS for multiple architectures" ON)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
@@ -20,6 +21,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -pedantic -fPIC -std=c++11")
 
 # -mllvm -debug-pass=loop-vectorize
 
+IF(BUILD_MULTIARCH)
 if(APPLE)
    if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
         execute_process(COMMAND sysctl -q hw.optional.arm64
@@ -43,6 +45,7 @@ if(APPLE)
         message(STATUS "macOS x86_64 build")
     endif()
 endif(APPLE)
+endif(BUILD_MULTIARCH)
 
 OPTION(USE_TBB "Use TBB" ON) # TODO does not work (need to comment out in factory.cpp)
 OPTION(USE_SYSTEM_TBB "Use system TBB" ON)
