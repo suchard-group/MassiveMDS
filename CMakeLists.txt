@@ -47,30 +47,30 @@ if(APPLE)
 endif(APPLE)
 endif(BUILD_MULTIARCH)
 
-OPTION(USE_TBB "Use TBB" ON) # TODO does not work (need to comment out in factory.cpp)
+OPTION(USE_TBB "Use TBB" ON) # Converted over to C++11 threading
 OPTION(USE_SYSTEM_TBB "Use system TBB" ON)
 
 if(USE_TBB)
   ADD_DEFINITIONS(-DUSE_TBB)
 
-IF(USE_SYSTEM_TBB)
-  FIND_PACKAGE(TBB REQUIRED)
-ELSE()
-  MESSAGE(STATUS "Compiling local TBB")
-  if (NO_RTM)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-rtm")
-  endif()
-
-  SET(TBB_BUILD_STATIC OFF CACHE BOOL         "Build TBB static library")
-  SET(TBB_BUILD_TBBMALLOC OFF CACHE BOOL      "Build TBB malloc library")
-  SET(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL "Build TBB malloc proxy library")
-  SET(TBB_BUILD_TESTS OFF CACHE BOOL           "Build TBB tests and enable testing infrastructure")
-
-  #ADD_SUBDIRECTORY(external/tbb)
-  #SET(TBB_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/external/tbb/include")
-  SET(TBB_LIBRARIES tbb)
-  INCLUDE("${CMAKE_MODULE_PATH}/build_tbb.cmake")
-ENDIF()
+# IF(USE_SYSTEM_TBB)
+#   FIND_PACKAGE(TBB REQUIRED)
+# ELSE()
+#   MESSAGE(STATUS "Compiling local TBB")
+#   if (NO_RTM)
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-rtm")
+#   endif()
+# 
+#   SET(TBB_BUILD_STATIC OFF CACHE BOOL         "Build TBB static library")
+#   SET(TBB_BUILD_TBBMALLOC OFF CACHE BOOL      "Build TBB malloc library")
+#   SET(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL "Build TBB malloc proxy library")
+#   SET(TBB_BUILD_TESTS OFF CACHE BOOL           "Build TBB tests and enable testing infrastructure")
+# 
+#   #ADD_SUBDIRECTORY(external/tbb)
+#   #SET(TBB_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/external/tbb/include")
+#   SET(TBB_LIBRARIES tbb)
+#   INCLUDE("${CMAKE_MODULE_PATH}/build_tbb.cmake")
+# ENDIF()
 ENDIF(USE_TBB)
 
 INCLUDE_DIRECTORIES(${TBB_INCLUDE_DIRS})
@@ -199,7 +199,7 @@ if(BUILD_OPENCL)
 	target_link_libraries(mds2_jni mds2_opencl)
 endif(BUILD_OPENCL)
 
-target_link_libraries(mds2_jni ${TBB_LIBRARIES})
+# target_link_libraries(mds2_jni ${TBB_LIBRARIES})
 
 ##
 # Build benchmark

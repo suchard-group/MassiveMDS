@@ -6,9 +6,13 @@
 
 #include "cxxopts.hpp"
 
+#define C11
+
 #ifdef USE_TBB
+#ifndef C11
 	#define TBB_PREVIEW_GLOBAL_CONTROL 1
 	#include "tbb/global_control.h"
+#endif
 #endif
 
 #include "AbstractMultiDimensionalScaling.hpp"
@@ -84,7 +88,9 @@ int main(int argc, char* argv[]) {
 	auto toss = std::bernoulli_distribution(0.25);
 
 #ifdef USE_TBB
+#ifndef C11
 	std::shared_ptr<tbb::global_control> task{nullptr};
+#endif
 #endif
 
   int deviceNumber = -1;
@@ -97,12 +103,19 @@ int main(int argc, char* argv[]) {
 		std::cout << "Running on CPU" << std::endl;
 		threads = result["tbb"].as<int>();
 		if (threads != 0) {
-#ifdef USE_TBB		
+#ifdef USE_TBB
+#ifdef C11
+			std::cout << "Using TBB (C++11) with " << threads << " out of "
+                << std::thread::hardware_concurrency()
+			          << " threads" << std::endl;
+			flags |= mds::Flags::TBB;
+#else
 			std::cout << "Using TBB with " << threads << " out of "
                 << tbb::this_task_arena::max_concurrency()
 			          << " threads" << std::endl;
 			flags |= mds::Flags::TBB;
 			task = std::make_shared<tbb::global_control>(tbb::global_control::max_allowed_parallelism, threads);
+#endif
 #endif
 		}
 	}

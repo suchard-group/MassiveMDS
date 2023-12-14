@@ -8,6 +8,7 @@
 #include <complex>
 #include <future>
 
+#define C11
 
 #ifdef USE_SIMD
   #if defined(__ARM64_ARCH_8__)
@@ -21,9 +22,13 @@
 #endif
 
 #ifdef USE_TBB
+#ifdef C11
+    #include <thread>
+#else
     #include "tbb/parallel_reduce.h"
     #include "tbb/blocked_range.h"
     #include "tbb/parallel_for.h"
+#endif
 #endif
 
 #include "MemoryManagement.hpp"

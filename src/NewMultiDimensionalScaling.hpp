@@ -4,9 +4,15 @@
 #include <numeric>
 #include <vector>
 
+#define C11
+
 #define TBB_PREVIEW_GLOBAL_CONTROL 1
 #ifdef USE_TBB
+#ifdef C11
+    #include <thread>
+#else
 	#include "tbb/global_control.h"
+#endif
 #endif
 
 #ifdef RBUILD
@@ -111,11 +117,19 @@ public:
 #ifdef USE_TBB
         if (flags & mds::Flags::TBB) {
     		if (nThreads <= 0) {
+#ifdef C11
+                nThreads = std::thread::hardware_concurrency();
+#else
     		  nThreads = tbb::this_task_arena::max_concurrency();
+#endif
     		}
 
             MDS_COUT << "Using " << nThreads << " threads" << std::endl;
+#ifdef C11
+            global_num_threads = nThreads;
+#else
             control = std::make_shared<tbb::global_control>(tbb::global_control::max_allowed_parallelism, nThreads);
+#endif
     	}
 #endif
     }
@@ -765,6 +779,74 @@ public:
 #endif
 
 #ifdef USE_TBB
+#ifdef C11
+    template <typename Integer, typename Function, typename Real>
+    inline Real accumulate(Integer begin, Integer end, Real sum, Function function, TbbAccumulate) {
+        std::vector<std::thread> threads;
+        std::vector<Real> partial_sums(global_num_threads, Real{0});
+
+        // Calculate the chunk size for each thread
+        size_t chunk_size = (end - begin) / global_num_threads;
+        size_t remainder = (end - begin) % global_num_threads;
+
+        // Perform partial sums in parallel using threads
+        for (size_t i = 0; i < global_num_threads; ++i) {
+            Integer thread_begin = begin + i * chunk_size;
+            Integer thread_end = thread_begin + chunk_size;
+            if (i == global_num_threads - 1) {
+                // Include the remainder in the last thread
+                thread_end += remainder;
+            }
+
+            threads.emplace_back([thread_begin, thread_end, &partial_sums, &function, i] {
+                Real local_sum = Real{0};
+                for (Integer j = thread_begin; j < thread_end; ++j) {
+                    local_sum += function(j);
+                }
+                partial_sums[i] = local_sum;
+            });
+        }
+
+        // Wait for all threads to finish
+        for (auto &thread : threads) {
+            thread.join();
+        }
+
+        // Combine the partial sums to obtain the final result
+        return std::accumulate(partial_sums.begin(), partial_sums.end(), sum);
+    }
+
+    template <typename Integer, typename Function>
+    inline void for_each(Integer begin, Integer end, Function function, TbbAccumulate) {
+        std::vector<std::thread> threads;
+
+        // Calculate the chunk size for each thread
+        size_t chunk_size = (end - begin) / global_num_threads;
+        size_t remainder = (end - begin) % global_num_threads;
+
+        // Perform the operation in parallel using threads
+        for (size_t i = 0; i < global_num_threads; ++i) {
+            Integer thread_begin = begin + i * chunk_size;
+            Integer thread_end = thread_begin + chunk_size;
+            if (i == global_num_threads - 1) {
+                // Include the remainder in the last thread
+                thread_end += remainder;
+            }
+
+            threads.emplace_back([thread_begin, thread_end, &function] {
+                for (Integer j = thread_begin; j < thread_end; ++j) {
+                    function(j);
+                }
+            });
+        }
+
+        // Wait for all threads to finish
+        for (auto &thread : threads) {
+            thread.join();
+        }
+    }
+
+#else
 	template <typename Integer, typename Function, typename Real>
 	inline Real accumulate(Integer begin, Integer end, Real sum, Function function, TbbAccumulate) {
 
@@ -800,6 +882,7 @@ public:
 				}
 		);
 	}
+#endif // C11
 #endif
 
 private:
@@ -837,7 +920,11 @@ private:
     int nThreads;
 
 #ifdef USE_TBB
+#ifdef C11
+    size_t global_num_threads;
+#else
     std::shared_ptr<tbb::global_control> control;
+#endif
 #endif
 
 };
@@ -852,7 +939,11 @@ constructNewMultiDimensionalScalingDoubleNoParallelNoSimd(int embeddingDimension
 #ifdef USE_TBB
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingDoubleTbbNoSimd(int embeddingDimension, const Layout& layout, long flags, int threads) {
+#ifdef C11
+  MDS_CERR << "DOUBLE, TBB/C11 PARALLEL, NO SIMD" << std::endl;
+#else
   MDS_CERR << "DOUBLE, TBB PARALLEL, NO SIMD" << std::endl;
+#endif
   return std::make_shared<NewMultiDimensionalScaling<DoubleNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
 }
 #endif
@@ -866,7 +957,11 @@ constructNewMultiDimensionalScalingFloatNoParallelNoSimd(int embeddingDimension,
 #ifdef USE_TBB
 std::shared_ptr<AbstractMultiDimensionalScaling>
 constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, const Layout& layout, long flags, int threads) {
+#ifdef C11
+  MDS_CERR << "SINGLE, TBB/C11 PARALLEL, NO SIMD" << std::endl;
+#else
   MDS_CERR << "SINGLE, TBB PARALLEL, NO SIMD" << std::endl;
+#endif
   return std::make_shared<NewMultiDimensionalScaling<FloatNoSimdTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
 }
 #endif
@@ -883,7 +978,11 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, const 
 #ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleTbbAvx(int embeddingDimension, const Layout& layout, long flags, int threads) {
+#ifdef C11
+		MDS_CERR << "DOUBLE, TBB/C11 PARALLEL, AVX" << std::endl;
+#else    
         MDS_CERR << "DOUBLE, TBB PARALLEL, AVX" << std::endl;
+#endif
         return std::make_shared<NewMultiDimensionalScaling<DoubleAvxTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 #endif
@@ -899,7 +998,11 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, const 
 #ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleTbbAvx512(int embeddingDimension, const Layout& layout, long flags, int threads) {
+#ifdef C11
+		MDS_CERR << "DOUBLE, TBB/C11 PARALLEL, AVX512" << std::endl;
+#else    
         MDS_CERR << "DOUBLE, TBB PARALLEL, AVX512" << std::endl;
+#endif
         return std::make_shared<NewMultiDimensionalScaling<DoubleAvx512TypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 #endif
@@ -915,7 +1018,11 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, const 
 #ifdef USE_TBB
     std::shared_ptr<AbstractMultiDimensionalScaling>
     constructNewMultiDimensionalScalingDoubleTbbSse(int embeddingDimension, const Layout& layout, long flags, int threads) {
+#ifdef C11
+	  MDS_CERR << "DOUBLE, TBB/C11 PARALLEL, SSE" << std::endl;
+#else    
       MDS_CERR << "DOUBLE, TBB PARALLEL, SSE" << std::endl;
+#endif
       return std::make_shared<NewMultiDimensionalScaling<DoubleSseTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
     }
 #endif
@@ -929,7 +1036,11 @@ constructNewMultiDimensionalScalingFloatTbbNoSimd(int embeddingDimension, const 
 #ifdef USE_TBB
 	std::shared_ptr<AbstractMultiDimensionalScaling>
 	constructNewMultiDimensionalScalingFloatTbbSse(int embeddingDimension, const Layout& layout, long flags, int threads) {
+#ifdef C11
+	  MDS_CERR << "SINGLE. TBB/C11 PARALLEL, SSE" << std::endl;
+#else	
 	  MDS_CERR << "SINGLE, TBB PARALLEL, SSE" << std::endl;
+#endif
 	  return std::make_shared<NewMultiDimensionalScaling<FloatSseTypeInfo, TbbAccumulate>>(embeddingDimension, layout, flags, threads);
 	}
 #endif
