@@ -426,10 +426,10 @@ public:
 
 	  for_each(0, locationCount, [this, scale](const int i) { // [gradient,dim]
 
-	    int upperMin = bandwidth+1;
+	    int upperMin = locationCount;
 
-	    if (locationCount <= upperMin) {
-	      upperMin = locationCount;
+	    if (i >= bandwidth) {
+	      upperMin = bandwidth;
 	    }
 
 	    const int upper = upperMin - upperMin % SimdSize;
@@ -768,10 +768,10 @@ public:
 
       RealType delta =
         accumulate(0, locationCount, RealType(0), [this, scale](const int i) {
-          int upperMin = bandwidth+1;
+          int upperMin = i + 1;
 
-          if (locationCount <= upperMin) {
-            upperMin = locationCount;
+          if (i >= bandwidth) {
+            upperMin = bandwidth;
           }
 
           const int upper = upperMin - upperMin % SimdSize;
