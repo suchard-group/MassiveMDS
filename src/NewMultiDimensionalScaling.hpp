@@ -180,7 +180,7 @@ public:
 					computeSumOfIncrementsGeneric<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
 				}
 			}
-			incrementsKnown = true;
+			//incrementsKnown = true;
 		} else {
 			if (isLeftTruncated) {
 				updateSumOfIncrements<true>();
@@ -205,7 +205,7 @@ public:
             computeSumOfIncrements2Generic<false, typename TypeInfo::SimdType, TypeInfo::SimdSize, Generic>();
           }
         }
-        incrementsKnown = true;
+        //incrementsKnown = true;
       } else {
         if (isLeftTruncated) {
           updateSumOfIncrements<true>();
@@ -218,7 +218,7 @@ public:
     double getSumOfIncrements() {
     	if (!sumOfIncrementsKnown) {
 			computeIncrements();
-			sumOfIncrementsKnown = true;
+			//sumOfIncrementsKnown = true;
 		}
 		if (isLeftTruncated) {
 			return sumOfIncrements;
@@ -230,7 +230,7 @@ public:
     double getSumOfIncrements2() {
       if (!sumOfIncrementsKnown) {
         computeIncrements2();
-        sumOfIncrementsKnown = true;
+        //sumOfIncrementsKnown = true;
       }
       if (isLeftTruncated) {
         return sumOfIncrements;
@@ -270,7 +270,7 @@ public:
 
     void restoreState() {
     	sumOfIncrements = storedSumOfIncrements;
-    	sumOfIncrementsKnown = true;
+    	//sumOfIncrementsKnown = true;
 
 		if (!isStoredIncrementsEmpty) {
     		std::copy(
@@ -278,7 +278,7 @@ public:
     			end(storedIncrements),
     			begin(increments) + updatedLocation * locationCount
     		);
-    		incrementsKnown = true;
+    		//incrementsKnown = true;
     	} else {
     		incrementsKnown = false; // Force recompute;  TODO cache
     	}
@@ -305,8 +305,7 @@ public:
 		if (isLeftTruncated) {
 			incrementsKnown = false;
 			sumOfIncrementsKnown = false;
-
-    		isStoredIncrementsEmpty = true;
+			isStoredIncrementsEmpty = true;
 		}
     }
 
@@ -358,7 +357,7 @@ public:
           int upperMin = bandwidth + 1;
 
           if (locationCount - i <= upperMin) {
-            upperMin = locationCount-i;
+            upperMin = locationCount - i;
           }
 
           const int upper = upperMin - upperMin % SimdSize;
@@ -701,7 +700,7 @@ public:
             squaredResidual += mask(notMissing, math::phi_new(distance * oneOverSd));
           }
 
-          SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * locationCount + j]);
+          SimdHelper<SimdType, RealType>::put(squaredResidual, &increments[i * bandwidth + j]);
           sum += squaredResidual;
         }
       }
@@ -720,9 +719,8 @@ public:
                    int bandMin = bandwidth + 1;
 
                    if (locationCount - i <= bandMin) {
-                      bandMin = locationCount-i;
+                      bandMin = locationCount - i;
                    }
-
 
                     const int vectorCount = bandMin - bandMin % SimdSize;
 
@@ -757,8 +755,8 @@ public:
         lSumOfSquaredResiduals /= 2.0;
         sumOfIncrements = lSumOfSquaredResiduals;
 
-        incrementsKnown = true;
-        sumOfIncrementsKnown = true;
+        //incrementsKnown = true;
+        //sumOfIncrementsKnown = true;
     }
 
     template <bool withTruncation, typename SimdType, int SimdSize, typename Algorithm>
@@ -807,8 +805,8 @@ public:
       lSumOfSquaredResiduals /= 2.0;
       sumOfIncrements = lSumOfSquaredResiduals;
 
-      incrementsKnown = true;
-      sumOfIncrementsKnown = true;
+      //incrementsKnown = true;
+      //sumOfIncrementsKnown = true;
     }
 
 	template <bool withTruncation>
